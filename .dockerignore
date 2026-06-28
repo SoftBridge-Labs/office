@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.gitignore
+.dockerignore
+README.md
+CONTRIBUTING.md
+eslint.config.mjs
+postcss.config.mjs
+jsconfig.json
+.env
+.agents
+AGENTS.md
+CLAUDE.md
