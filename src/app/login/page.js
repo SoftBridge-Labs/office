@@ -21,7 +21,7 @@ export default function Login() {
 
     try {
       // Call backend auth
-      const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/softbridge/login`;
+      const url = `${typeof window !== 'undefined' ? '/api-proxy' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000')}/softbridge/login`;
       const res = await fetch(url, {
         method: 'POST',
         headers: {

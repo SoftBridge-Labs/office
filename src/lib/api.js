@@ -1,6 +1,6 @@
 // API Client for SoftBridge Office Suite (Production Integration)
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE = typeof window !== 'undefined' ? '/api-proxy' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000');
 
 function getLocal(key, defaultVal) {
   if (typeof window === 'undefined') return defaultVal;
