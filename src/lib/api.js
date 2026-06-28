@@ -285,6 +285,11 @@ export const api = {
 
   // ─── Workspace Docs ───────────────────────────────────────────────────────
   getDocs: () => request('/workspace/docs').catch(() => ({ success: true, data: getLocal('docs', []) })),
+  getDoc: (id) => request(`/workspace/docs/${id}`).catch(() => {
+    const localDocs = getLocal('docs', []);
+    const found = localDocs.find(d => d._id === id);
+    return found ? { success: true, data: found } : { success: false, error: 'Document not found' };
+  }),
   createDoc: (data) => request('/workspace/docs', { method: 'POST', body: JSON.stringify(data) }).catch(() => saveLocalItem('docs', data)),
   updateDoc: (id, data) => request(`/workspace/docs/${id}`, { method: 'PUT', body: JSON.stringify(data) }).catch(() => updateLocalItem('docs', id, data)),
   deleteDoc: (id) => request(`/workspace/docs/${id}`, { method: 'DELETE' }).catch(() => deleteLocalItem('docs', id)),

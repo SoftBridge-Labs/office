@@ -18,6 +18,7 @@ export default function DocumentEditorPage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [ownerUid, setOwnerUid] = useState('');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -32,17 +33,16 @@ export default function DocumentEditorPage() {
   const loadDocument = async () => {
     setLoading(true);
     try {
-      const res = await api.getDocs();
+      const res = await api.getDoc(id);
       if (res.success && res.data) {
-        const found = res.data.find(d => d._id === id);
-        if (found) {
-          setDocTitle(found.title || '');
-          setDocContent(found.content || '');
-          setCollaborators(found.collaborators || []);
-          setIsPublic(found.isPublic || false);
-        } else {
-          router.push('/docs');
-        }
+        const found = res.data;
+        setDocTitle(found.title || '');
+        setDocContent(found.content || '');
+        setCollaborators(found.collaborators || []);
+        setIsPublic(found.isPublic || false);
+        setOwnerUid(found.uid || '');
+      } else {
+        router.push('/docs');
       }
     } catch (e) {
       console.error(e);
@@ -51,6 +51,13 @@ export default function DocumentEditorPage() {
       setLoading(false);
     }
   };
+
+  const isOwner = !ownerUid || (userProfile && ownerUid === userProfile.uid);
+  const isCollaboratorEditor = userProfile && collaborators.some(c => 
+    (c.uid === userProfile.uid || c.email?.toLowerCase() === userProfile.email?.toLowerCase()) && 
+    (c.role === 'editor' || c.role === 'admin')
+  );
+  const canEdit = isOwner || isCollaboratorEditor;
 
   const handleSave = async () => {
     if (!docTitle.trim()) return alert('Document title is required.');
@@ -169,44 +176,48 @@ export default function DocumentEditorPage() {
           </button>
 
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button 
-              onClick={handleDelete} 
-              style={{
-                padding: '0.5rem 1rem',
-                background: '#fee2e2',
-                color: '#ef4444',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                transition: 'opacity 0.15s'
-              }}
-              onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
-              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-            >
-              Delete
-            </button>
-            <button 
-              onClick={handleSave} 
-              disabled={saving}
-              style={{
-                padding: '0.5rem 1.5rem',
-                background: 'var(--text-primary)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 700,
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                opacity: saving ? 0.7 : 1,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              {saving ? 'Saving...' : 'Save'}
-            </button>
+            {canEdit && (
+              <button 
+                onClick={handleDelete} 
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#fee2e2',
+                  color: '#ef4444',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  transition: 'opacity 0.15s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+                onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+              >
+                Delete
+              </button>
+            )}
+            {canEdit && (
+              <button 
+                onClick={handleSave} 
+                disabled={saving}
+                style={{
+                  padding: '0.5rem 1.5rem',
+                  background: 'var(--text-primary)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  opacity: saving ? 0.7 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+            )}
           </div>
         </div>
 
@@ -235,7 +246,8 @@ export default function DocumentEditorPage() {
                 value={docTitle} 
                 onChange={e => setDocTitle(e.target.value)} 
                 placeholder="Untitled Document" 
-                onFocus={e => e.currentTarget.style.borderBottomColor = 'var(--brand)'}
+                readOnly={!canEdit}
+                onFocus={e => canEdit && (e.currentTarget.style.borderBottomColor = 'var(--brand)')}
                 onBlur={e => e.currentTarget.style.borderBottomColor = 'transparent'}
               />
 
@@ -257,8 +269,10 @@ export default function DocumentEditorPage() {
                 }}
                 value={docContent}
                 onChange={e => setDocContent(e.target.value)}
-                placeholder="Start writing here... (supports Markdown)"
+                placeholder={canEdit ? "Start writing here... (supports Markdown)" : "Document is read-only"}
+                readOnly={!canEdit}
                 onFocus={e => {
+                  if (!canEdit) return;
                   e.currentTarget.style.borderColor = 'var(--brand)';
                   e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.08)';
                 }}
@@ -287,73 +301,119 @@ export default function DocumentEditorPage() {
                   <span className="material-symbols-outlined" style={{ fontSize: '1.2rem', color: 'var(--brand)' }}>share</span>
                   Access Settings
                 </h3>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', background: 'var(--bg-muted)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{isPublic ? 'Public Link' : 'Private'}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      {isPublic ? 'Anyone with the link can view' : 'Only invited members can view'}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.75rem', background: 'var(--bg-muted)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{isPublic ? 'Public Link' : 'Private'}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {isPublic ? 'Anyone with the link can view' : 'Only invited members can view'}
+                      </div>
                     </div>
+                    {canEdit && (
+                      <button 
+                        onClick={handleTogglePublic}
+                        style={{
+                          padding: '0.35rem 0.75rem',
+                          background: isPublic ? 'var(--brand)' : 'var(--text-secondary)',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {isPublic ? 'Make Private' : 'Make Public'}
+                      </button>
+                    )}
                   </div>
-                  <button 
-                    onClick={handleTogglePublic}
-                    style={{
-                      padding: '0.35rem 0.75rem',
-                      background: isPublic ? 'var(--brand)' : 'var(--text-secondary)',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {isPublic ? 'Make Private' : 'Make Public'}
-                  </button>
+                  {isPublic && (
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+                      <input 
+                        type="text" 
+                        readOnly 
+                        value={typeof window !== 'undefined' ? `${window.location.origin}/doc/${id}` : ''}
+                        style={{
+                          flex: 1,
+                          padding: '0.4rem 0.6rem',
+                          border: '1px solid var(--border)',
+                          borderRadius: '6px',
+                          fontSize: '0.8rem',
+                          background: '#ffffff',
+                          color: 'var(--text-primary)',
+                          outline: 'none'
+                        }}
+                        onClick={e => e.target.select()}
+                      />
+                      <button
+                        onClick={() => {
+                          const url = `${window.location.origin}/doc/${id}`;
+                          navigator.clipboard.writeText(url);
+                          alert('Link copied to clipboard!');
+                        }}
+                        style={{
+                          padding: '0.4rem 0.8rem',
+                          background: 'var(--text-primary)',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <hr style={{ border: 'none', borderTop: '1px solid var(--border)' }} />
-
-              {/* Invite Collaborators */}
-              <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '1.2rem', color: 'var(--brand)' }}>group_add</span>
-                  Invite Collaborators
-                </h3>
-                <form onSubmit={handleInvite} style={{ display: 'flex', gap: '0.5rem' }}>
-                  <input
-                    type="email"
-                    placeholder="user@softbridgelabs.in"
-                    value={inviteEmail}
-                    onChange={e => setInviteEmail(e.target.value)}
-                    required
-                    style={{
-                      flex: 1,
-                      padding: '0.5rem 0.75rem',
-                      border: '1px solid var(--border)',
-                      borderRadius: '8px',
-                      fontSize: '0.85rem',
-                      outline: 'none',
-                      background: '#fff'
-                    }}
-                  />
-                  <button
-                    type="submit"
-                    style={{
-                      padding: '0.5rem 1rem',
-                      background: 'var(--text-primary)',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Invite
-                  </button>
-                </form>
-              </div>
+              {canEdit && (
+                <>
+                  <hr style={{ border: 'none', borderTop: '1px solid var(--border)' }} />
+                  {/* Invite Collaborators */}
+                  <div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '1.2rem', color: 'var(--brand)' }}>group_add</span>
+                      Invite Collaborators
+                    </h3>
+                    <form onSubmit={handleInvite} style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input
+                        type="email"
+                        placeholder="user@softbridgelabs.in"
+                        value={inviteEmail}
+                        onChange={e => setInviteEmail(e.target.value)}
+                        required
+                        style={{
+                          flex: 1,
+                          padding: '0.5rem 0.75rem',
+                          border: '1px solid var(--border)',
+                          borderRadius: '8px',
+                          fontSize: '0.85rem',
+                          outline: 'none',
+                          background: '#fff'
+                        }}
+                      />
+                      <button
+                        type="submit"
+                        style={{
+                          padding: '0.5rem 1rem',
+                          background: 'var(--text-primary)',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '0.85rem',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Invite
+                      </button>
+                    </form>
+                  </div>
+                </>
+              )}
 
               {/* Collaborators List */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -383,24 +443,26 @@ export default function DocumentEditorPage() {
                         <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, paddingRight: '0.5rem' }}>
                           <span style={{ fontWeight: 600 }}>{member.email}</span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveCollaborator(member.email)}
-                          style={{
-                            border: 'none',
-                            background: 'none',
-                            color: '#ef4444',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '2px',
-                            borderRadius: '4px'
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.background = '#fee2e2'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>close</span>
-                        </button>
+                        {canEdit && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCollaborator(member.email)}
+                            style={{
+                              border: 'none',
+                              background: 'none',
+                              color: '#ef4444',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              padding: '2px',
+                              borderRadius: '4px'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#fee2e2'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>close</span>
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
