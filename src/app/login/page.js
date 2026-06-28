@@ -43,7 +43,7 @@ export default function Login() {
         localStorage.setItem('sb_user', JSON.stringify(data.user));
       }
       
-      router.push('/sheets');
+      router.push('/calendar');
     } catch (err) {
       setError(err.message || 'Invalid email or password');
     } finally {
