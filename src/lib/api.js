@@ -1,0 +1,303 @@
+// API Client for SoftBridge Office Suite (Production Integration)
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+function getLocal(key, defaultVal) {
+  if (typeof window === 'undefined') return defaultVal;
+  const val = localStorage.getItem(`sb_local_${key}`);
+  return val ? JSON.parse(val) : defaultVal;
+}
+
+function saveLocalItem(key, item) {
+  if (typeof window === 'undefined') return item;
+  const items = getLocal(key, []);
+  const newItem = { ...item, _id: item._id || Math.random().toString(36).substring(2, 10), createdAt: new Date().toISOString() };
+  items.push(newItem);
+  localStorage.setItem(`sb_local_${key}`, JSON.stringify(items));
+  return { success: true, data: newItem };
+}
+
+function updateLocalItem(key, id, updates) {
+  if (typeof window === 'undefined') return updates;
+  const items = getLocal(key, []);
+  const idx = items.findIndex(x => x._id === id);
+  if (idx !== -1) {
+    items[idx] = { ...items[idx], ...updates, updatedAt: new Date().toISOString() };
+    localStorage.setItem(`sb_local_${key}`, JSON.stringify(items));
+    return { success: true, data: items[idx] };
+  }
+  return { success: false };
+}
+
+function deleteLocalItem(key, id) {
+  if (typeof window === 'undefined') return { success: true };
+  let items = getLocal(key, []);
+  items = items.filter(x => x._id !== id);
+  localStorage.setItem(`sb_local_${key}`, JSON.stringify(items));
+  return { success: true };
+}
+
+async function request(endpoint, options = {}) {
+  const url = `${API_BASE}${endpoint}`;
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+  
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('sb_id_token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+
+  const res = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || data.message || `Request failed with status ${res.status}`);
+  }
+
+  return data;
+}
+
+export const api = {
+  // ─── Sheets CRUD Operations ───────────────────────────────────────────────
+  getSheets: () => request('/workspace/forms/sheets/'),
+  
+  createSheet: (title, columns = null) => request('/workspace/forms/sheets/', {
+    method: 'POST',
+    body: JSON.stringify({
+      title,
+      columns: columns || [
+        { id: 'col-1', name: 'col-1', label: 'A', type: 'text' },
+        { id: 'col-2', name: 'col-2', label: 'B', type: 'text' },
+        { id: 'col-3', name: 'col-3', label: 'C', type: 'text' }
+      ]
+    })
+  }),
+  
+  getSheet: (id) => request(`/workspace/forms/sheets/${id}`),
+  getSheetPublic: (id) => request(`/workspace/forms/sheets/${id}/view`),
+  
+  updateSheet: (id, metadata) => request(`/workspace/forms/sheets/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(metadata)
+  }),
+  
+  deleteSheet: (id) => request(`/workspace/forms/sheets/${id}`, {
+    method: 'DELETE'
+  }),
+  
+  duplicateSheet: (id) => request(`/workspace/forms/sheets/${id}/duplicate`, {
+    method: 'POST'
+  }),
+
+  // ─── Sheet Data Operations ────────────────────────────────────────────────
+  addRow: (sheetId, cells = {}) => request(`/workspace/forms/sheets/${sheetId}/rows`, {
+    method: 'POST',
+    body: JSON.stringify({ cells })
+  }),
+  
+  updateRow: (sheetId, rowId, cells) => request(`/workspace/forms/sheets/${sheetId}/rows/${rowId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ cells })
+  }),
+  
+  deleteRow: (sheetId, rowId) => request(`/workspace/forms/sheets/${sheetId}/rows/${rowId}`, {
+    method: 'DELETE'
+  }),
+  
+  bulkUpdateCells: (sheetId, updates) => request(`/workspace/forms/sheets/${sheetId}/cells`, {
+    method: 'PUT',
+    body: JSON.stringify({ updates })
+  }),
+
+  // Export URL with auth token baked in so window.open works
+  getExportUrl: (sheetId, format = 'csv') => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('sb_id_token') : '';
+    const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
+    return `${API_BASE}/workspace/forms/sheets/${sheetId}/export?format=${format}${tokenParam}`;
+  },
+
+  // ─── Workspace Form Integrations ──────────────────────────────────────────
+  importFormResponses: (sheetId, formId) => request(`/workspace/forms/sheets/${sheetId}/import-form`, {
+    method: 'POST',
+    body: JSON.stringify({ formId })
+  }),
+  
+  exportToForm: (sheetId) => request(`/workspace/forms/sheets/${sheetId}/export-to-form`, {
+    method: 'POST'
+  }),
+
+  // ─── Collaboration ────────────────────────────────────────────────────────
+  inviteCollaborator: (sheetId, email, role) => request(`/workspace/forms/sheets/${sheetId}/team/invite`, {
+    method: 'POST',
+    body: JSON.stringify({ email, role })
+  }),
+  
+  acceptInvitation: (token) => request('/workspace/forms/sheets/team/accept', {
+    method: 'POST',
+    body: JSON.stringify({ token })
+  }),
+  
+  getCollaborators: (sheetId) => request(`/workspace/forms/sheets/${sheetId}/team/collaborators`),
+  
+  updateCollaboratorRole: (sheetId, targetUid, role) => request(`/workspace/forms/sheets/${sheetId}/team/collaborators/${targetUid}`, {
+    method: 'PUT',
+    body: JSON.stringify({ role })
+  }),
+  
+  revokeCollaborator: (sheetId, targetUid) => request(`/workspace/forms/sheets/${sheetId}/team/collaborators/${targetUid}`, {
+    method: 'DELETE'
+  }),
+
+  // ─── Workspace Forms integration ──────────────────────────────────────────
+  getForms: () => request('/workspace/forms'),
+  
+  linkSheetToForm: (formId, sheetId) => request(`/workspace/forms/${formId}/metadata`, {
+    method: 'PUT',
+    body: JSON.stringify({ attachedSheetId: sheetId })
+  }),
+
+  // ─── SoftBridge Account ───────────────────────────────────────────────────
+  getAccount: (uid) => request(`/softbridge/account?uid=${uid}`),
+
+  // ─── Calendar Management ──────────────────────────────────────────────────
+  createCalendar: (data) => request('/calendar/calendars', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  getCalendars: () => request('/calendar/calendars'),
+  deleteCalendar: (id) => request(`/calendar/calendars/${id}`, {
+    method: 'DELETE'
+  }),
+
+  // ─── Scheduling Links ─────────────────────────────────────────────────────
+  createOrUpdateSchedulingLink: (data) => request('/calendar/scheduling-links', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  getSchedulingLinks: () => request('/calendar/scheduling-links'),
+  deleteSchedulingLink: (id) => request(`/calendar/scheduling-links/${id}`, {
+    method: 'DELETE'
+  }),
+
+  // ─── Unified Calendar Events ──────────────────────────────────────────────
+  createEvent: (data) => request('/calendar/events', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  getEvents: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request(`/calendar/events${q ? `?${q}` : ''}`);
+  },
+  updateEvent: (id, data) => request(`/calendar/events/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  }),
+  deleteEvent: (id) => request(`/calendar/events/${id}`, {
+    method: 'DELETE'
+  }),
+
+  // ─── Public Booking System ────────────────────────────────────────────────
+  getPublicBooking: (slug, userUid = null) => {
+    const q = userUid ? `?user_uid=${userUid}` : '';
+    return request(`/calendar/booking/${slug}${q}`);
+  },
+  getAvailableSlots: (slug, date, userUid = null, timezone = null) => {
+    const params = { date };
+    if (userUid) params.user_uid = userUid;
+    if (timezone) params.timezone = timezone;
+    const q = new URLSearchParams(params).toString();
+    return request(`/calendar/booking/${slug}/availability?${q}`);
+  },
+  bookSlot: (slug, data) => request(`/calendar/booking/${slug}/book`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  cancelBooking: (slug, eventId, inviteeEmail) => request(`/calendar/booking/${slug}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({ eventId, inviteeEmail })
+  }),
+
+  // ─── Team Management & Collaboration ──────────────────────────────────────
+  createTeam: (data) => request('/calendar/teams', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  getTeams: () => request('/calendar/teams'),
+  addTeamMember: (teamId, data) => request(`/calendar/teams/${teamId}/members`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  removeTeamMember: (teamId, uid) => request(`/calendar/teams/${teamId}/members/${uid}`, {
+    method: 'DELETE'
+  }),
+  deleteTeam: (teamId) => request(`/calendar/teams/${teamId}`, {
+    method: 'DELETE'
+  }),
+
+  // ─── AI v2 – Daily Planner & Briefing ────────────────────────────────────
+  getDailySummary: (date, lang = 'en') =>
+    request(`/calendar/ai/daily-summary?date=${date}&lang=${lang}`),
+
+  // Check AI usage / tier
+  getAiUsage: () => request('/calendar/ai/usage'),
+
+  // Smart slot recommendation
+  smartSchedule: (date, durationMinutes) => request('/calendar/ai/smart-schedule', {
+    method: 'POST',
+    body: JSON.stringify({ date, durationMinutes })
+  }),
+
+  // Meeting summarizer
+  summarizeMeeting: (title, description) => request('/calendar/ai/summarize-meeting', {
+    method: 'POST',
+    body: JSON.stringify({ title, description })
+  }),
+
+  // Conflict resolver
+  resolveConflict: (conflictEvents, targetEvent) => request('/calendar/ai/resolve-conflict', {
+    method: 'POST',
+    body: JSON.stringify({ conflictEvents, targetEvent })
+  }),
+
+  // Meet Room signaling
+  joinMeetingRoom: (roomId, data) => request(`/calendar/meet/${roomId}/join`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  getMeetingPeers: (roomId) => request(`/calendar/meet/${roomId}/peers`),
+  leaveMeetingRoom: (roomId, data) => request(`/calendar/meet/${roomId}/leave`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  // ─── Workspace Bookmarks ──────────────────────────────────────────────────
+  getBookmarks: () => request('/workspace/bookmarks').catch(() => ({ success: true, data: getLocal('bookmarks', []) })),
+  createBookmark: (data) => request('/workspace/bookmarks', { method: 'POST', body: JSON.stringify(data) }).catch(() => saveLocalItem('bookmarks', data)),
+  updateBookmark: (id, data) => request(`/workspace/bookmarks/${id}`, { method: 'PUT', body: JSON.stringify(data) }).catch(() => updateLocalItem('bookmarks', id, data)),
+  deleteBookmark: (id) => request(`/workspace/bookmarks/${id}`, { method: 'DELETE' }).catch(() => deleteLocalItem('bookmarks', id)),
+
+  // ─── Workspace Docs ───────────────────────────────────────────────────────
+  getDocs: () => request('/workspace/docs').catch(() => ({ success: true, data: getLocal('docs', []) })),
+  createDoc: (data) => request('/workspace/docs', { method: 'POST', body: JSON.stringify(data) }).catch(() => saveLocalItem('docs', data)),
+  updateDoc: (id, data) => request(`/workspace/docs/${id}`, { method: 'PUT', body: JSON.stringify(data) }).catch(() => updateLocalItem('docs', id, data)),
+  deleteDoc: (id) => request(`/workspace/docs/${id}`, { method: 'DELETE' }).catch(() => deleteLocalItem('docs', id)),
+
+  // ─── Workspace Tasks ──────────────────────────────────────────────────────
+  getTasks: () => request('/workspace/tasks').catch(() => ({ success: true, data: getLocal('tasks', []) })),
+  createTask: (data) => request('/workspace/tasks', { method: 'POST', body: JSON.stringify(data) }).catch(() => saveLocalItem('tasks', data)),
+  updateTask: (id, data) => request(`/workspace/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }).catch(() => updateLocalItem('tasks', id, data)),
+  deleteTask: (id) => request(`/workspace/tasks/${id}`, { method: 'DELETE' }).catch(() => deleteLocalItem('tasks', id)),
+
+  // ─── Workspace Whiteboards ────────────────────────────────────────────────
+  getWhiteboards: () => request('/workspace/whiteboard').catch(() => ({ success: true, data: getLocal('whiteboards', []) })),
+  createWhiteboard: (data) => request('/workspace/whiteboard', { method: 'POST', body: JSON.stringify(data) }).catch(() => saveLocalItem('whiteboards', data)),
+  updateWhiteboard: (id, data) => request(`/workspace/whiteboard/${id}`, { method: 'PUT', body: JSON.stringify(data) }).catch(() => updateLocalItem('whiteboards', id, data)),
+  deleteWhiteboard: (id) => request(`/workspace/whiteboard/${id}`, { method: 'DELETE' }).catch(() => deleteLocalItem('whiteboards', id)),
+};

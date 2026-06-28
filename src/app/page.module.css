@@ -1,0 +1,302 @@
+/* Redesigned minimal theme variables matching the Calendar screenshots exactly */
+:root {
+  --bg-workspace: #ededeb;
+  --bg-card: #ffffff;
+  --bg-button: #1a1a1a;
+  --border-subtle: rgba(0, 0, 0, 0.05);
+  
+  --text-main: #1a1a1a;
+  --text-muted: #8c8c8a;
+  --text-dark-gray: #555553;
+  
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'Plus Jakarta Sans', sans-serif;
+}
+
+.container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--bg-workspace);
+  color: var(--text-main);
+  font-family: var(--font-body);
+}
+
+/* Sidebar Styling copied from Calendar */
+.sidebar {
+  width: 280px;
+  background-color: var(--bg-card);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+}
+
+.logoArea {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  text-decoration: none;
+}
+
+.logoIcon {
+  width: 32px;
+  height: 32px;
+  background-color: #6366f1;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 800;
+  font-family: var(--font-display);
+}
+
+.logoText {
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--text-main);
+}
+
+.navSection {
+  margin-bottom: 2rem;
+}
+
+.sectionLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+  padding-left: 0.5rem;
+}
+
+.navList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-dark-gray);
+  transition: all 0.2s ease;
+}
+
+.navItem:hover {
+  background-color: #f5f5f3;
+  color: var(--text-main);
+}
+
+.navItemActive {
+  background-color: var(--text-main);
+  color: #ffffff;
+}
+
+.navItemActive:hover {
+  background-color: #333331;
+  color: #ffffff;
+}
+
+.bottomSidebar {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.authBtn {
+  width: 100%;
+  padding: 0.6rem;
+  background-color: var(--bg-button);
+  color: white;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  text-align: center;
+}
+
+.authBtn:hover {
+  background-color: #333331;
+}
+
+/* Main Dashboard Panel */
+.mainPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 2rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2.5rem;
+}
+
+.pageTitle {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 800;
+}
+
+/* Dashboard Layout Grid */
+.dashboardGrid {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* Left Hero highlight area mimicking clock/date card */
+.heroCard {
+  background-color: #e5e5e2; /* Slightly darker warm gray */
+  border-radius: 24px;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 280px;
+}
+
+.heroLabel {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dark-gray);
+  margin-bottom: 0.5rem;
+}
+
+.heroTitle {
+  font-size: 2.2rem;
+  font-weight: 800;
+  line-height: 1.15;
+  font-family: var(--font-display);
+  color: var(--text-main);
+}
+
+.heroDesc {
+  font-size: 0.9rem;
+  color: var(--text-dark-gray);
+  line-height: 1.4;
+  margin-top: 1rem;
+}
+
+/* Right App cards area */
+.appCardGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Row card style like agenda rows in calendar */
+.appRowCard {
+  border-radius: 20px;
+  padding: 1.5rem 2rem;
+  display: grid;
+  grid-template-columns: 180px 1fr 120px;
+  gap: 2rem;
+  align-items: center;
+  transition: transform 0.2s ease;
+  text-decoration: none;
+}
+
+.appRowCard:hover {
+  transform: translateY(-2px);
+}
+
+.cardPurple {
+  background-color: #c5bcd2; /* Pastel purple */
+  color: #3b304a;
+}
+
+.cardGreen {
+  background-color: #a4cdcd; /* Pastel teal/green */
+  color: #294040;
+}
+
+.cardGrey {
+  background-color: #d8d8d6;
+  color: #1a1a1a;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cardBlue {
+  background-color: #bbd2ec;
+  color: #1d3557;
+}
+
+.cardOrange {
+  background-color: #f3d2c1;
+  color: #5c3d2e;
+}
+
+.cardTeal {
+  background-color: #addcc6;
+  color: #1c4a37;
+}
+
+.appNameCol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.appName {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.appStatus {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.appDescCol {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  opacity: 0.95;
+}
+
+.appActionCol {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.actionBadge {
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #ffffff;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.comingSoonBadge {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--text-dark-gray);
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}

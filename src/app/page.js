@@ -1,63 +1,127 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import Sidebar from '@/app/components/Sidebar';
+import styles from './page.module.css';
 
 export default function Home() {
+  const router = useRouter();
+  const [userProfile, setUserProfile] = useState(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const localUser = localStorage.getItem('sb_user');
+      if (localUser) {
+        try {
+          setUserProfile(JSON.parse(localUser));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+  }, []);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.js file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+    <div className={styles.container}>
+      {/* Global Sidebar Panel */}
+      <Sidebar userProfile={userProfile} isLoggedOut={!userProfile} />
+
+      {/* Main Panel matching Calendar */}
+      <main className={styles.mainPanel}>
+        <header className={styles.header}>
+          <h2 className={styles.pageTitle}>Overview</h2>
+        </header>
+
+        <div className={styles.dashboardGrid}>
+          {/* Left Column Hero block */}
+          <div className={styles.heroCard}>
+            <div>
+              <div className={styles.heroLabel}>SoftBridge Labs</div>
+              <h1 className={styles.heroTitle}>
+                Workspace
+                <br />
+                Suite
+              </h1>
+            </div>
+            <p className={styles.heroDesc}>
+              Next-generation office applications for computation and scheduling — designed beautifully and built to perform.
+            </p>
+          </div>
+
+          {/* Right Column App List */}
+          <div className={styles.appCardGrid}>
+            {/* Calendar Active Card */}
+            <Link href="/calendar" className={`${styles.appRowCard} ${styles.cardPurple}`}>
+              <div className={styles.appNameCol}>
+                <span className={styles.appName}>Calendar</span>
+                <span className={styles.appStatus}>Active</span>
+              </div>
+              <div className={styles.appDescCol}>
+                Manage your schedules, configure connected calendars, and set availability booking slots.
+              </div>
+              <div className={styles.appActionCol}>
+                <span className={styles.actionBadge}>Open</span>
+              </div>
+            </Link>
+
+            {/* Docs Active Card */}
+            <Link href="/docs" className={`${styles.appRowCard} ${styles.cardGreen}`}>
+              <div className={styles.appNameCol}>
+                <span className={styles.appName}>Docs</span>
+                <span className={styles.appStatus}>Active</span>
+              </div>
+              <div className={styles.appDescCol}>
+                Word processor with distraction-free rich layouts, real-time sync, and offline support.
+              </div>
+              <div className={styles.appActionCol}>
+                <span className={styles.actionBadge}>Open</span>
+              </div>
+            </Link>
+
+            {/* Tasks Active Card */}
+            <Link href="/tasks" className={`${styles.appRowCard} ${styles.cardBlue}`}>
+              <div className={styles.appNameCol}>
+                <span className={styles.appName}>Tasks</span>
+                <span className={styles.appStatus}>Active</span>
+              </div>
+              <div className={styles.appDescCol}>
+                Sprint planning, board management, and task scheduling tools for teams and individuals.
+              </div>
+              <div className={styles.appActionCol}>
+                <span className={styles.actionBadge}>Open</span>
+              </div>
+            </Link>
+
+            {/* Bookmarks Active Card */}
+            <Link href="/bookmarks" className={`${styles.appRowCard} ${styles.cardOrange}`}>
+              <div className={styles.appNameCol}>
+                <span className={styles.appName}>Bookmarks</span>
+                <span className={styles.appStatus}>Active</span>
+              </div>
+              <div className={styles.appDescCol}>
+                Organize, catalog, and manage quick-access directory links interconnected with docs and tasks.
+              </div>
+              <div className={styles.appActionCol}>
+                <span className={styles.actionBadge}>Open</span>
+              </div>
+            </Link>
+
+            {/* Whiteboard Active Card */}
+            <Link href="/whiteboard" className={`${styles.appRowCard} ${styles.cardTeal}`}>
+              <div className={styles.appNameCol}>
+                <span className={styles.appName}>Whiteboard</span>
+                <span className={styles.appStatus}>Active</span>
+              </div>
+              <div className={styles.appDescCol}>
+                Element-based layout drawing, flow charts, and collaborative whiteboard sketching.
+              </div>
+              <div className={styles.appActionCol}>
+                <span className={styles.actionBadge}>Open</span>
+              </div>
+            </Link>
+          </div>
         </div>
       </main>
     </div>

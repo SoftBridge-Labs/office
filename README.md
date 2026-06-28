@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# SoftBridge Office Suite
+
+Welcome to **SoftBridge Office Suite**, a secure, collaborative, and feature-rich workspace platform designed for productivity, scheduling, real-time whiteboards, document management, and private video meetings.
+
+This project is built on Next.js 16 (using the App Router) and React 19, delivering a highly responsive, modern user experience.
+
+---
+
+## Key Features
+
+- 📅 **Unified Calendar & Scheduling**: Create and manage calendar events, set overrides, conflict resolution assistance, and schedule new meetings.
+- 🔗 **Availability Booking Links**: Custom booking links `/booking/[slug]` to schedule time slots easily.
+- 🔒 **Private Video Meetings**: Secure meetings `/meet/[id]` using WebRTC (PeerJS) signaling. Verifies invitee list status so that only invited guests and organizers can enter.
+- 📄 **Markdown Document Workspace**: Dedicated document editor at `/doc/[id]` with access settings (Private/Public Link) and email-based collaborator management.
+- 📋 **Sprint Tasks Kanban Board**: Simple drag-and-drop or quick-move sprint planner with customizable priority parameters.
+- 🎨 **Whiteboard & Sketch**: Collaborative sketchpad with fine color selection, brush adjustments, and shape stamp tools.
+- 💾 **Local Sandbox Mode**: Unauthenticated users can run and use all office suite features using local storage fallback. A warning notice is displayed in the sidebar until they sign in to synchronize to the cloud.
+
+---
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js (v18.x or later)
+- npm or yarn
+
+### Installation
+
+1. Clone the repository to your local directory.
+2. Install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Start the development server:
+```bash
+npm run dev
+```
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser to view the application.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Build & Production Deployment
 
-## Learn More
+To create an optimized production build of the project, run:
+```bash
+npm run build
+npm run start
+```
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## License & Ownership
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+© 2026 SoftBridge Labs. All rights reserved.
 
-## Deploy on Vercel
+This source code, assets, and documentation are the sole property of **SoftBridge Labs**. Commercial usage, reproduction, distribution, or modification of this codebase without the express written permission of SoftBridge Labs is strictly prohibited.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+For commercial inquiries or custom deployment permissions, please contact info@softbridgelabs.in.
