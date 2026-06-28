@@ -5,9 +5,6 @@ node_modules
 .dockerignore
 README.md
 CONTRIBUTING.md
-eslint.config.mjs
-postcss.config.mjs
-jsconfig.json
 .env
 .agents
 AGENTS.md
