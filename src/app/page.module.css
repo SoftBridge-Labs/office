@@ -252,6 +252,11 @@
   color: #1c4a37;
 }
 
+.cardRose {
+  background-color: #fecdd3;
+  color: #881337;
+}
+
 .appNameCol {
   display: flex;
   flex-direction: column;

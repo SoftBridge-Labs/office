@@ -46,6 +46,14 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
+  {
+    label: 'Meet', href: '/meet',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+      </svg>
+    ),
+  },
 ];
 
 export default function Sidebar({ userProfile, isLoggedOut }) {
@@ -115,6 +123,56 @@ export default function Sidebar({ userProfile, isLoggedOut }) {
               </Link>
             );
           })}
+        </nav>
+
+        <div style={{ ...s.sectionLabel, marginTop: '1.5rem' }}>Platform</div>
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+          <Link
+            href="/pricing"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.625rem',
+              padding: '0.55rem 0.625rem', borderRadius: 'var(--radius)',
+              fontWeight: pathname === '/pricing' ? 600 : 500, fontSize: '0.85rem',
+              color: pathname === '/pricing' ? 'var(--brand)' : 'var(--text-secondary)',
+              background: pathname === '/pricing' ? 'var(--brand-subtle)' : 'transparent',
+              transition: 'all 0.12s',
+              textDecoration: 'none',
+            }}
+            onMouseEnter={e => { if (pathname !== '/pricing') { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)'; } }}
+            onMouseLeave={e => { if (pathname !== '/pricing') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; } }}
+          >
+            <span style={{ opacity: pathname === '/pricing' ? 1 : 0.7 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+              </svg>
+            </span>
+            Pricing
+          </Link>
+
+          <a
+            href="#startup-support"
+            onClick={(e) => {
+              window.dispatchEvent(new Event('open-startup-support'));
+            }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.625rem',
+              padding: '0.55rem 0.625rem', borderRadius: 'var(--radius)',
+              fontWeight: 500, fontSize: '0.85rem',
+              color: 'var(--text-secondary)',
+              background: 'transparent',
+              transition: 'all 0.12s',
+              textDecoration: 'none',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+          >
+            <span style={{ opacity: 0.7 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+              </svg>
+            </span>
+            Startup Support
+          </a>
         </nav>
       </div>
 

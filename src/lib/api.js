@@ -276,6 +276,27 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(data)
   }),
+  checkMeetLimits: (uid) => request(`/calendar/meet/check-limits?uid=${uid}`),
+  getMeetMessages: (roomId) => request(`/calendar/meet/${roomId}/chat`),
+  sendMeetMessage: (roomId, data) => request(`/calendar/meet/${roomId}/chat`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  getMeetReactions: (roomId) => request(`/calendar/meet/${roomId}/reactions`),
+  sendMeetReaction: (roomId, data) => request(`/calendar/meet/${roomId}/reactions`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  syncMeetState: (roomId) => request(`/calendar/meet/${roomId}/sync`),
+  getHostedMeetings: (uid) => request(`/calendar/meet/hosted?uid=${uid}`),
+  updateMeetPeer: (roomId, data) => request(`/calendar/meet/${roomId}/update-peer`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  updateMeetSettings: (roomId, data) => request(`/calendar/meet/${roomId}/settings`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
 
   // ─── Workspace Bookmarks ──────────────────────────────────────────────────
   getBookmarks: () => request('/workspace/bookmarks').catch(() => ({ success: true, data: getLocal('bookmarks', []) })),

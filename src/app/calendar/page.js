@@ -70,6 +70,7 @@ export default function CalendarPage() {
   const [eventCalendarId, setEventCalendarId] = useState('');
   const [eventLocation, setEventLocation]   = useState('');
   const [eventInvitees, setEventInvitees]   = useState('');
+  const [eventAllowGuests, setEventAllowGuests] = useState(true);
 
   // ── Calendar form ────────────────────────────────────────────────────────
   const [calName, setCalName]       = useState('');
@@ -219,7 +220,7 @@ export default function CalendarPage() {
           else { notify('Could not auto-initialize calendar', 'error'); return; }
         } catch { notify('Failed to create calendar', 'error'); return; }
       }
-      const payload = { calendar_id: calId, title: eventTitle, description: eventDesc, start_time: new Date(eventStart).toISOString(), end_time: new Date(eventEnd).toISOString(), location: eventLocation, invitees: attendees };
+      const payload = { calendar_id: calId, title: eventTitle, description: eventDesc, start_time: new Date(eventStart).toISOString(), end_time: new Date(eventEnd).toISOString(), location: eventLocation, invitees: attendees, allow_guests: eventAllowGuests };
       
       if (editingEvent) {
         if (isLoggedOut) {
@@ -445,6 +446,7 @@ export default function CalendarPage() {
         eventCalendarId={eventCalendarId} setEventCalendarId={setEventCalendarId}
         eventLocation={eventLocation}     setEventLocation={setEventLocation}
         eventInvitees={eventInvitees}     setEventInvitees={setEventInvitees}
+        eventAllowGuests={eventAllowGuests} setEventAllowGuests={setEventAllowGuests}
         onSubmit={handleCreateEvent}
         editingEvent={editingEvent}
         onDelete={handleDeleteEvent}

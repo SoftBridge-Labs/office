@@ -105,3 +105,98 @@ button { cursor: pointer; }
 
 .animate-fadeUp { animation: fadeUp 0.2s ease both; }
 .animate-fadeIn { animation: fadeIn 0.15s ease both; }
+
+/* Mobile Responsiveness Styles */
+@media (max-width: 1024px) {
+  /* Overview Dashboard Grid */
+  div[class*="dashboardGrid"] {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* App row cards on smaller screens */
+  a[class*="appRowCard"] {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+    padding: 1.25rem !important;
+  }
+  div[class*="appActionCol"] {
+    justify-content: flex-start !important;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    font-size: 13px;
+  }
+
+  /* Main Flex Container Layout */
+  div[class*="container"] {
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: 100vh !important;
+    overflow-y: auto !important;
+  }
+
+  /* Main Dashboard Panel */
+  main[class*="mainPanel"] {
+    padding: 1.25rem !important;
+    height: auto !important;
+    overflow-y: visible !important;
+  }
+
+  /* Make sidebar horizontal navigation bar on mobile */
+  aside {
+    width: 100% !important;
+    height: auto !important;
+    min-height: unset !important;
+    flex-direction: column !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border) !important;
+    position: relative !important;
+    top: 0 !important;
+    padding: 0.75rem 1rem !important;
+    background: var(--bg-surface) !important;
+  }
+
+  aside Link[style*="logo"], aside a[style*="logo"] {
+    margin-bottom: 0.75rem !important;
+  }
+
+  aside div[style*="flex: 1"], aside nav {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    gap: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+
+  aside nav a {
+    white-space: nowrap !important;
+    font-size: 0.75rem !important;
+    padding: 0.4rem 0.6rem !important;
+  }
+
+  aside div[style*="sectionLabel"] {
+    display: none !important;
+  }
+
+  aside div[style*="bottomSection"] {
+    display: none !important; /* Hide secondary controls in sidebar on mobile for cleaner layout */
+  }
+
+  /* Calendar page views response */
+  div[class*="calendarHeader"] {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
+  }
+
+  /* Global mobile responsive overrides for sub-pages (Tasks, Bookmarks, Docs) */
+  main[class*="mainPanel"] div[style*="display: grid"],
+  main[class*="mainPanel"] div[style*="grid-template-columns"],
+  main[class*="mainPanel"] div[style*="display:grid"] {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+}

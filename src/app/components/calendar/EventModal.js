@@ -60,6 +60,7 @@ export default function EventModal({
   eventCalendarId, setEventCalendarId,
   eventLocation, setEventLocation,
   eventInvitees, setEventInvitees,
+  eventAllowGuests, setEventAllowGuests,
   onSubmit,
   editingEvent,
   onDelete,
@@ -85,6 +86,8 @@ export default function EventModal({
       setEventLocation(editingEvent.location || '');
       setEventInvitees(editingEvent.invitees ? editingEvent.invitees.map(i => i.email).join(', ') : '');
 
+      setEventAllowGuests(editingEvent.allow_guests !== false);
+
       if (editingEvent.location?.includes('/meet/internal-')) {
         setVideoProvider('internal-meet');
       } else if (editingEvent.location?.includes('/meet/SoftBridgeCalendar-')) {
@@ -103,17 +106,19 @@ export default function EventModal({
       setEventLocation('');
       setEventInvitees('');
       setVideoProvider('none');
+      setEventAllowGuests(true);
     }
   }, [editingEvent, open]);
 
   const handleVideoProviderChange = (val) => {
     setVideoProvider(val);
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
     if (val === 'softbridge-meet') {
       const meetId = `SoftBridgeCalendar-${Math.random().toString(36).substring(2, 10)}`;
-      setEventLocation(`http://localhost:3000/meet/${meetId}`);
+      setEventLocation(`${origin}/meet/${meetId}`);
     } else if (val === 'internal-meet') {
       const meetId = `internal-${Math.random().toString(36).substring(2, 10)}`;
-      setEventLocation(`http://localhost:3000/meet/${meetId}`);
+      setEventLocation(`${origin}/meet/${meetId}`);
     } else if (val === 'google-meet') {
       setEventLocation('https://meet.google.com/mock-meet');
     } else {
@@ -195,6 +200,21 @@ export default function EventModal({
               </select>
             </div>
           </div>
+
+          {(videoProvider === 'softbridge-meet' || videoProvider === 'internal-meet') && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-muted, #f8fafc)', padding: '0.65rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border, #e2e8f0)' }}>
+              <input
+                type="checkbox"
+                id="allowGuestsCheckbox"
+                checked={eventAllowGuests}
+                onChange={e => setEventAllowGuests(e.target.checked)}
+                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+              />
+              <label htmlFor="allowGuestsCheckbox" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary, #475569)', cursor: 'pointer' }}>
+                Allow unauthorized / guest users to join this meeting room
+              </label>
+            </div>
+          )}
 
           <div>
             <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary, #475569)', marginBottom: '0.4rem' }}>Location / Call Link</label>
