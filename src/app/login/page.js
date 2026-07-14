@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import styles from './login.module.css';
+import OneTapLogin from '@/app/components/OneTapLogin';
 
 export default function Login() {
   const router = useRouter();
@@ -51,6 +52,10 @@ export default function Login() {
     }
   };
 
+  const handleOneTapSuccess = (authData) => {
+    router.push('/calendar');
+  };
+
   return (
     <div className={styles.loginContainer}>
       {/* Decorative Blob */}
@@ -67,6 +72,21 @@ export default function Login() {
         <p className={styles.subtitle}>Enter your details below to access Sheets and Docs</p>
 
         {error && <div className={styles.errorAlert}>{error}</div>}
+
+        <div style={{ marginBottom: '1.5rem', width: '100%' }}>
+          <OneTapLogin 
+            onSuccess={handleOneTapSuccess} 
+            buttonText="Sign in with SoftBridge Account"
+            className={styles.submitBtn} 
+            style={{ backgroundColor: '#fff', color: '#1a1a1a', border: '1px solid #dadce0', width: '100%' }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', margin: '1rem 0', color: '#5f6368', fontSize: '0.85rem' }}>
+          <div style={{ flex: 1, height: '1px', backgroundColor: '#dadce0' }}></div>
+          <span style={{ padding: '0 10px' }}>OR</span>
+          <div style={{ flex: 1, height: '1px', backgroundColor: '#dadce0' }}></div>
+        </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.inputGroup}>

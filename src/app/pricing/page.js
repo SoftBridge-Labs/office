@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Sidebar from '@/app/components/Sidebar';
+import TopNav from '@/app/components/TopNav';
 import styles from '../page.module.css';
 
 export default function PricingPage() {
@@ -40,7 +40,7 @@ export default function PricingPage() {
 
   return (
     <div className={styles.container} style={{ display: 'flex', height: '100vh', overflow: 'hidden', backgroundColor: '#ededeb', width: '100vw' }}>
-      <Sidebar userProfile={userProfile} isLoggedOut={!userProfile} />
+      <TopNav userProfile={userProfile} isLoggedOut={!userProfile} />
 
       <main className={styles.mainPanel} style={{ flex: 1, padding: '2.5rem 4rem', height: '100%', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
         <header className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem', flexShrink: 0 }}>

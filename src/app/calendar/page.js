@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import Sidebar        from '@/app/components/Sidebar';
+import TopNav        from '@/app/components/TopNav';
 import Notification   from '@/app/components/Notification';
 import DateCard       from '@/app/components/calendar/DateCard';
 import EventList      from '@/app/components/calendar/EventList';
@@ -49,6 +49,7 @@ export default function CalendarPage() {
   const [schedulingLinks, setSchedulingLinks] = useState([]);
   const [events, setEvents]                   = useState([]);
   const [teams, setTeams]                     = useState([]);
+  const [departments, setDepartments]         = useState([]);
 
   // ── View state ──────────────────────────────────────────────────────────
   const [view, setView]               = useState('calendar'); // 'calendar' | 'agenda'
@@ -88,6 +89,7 @@ export default function CalendarPage() {
   const [customMeetUrl, setCustomMeetUrl]       = useState('');
   const [schedMeetingType, setSchedMeetingType] = useState('one-on-one');
   const [selectedTeamId, setSelectedTeamId]     = useState('');
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
   const [schedMemberUids, setSchedMemberUids]   = useState('');
   const [schedOverrides, setSchedOverrides]     = useState([]);
   const [overrideDate, setOverrideDate]         = useState('');
@@ -153,12 +155,13 @@ export default function CalendarPage() {
 
     try {
       const uid = localStorage.getItem('sb_uid');
-      const [acct, calData, schedData, evtsData, teamData] = await Promise.allSettled([
+      const [acct, calData, schedData, evtsData, teamData, deptData] = await Promise.allSettled([
         api.getAccount(uid),
         api.getCalendars(),
         api.getSchedulingLinks(),
         api.getEvents(),
         api.getTeams(),
+        api.admin.listDepartments().catch(() => ({ success: false })),
       ]);
       if (acct.status === 'fulfilled' && acct.value?.user) {
         setUserProfile(acct.value.user);
@@ -179,6 +182,9 @@ export default function CalendarPage() {
       }
       if (teamData.status === 'fulfilled' && teamData.value?.success) {
         setTeams(teamData.value.teams || []);
+      }
+      if (deptData.status === 'fulfilled' && deptData.value?.success) {
+        setDepartments(deptData.value.data || []);
       }
     } catch (err) {
       console.error('Data load error:', err);
@@ -301,7 +307,7 @@ export default function CalendarPage() {
 
   async function handleAddSchedulingLink(e) {
     e.preventDefault();
-    const payload = { slug: schedSlug, title: schedTitle, description: schedDesc, duration: +schedDuration, buffer_time: +schedBuffer, daily_limit: +schedLimit, video_provider: schedVideoProvider, meet_url: schedVideoProvider === 'google-meet' ? customMeetUrl : undefined, meeting_type: schedMeetingType, is_active: true, team_id: selectedTeamId || null, member_uids: schedMemberUids ? schedMemberUids.split(',').map(u => u.trim()) : [], availability_rules: { monday:[{start:'09:00',end:'17:00'}], tuesday:[{start:'09:00',end:'17:00'}], wednesday:[{start:'09:00',end:'17:00'}], thursday:[{start:'09:00',end:'17:00'}], friday:[{start:'09:00',end:'17:00'}] }, availability_overrides: schedOverrides };
+    const payload = { slug: schedSlug, title: schedTitle, description: schedDesc, duration: +schedDuration, buffer_time: +schedBuffer, daily_limit: +schedLimit, video_provider: schedVideoProvider, meet_url: schedVideoProvider === 'google-meet' ? customMeetUrl : undefined, meeting_type: schedMeetingType, is_active: true, team_id: selectedTeamId || null, department_id: selectedDepartmentId || null, member_uids: schedMemberUids ? schedMemberUids.split(',').map(u => u.trim()) : [], availability_rules: { monday:[{start:'09:00',end:'17:00'}], tuesday:[{start:'09:00',end:'17:00'}], wednesday:[{start:'09:00',end:'17:00'}], thursday:[{start:'09:00',end:'17:00'}], friday:[{start:'09:00',end:'17:00'}] }, availability_overrides: schedOverrides };
     if (isLoggedOut) { setSchedulingLinks(p => [...p, { id: `mock-s-${Date.now()}`, ...payload }]); setSchedSlug(''); setSchedTitle(''); return; }
     try { const r = await api.createOrUpdateSchedulingLink(payload); if (r.success && r.schedulingLink) { setSchedulingLinks(p => [...p, r.schedulingLink]); notify('Scheduling link created', 'success'); setSchedSlug(''); setSchedTitle(''); setSchedDesc(''); setSchedOverrides([]); } }
     catch (err) { notify(err.message || 'Error', 'error'); }
@@ -367,7 +373,7 @@ export default function CalendarPage() {
   return (
     <div className={styles.container}>
       <Notification notification={notif} onDismiss={() => setNotif(null)} />
-      <Sidebar userProfile={userProfile} isLoggedOut={isLoggedOut} />
+      <TopNav userProfile={userProfile} isLoggedOut={isLoggedOut} />
 
       <main className={styles.main}>
         {/* Header */}
@@ -439,6 +445,7 @@ export default function CalendarPage() {
         onClose={() => { setShowEventModal(false); setEditingEvent(null); }}
         calendars={calendars}
         teams={teams}
+        departments={departments}
         eventTitle={eventTitle} setEventTitle={setEventTitle}
         eventDesc={eventDesc}   setEventDesc={setEventDesc}
         eventStart={eventStart} setEventStart={setEventStart}
@@ -457,13 +464,13 @@ export default function CalendarPage() {
         initialTab={settingsInitialTab}
         onClose={() => setShowSettingsModal(false)}
         data={{
-          calendars, schedulingLinks, teams,
+          calendars, schedulingLinks, teams, departments,
           calName, calEmail, calProvider, setCalName, setCalEmail, setCalProvider,
           schedSlug, schedTitle, schedDesc, schedDuration, schedBuffer, schedLimit,
-          schedVideoProvider, customMeetUrl, schedMeetingType, selectedTeamId, schedMemberUids,
+          schedVideoProvider, customMeetUrl, schedMeetingType, selectedTeamId, selectedDepartmentId, schedMemberUids,
           schedOverrides, overrideDate, overrideStart, overrideEnd,
           setSchedSlug, setSchedTitle, setSchedDesc, setSchedDuration, setSchedBuffer, setSchedLimit,
-          setSchedVideoProvider, setCustomMeetUrl, setSchedMeetingType, setSelectedTeamId, setSchedMemberUids,
+          setSchedVideoProvider, setCustomMeetUrl, setSchedMeetingType, setSelectedTeamId, setSelectedDepartmentId, setSchedMemberUids,
           setOverrideDate, setOverrideStart, setOverrideEnd,
           newTeamName, setNewTeamName, teamMemberUid, setTeamMemberUid, teamMemberRole, setTeamMemberRole,
         }}

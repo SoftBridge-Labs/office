@@ -71,13 +71,13 @@ export default function SettingsModal({
   if (!open) return null;
 
   const {
-    calendars = [], schedulingLinks = [], teams = [],
+    calendars = [], schedulingLinks = [], teams = [], departments = [],
     calName = '', calEmail = '', calProvider = 'google', setCalName, setCalEmail, setCalProvider,
     schedSlug = '', schedTitle = '', schedDesc = '', schedDuration = 15, schedBuffer = 5, schedLimit = 5,
-    schedVideoProvider = 'softbridge-meet', customMeetUrl = '', schedMeetingType = 'one-on-one', selectedTeamId = '', schedMemberUids = '',
+    schedVideoProvider = 'softbridge-meet', customMeetUrl = '', schedMeetingType = 'one-on-one', selectedTeamId = '', selectedDepartmentId = '', schedMemberUids = '',
     schedOverrides = [], overrideDate = '', overrideStart = '09:00', overrideEnd = '17:00',
     setSchedSlug, setSchedTitle, setSchedDesc, setSchedDuration, setSchedBuffer, setSchedLimit,
-    setSchedVideoProvider, setCustomMeetUrl, setSchedMeetingType, setSelectedTeamId, setSchedMemberUids,
+    setSchedVideoProvider, setCustomMeetUrl, setSchedMeetingType, setSelectedTeamId, setSelectedDepartmentId, setSchedMemberUids,
     setOverrideDate, setOverrideStart, setOverrideEnd,
     newTeamName = '', setNewTeamName, teamMemberUid = '', setTeamMemberUid, teamMemberRole = 'member', setTeamMemberRole,
   } = data;
@@ -302,12 +302,19 @@ export default function SettingsModal({
                 )}
 
                 {schedMeetingType !== 'one-on-one' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.4rem' }}>Select Team</label>
                       <select style={inputStyle} value={selectedTeamId} onChange={e => setSelectedTeamId(e.target.value)}>
                         <option value="">— Select a Team —</option>
                         {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.4rem' }}>Select Department</label>
+                      <select style={inputStyle} value={selectedDepartmentId} onChange={e => setSelectedDepartmentId(e.target.value)}>
+                        <option value="">— Select a Dept —</option>
+                        {departments?.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                       </select>
                     </div>
                     <div>

@@ -49,6 +49,9 @@ async function request(endpoint, options = {}) {
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
+    // Always send the workspace identifier so backend scopes data to the correct org
+    const workspaceId = localStorage.getItem('sb_workspace_id') || 'default';
+    headers['x-workspace-id'] = workspaceId;
   }
 
   const res = await fetch(url, {
@@ -58,7 +61,9 @@ async function request(endpoint, options = {}) {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.error || data.message || `Request failed with status ${res.status}`);
+    const err = new Error(data.error || data.message || `Request failed with status ${res.status}`);
+    err.status = res.status;
+    throw err;
   }
 
   return data;
@@ -299,31 +304,100 @@ export const api = {
   }),
 
   // ─── Workspace Bookmarks ──────────────────────────────────────────────────
-  getBookmarks: () => request('/workspace/bookmarks').catch(() => ({ success: true, data: getLocal('bookmarks', []) })),
-  createBookmark: (data) => request('/workspace/bookmarks', { method: 'POST', body: JSON.stringify(data) }).catch(() => saveLocalItem('bookmarks', data)),
-  updateBookmark: (id, data) => request(`/workspace/bookmarks/${id}`, { method: 'PUT', body: JSON.stringify(data) }).catch(() => updateLocalItem('bookmarks', id, data)),
-  deleteBookmark: (id) => request(`/workspace/bookmarks/${id}`, { method: 'DELETE' }).catch(() => deleteLocalItem('bookmarks', id)),
+  getBookmarks: () => request('/workspace/bookmarks').catch((e) => { if (e.status === 403) throw e; return { success: true, data: getLocal('bookmarks', []) }; }),
+  createBookmark: (data) => request('/workspace/bookmarks', { method: 'POST', body: JSON.stringify(data) }).catch((e) => { if (e.status === 403) throw e; return saveLocalItem('bookmarks', data); }),
+  updateBookmark: (id, data) => request(`/workspace/bookmarks/${id}`, { method: 'PUT', body: JSON.stringify(data) }).catch((e) => { if (e.status === 403) throw e; return updateLocalItem('bookmarks', id, data); }),
+  deleteBookmark: (id) => request(`/workspace/bookmarks/${id}`, { method: 'DELETE' }).catch((e) => { if (e.status === 403) throw e; return deleteLocalItem('bookmarks', id); }),
 
   // ─── Workspace Docs ───────────────────────────────────────────────────────
-  getDocs: () => request('/workspace/docs').catch(() => ({ success: true, data: getLocal('docs', []) })),
+  getDocs: () => request('/workspace/docs').catch((e) => { if (e.status === 403) throw e; return { success: true, data: getLocal('docs', []) }; }),
   getDoc: (id) => request(`/workspace/docs/${id}`).catch(() => {
     const localDocs = getLocal('docs', []);
     const found = localDocs.find(d => d._id === id);
     return found ? { success: true, data: found } : { success: false, error: 'Document not found' };
   }),
-  createDoc: (data) => request('/workspace/docs', { method: 'POST', body: JSON.stringify(data) }).catch(() => saveLocalItem('docs', data)),
-  updateDoc: (id, data) => request(`/workspace/docs/${id}`, { method: 'PUT', body: JSON.stringify(data) }).catch(() => updateLocalItem('docs', id, data)),
-  deleteDoc: (id) => request(`/workspace/docs/${id}`, { method: 'DELETE' }).catch(() => deleteLocalItem('docs', id)),
+  createDoc: (data) => request('/workspace/docs', { method: 'POST', body: JSON.stringify(data) }).catch((e) => { if (e.status === 403) throw e; return saveLocalItem('docs', data); }),
+  updateDoc: (id, data) => request(`/workspace/docs/${id}`, { method: 'PUT', body: JSON.stringify(data) }).catch((e) => { if (e.status === 403) throw e; return updateLocalItem('docs', id, data); }),
+  deleteDoc: (id) => request(`/workspace/docs/${id}`, { method: 'DELETE' }).catch((e) => { if (e.status === 403) throw e; return deleteLocalItem('docs', id); }),
 
   // ─── Workspace Tasks ──────────────────────────────────────────────────────
-  getTasks: () => request('/workspace/tasks').catch(() => ({ success: true, data: getLocal('tasks', []) })),
-  createTask: (data) => request('/workspace/tasks', { method: 'POST', body: JSON.stringify(data) }).catch(() => saveLocalItem('tasks', data)),
-  updateTask: (id, data) => request(`/workspace/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }).catch(() => updateLocalItem('tasks', id, data)),
-  deleteTask: (id) => request(`/workspace/tasks/${id}`, { method: 'DELETE' }).catch(() => deleteLocalItem('tasks', id)),
+  getTasks: () => request('/workspace/tasks').catch((e) => { if (e.status === 403) throw e; return { success: true, data: getLocal('tasks', []) }; }),
+  createTask: (data) => request('/workspace/tasks', { method: 'POST', body: JSON.stringify(data) }).catch((e) => { if (e.status === 403) throw e; return saveLocalItem('tasks', data); }),
+  updateTask: (id, data) => request(`/workspace/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }).catch((e) => { if (e.status === 403) throw e; return updateLocalItem('tasks', id, data); }),
+  deleteTask: (id) => request(`/workspace/tasks/${id}`, { method: 'DELETE' }).catch((e) => { if (e.status === 403) throw e; return deleteLocalItem('tasks', id); }),
 
   // ─── Workspace Whiteboards ────────────────────────────────────────────────
-  getWhiteboards: () => request('/workspace/whiteboard').catch(() => ({ success: true, data: getLocal('whiteboards', []) })),
-  createWhiteboard: (data) => request('/workspace/whiteboard', { method: 'POST', body: JSON.stringify(data) }).catch(() => saveLocalItem('whiteboards', data)),
-  updateWhiteboard: (id, data) => request(`/workspace/whiteboard/${id}`, { method: 'PUT', body: JSON.stringify(data) }).catch(() => updateLocalItem('whiteboards', id, data)),
-  deleteWhiteboard: (id) => request(`/workspace/whiteboard/${id}`, { method: 'DELETE' }).catch(() => deleteLocalItem('whiteboards', id)),
+  getWhiteboards: () => request('/workspace/whiteboard').catch((e) => { if (e.status === 403) throw e; return { success: true, data: getLocal('whiteboards', []) }; }),
+  createWhiteboard: (data) => request('/workspace/whiteboard', { method: 'POST', body: JSON.stringify(data) }).catch((e) => { if (e.status === 403) throw e; return saveLocalItem('whiteboards', data); }),
+  updateWhiteboard: (id, data) => request(`/workspace/whiteboard/${id}`, { method: 'PUT', body: JSON.stringify(data) }).catch((e) => { if (e.status === 403) throw e; return updateLocalItem('whiteboards', id, data); }),
+  deleteWhiteboard: (id) => request(`/workspace/whiteboard/${id}`, { method: 'DELETE' }).catch((e) => { if (e.status === 403) throw e; return deleteLocalItem('whiteboards', id); }),
+
+  // ─── Workspace Invitations & Shared ───────────────────────────────────────
+  acceptInvite: (data) => request('/workspace/shared/invite/accept', { method: 'POST', body: JSON.stringify(data) }),
+  getMe: () => request('/workspace/shared/me'),
+  getAIGuidance: () => request('/workspace/shared/ai/guidance'),
+
+  // ─── Workspace Admin ──────────────────────────────────────────────────────
+  admin: {
+    // User Management
+    listUsers: () => request('/workspace/admin/users'),
+    addUser: (data) => request('/workspace/admin/users', { method: 'POST', body: JSON.stringify(data) }),
+    modifyUser: (userId, data) => request(`/workspace/admin/users/${userId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    removeUser: (userId) => request(`/workspace/admin/users/${userId}`, { method: 'DELETE' }),
+    resendInvite: (userId) => request(`/workspace/admin/users/${userId}/resend`, { method: 'POST' }),
+    
+    // Billing
+    payBill: (data) => request('/workspace/admin/billing/pay', { method: 'POST', body: JSON.stringify(data) }),
+    getBillingStatus: () => request('/workspace/admin/billing/status'),
+    createOneTimeOrder: (data) => request('/workspace/admin/billing/one-time', { method: 'POST', body: JSON.stringify(data) }),
+    createSubscription: (data) => request('/workspace/admin/billing/subscription', { method: 'POST', body: JSON.stringify(data) }),
+    getSubscription: (id) => request(`/workspace/admin/billing/subscription/${id}`),
+    cancelSubscription: (id, data) => request(`/workspace/admin/billing/subscription/${id}/cancel`, { method: 'POST', body: JSON.stringify(data || {}) }),
+    pauseSubscription: (id) => request(`/workspace/admin/billing/subscription/${id}/pause`, { method: 'POST' }),
+    resumeSubscription: (id) => request(`/workspace/admin/billing/subscription/${id}/resume`, { method: 'POST' }),
+    verifyPayment: (data) => request('/workspace/admin/billing/verify', { method: 'POST', body: JSON.stringify(data) }),
+    createBalanceOrder: (data) => request('/workspace/admin/billing/add-balance', { method: 'POST', body: JSON.stringify(data) }),
+    verifyBalancePayment: (data) => request('/workspace/admin/billing/verify-balance', { method: 'POST', body: JSON.stringify(data) }),
+    
+    // Departments
+    listDepartments: () => request('/workspace/admin/departments'),
+    createDepartment: (data) => request('/workspace/admin/departments', { method: 'POST', body: JSON.stringify(data) }),
+    deleteDepartment: (departmentId) => request(`/workspace/admin/departments/${departmentId}`, { method: 'DELETE' }),
+    addPosition: (departmentId, data) => request(`/workspace/admin/departments/${departmentId}/positions`, { method: 'POST', body: JSON.stringify(data) }),
+    
+    // Apps
+    listApps: () => request('/workspace/admin/apps'),
+    toggleAppStatus: (appId, data) => request(`/workspace/admin/apps/${appId}/toggle`, { method: 'PUT', body: JSON.stringify(data) }),
+    
+    // Permissions
+    listValidPermissions: () => request('/workspace/admin/permissions/list'),
+    updateUserPermissions: (userId, data) => request(`/workspace/admin/permissions/users/${userId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    
+    // Stats
+    getStats: () => request('/workspace/admin/stats'),
+    
+    // Audit Logs
+    getAuditLogs: (params = {}) => {
+      const q = new URLSearchParams(params).toString();
+      return request(`/workspace/admin/audit-logs${q ? '?' + q : ''}`);
+    },
+    exportAuditLogs: () => request('/workspace/admin/audit-logs/export', { method: 'POST' }),
+    
+    // Security
+    getSecurityPolicies: () => request('/workspace/admin/security/policies'),
+    updateSecurityPolicies: (data) => request('/workspace/admin/security/policies', { method: 'PUT', body: JSON.stringify(data) }),
+    configureSSO: (data) => request('/workspace/admin/security/sso', { method: 'POST', body: JSON.stringify(data) }),
+    
+    // Groups
+    listGroups: () => request('/workspace/admin/groups'),
+    createGroup: (data) => request('/workspace/admin/groups', { method: 'POST', body: JSON.stringify(data) }),
+    manageGroupMembers: (groupId, data) => request(`/workspace/admin/groups/${groupId}/members`, { method: 'POST', body: JSON.stringify(data) }),
+    
+    // Domains
+    listDomains: () => request('/workspace/admin/domains'),
+    addDomain: (data) => request('/workspace/admin/domains', { method: 'POST', body: JSON.stringify(data) }),
+    verifyDomain: (domainName) => request(`/workspace/admin/domains/${domainName}/verify`, { method: 'POST' }),
+    getDomainPolicy: () => request('/workspace/admin/domains/policy'),
+    updateDomainPolicy: (data) => request('/workspace/admin/domains/policy', { method: 'PUT', body: JSON.stringify(data) })
+  }
 };

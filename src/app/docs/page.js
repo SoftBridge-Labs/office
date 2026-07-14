@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '@/app/components/Sidebar';
+import TopNav from '@/app/components/TopNav';
+import AppDisabled from '@/app/components/AppDisabled';
 import { api } from '@/lib/api';
 import styles from '../page.module.css';
 
@@ -11,6 +12,7 @@ export default function DocsDashboardPage() {
   const [userProfile, setUserProfile] = useState(null);
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [appDisabled, setAppDisabled] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -28,9 +30,15 @@ export default function DocsDashboardPage() {
       const res = await api.getDocs();
       if (res.success) {
         setDocs(res.data || []);
+      } else if (res.status === 403 || res.message?.toLowerCase().includes('disabled')) {
+        setAppDisabled(true);
       }
     } catch (e) {
-      console.error(e);
+      if (e.message?.toLowerCase().includes('disabled') || e.status === 403) {
+        setAppDisabled(true);
+      } else {
+        console.error(e);
+      }
     } finally {
       setLoading(false);
     }
@@ -47,9 +55,18 @@ export default function DocsDashboardPage() {
     }
   };
 
+  if (appDisabled) {
+    return (
+      <div className={styles.container}>
+        <TopNav userProfile={userProfile} isLoggedOut={!userProfile} />
+        <AppDisabled appName="Docs" />
+      </div>
+    );
+  }
+
   return (
     <div className={styles.container}>
-      <Sidebar userProfile={userProfile} isLoggedOut={!userProfile} />
+      <TopNav userProfile={userProfile} isLoggedOut={!userProfile} />
       
       <main className={styles.mainPanel} style={{ padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
         

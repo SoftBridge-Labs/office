@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Sidebar from '@/app/components/Sidebar';
+import TopNav from '@/app/components/TopNav';
 import { api } from '@/lib/api';
 import styles from '../../page.module.css';
 
@@ -146,7 +146,7 @@ export default function DocumentEditorPage() {
 
   return (
     <div className={styles.container}>
-      <Sidebar userProfile={userProfile} isLoggedOut={!userProfile} />
+      <TopNav userProfile={userProfile} isLoggedOut={!userProfile} />
       
       <main className={styles.mainPanel} style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100vh', boxSizing: 'border-box' }}>
         

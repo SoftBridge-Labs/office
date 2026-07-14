@@ -1,20 +1,24 @@
-/* Redesigned minimal theme variables matching the Calendar screenshots exactly */
+/* Google Workspace / Microsoft Office Style Redesign */
 :root {
-  --bg-workspace: #ededeb;
+  --bg-workspace: #f8f9fa; /* Light gray background */
   --bg-card: #ffffff;
-  --bg-button: #1a1a1a;
-  --border-subtle: rgba(0, 0, 0, 0.05);
+  --bg-topbar: #ffffff;
+  --border-subtle: #dadce0;
   
-  --text-main: #1a1a1a;
-  --text-muted: #8c8c8a;
-  --text-dark-gray: #555553;
+  --text-main: #202124;
+  --text-muted: #5f6368;
+  --text-dark-gray: #3c4043;
   
-  --font-display: 'Outfit', sans-serif;
-  --font-body: 'Plus Jakarta Sans', sans-serif;
+  --primary-color: #1a73e8;
+  --primary-hover: #1b66c9;
+  
+  --font-display: 'Outfit', 'Inter', sans-serif;
+  --font-body: 'Plus Jakarta Sans', 'Inter', sans-serif;
 }
 
 .container {
   display: flex;
+  flex-direction: column;
   height: 100vh;
   overflow: hidden;
   background-color: var(--bg-workspace);
@@ -22,286 +26,236 @@
   font-family: var(--font-body);
 }
 
-/* Sidebar Styling copied from Calendar */
-.sidebar {
-  width: 280px;
-  background-color: var(--bg-card);
-  border-right: 1px solid var(--border-subtle);
+/* Top Navigation Bar */
+.topNav {
   display: flex;
-  flex-direction: column;
-  padding: 1.5rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1.5rem;
+  background-color: var(--bg-topbar);
+  border-bottom: 1px solid var(--border-subtle);
+  height: 64px;
+}
+
+.navLeft {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.appLauncher {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  color: var(--text-muted);
+}
+
+.appLauncher:hover {
+  background-color: rgba(60, 64, 67, 0.08);
 }
 
 .logoArea {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 2rem;
+  gap: 0.5rem;
   text-decoration: none;
-}
-
-.logoIcon {
-  width: 32px;
-  height: 32px;
-  background-color: #6366f1;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 800;
-  font-family: var(--font-display);
 }
 
 .logoText {
-  font-weight: 700;
-  font-size: 1.25rem;
-  color: var(--text-main);
-}
-
-.navSection {
-  margin-bottom: 2rem;
-}
-
-.sectionLabel {
-  font-size: 0.75rem;
+  font-size: 1.3rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  margin-bottom: 0.75rem;
-  padding-left: 0.5rem;
-}
-
-.navList {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.navItem {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.6rem 0.75rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--text-dark-gray);
-  transition: all 0.2s ease;
-}
-
-.navItem:hover {
-  background-color: #f5f5f3;
   color: var(--text-main);
+  letter-spacing: -0.02em;
 }
 
-.navItemActive {
-  background-color: var(--text-main);
-  color: #ffffff;
-}
-
-.navItemActive:hover {
-  background-color: #333331;
-  color: #ffffff;
-}
-
-.bottomSidebar {
-  margin-top: auto;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.authBtn {
-  width: 100%;
-  padding: 0.6rem;
-  background-color: var(--bg-button);
-  color: white;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  text-align: center;
-}
-
-.authBtn:hover {
-  background-color: #333331;
-}
-
-/* Main Dashboard Panel */
-.mainPanel {
+.navCenter {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow-y: auto;
-  padding: 2rem;
+  max-width: 720px;
+  margin: 0 2rem;
 }
 
-.header {
+.searchBar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 2.5rem;
-}
-
-.pageTitle {
-  font-family: var(--font-display);
-  font-size: 1.75rem;
-  font-weight: 800;
-}
-
-/* Dashboard Layout Grid */
-.dashboardGrid {
-  display: grid;
-  grid-template-columns: 360px 1fr;
-  gap: 1.5rem;
-  align-items: start;
-}
-
-/* Left Hero highlight area mimicking clock/date card */
-.heroCard {
-  background-color: #e5e5e2; /* Slightly darker warm gray */
+  background-color: #f1f3f4;
   border-radius: 24px;
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-height: 280px;
+  padding: 0 1rem;
+  height: 48px;
+  transition: background-color 0.2s, box-shadow 0.2s;
 }
 
-.heroLabel {
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-dark-gray);
-  margin-bottom: 0.5rem;
+.searchBar:focus-within {
+  background-color: #fff;
+  box-shadow: 0 1px 1px 0 rgba(65,69,73,0.3), 0 1px 3px 1px rgba(65,69,73,0.15);
 }
 
-.heroTitle {
-  font-size: 2.2rem;
-  font-weight: 800;
-  line-height: 1.15;
-  font-family: var(--font-display);
+.searchInput {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 0 0.75rem;
+  font-size: 1rem;
   color: var(--text-main);
 }
 
-.heroDesc {
-  font-size: 0.9rem;
-  color: var(--text-dark-gray);
-  line-height: 1.4;
-  margin-top: 1rem;
-}
-
-/* Right App cards area */
-.appCardGrid {
+.navRight {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 1rem;
 }
 
-/* Row card style like agenda rows in calendar */
-.appRowCard {
-  border-radius: 20px;
-  padding: 1.5rem 2rem;
-  display: grid;
-  grid-template-columns: 180px 1fr 120px;
-  gap: 2rem;
-  align-items: center;
-  transition: transform 0.2s ease;
-  text-decoration: none;
+.loginBtn {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1.5rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
-.appRowCard:hover {
+.loginBtn:hover {
+  background-color: var(--primary-hover);
+  box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+}
+
+/* Main Content Area */
+.mainContent {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+}
+
+.contentWrapper {
+  max-width: 1200px;
+  width: 100%;
+}
+
+.greeting {
+  font-size: 2.25rem;
+  font-weight: 400;
+  color: var(--text-main);
+  margin-bottom: 2.5rem;
+  text-align: center;
+}
+
+/* App Grid */
+.appGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 4rem;
+  justify-content: center;
+}
+
+.appItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  padding: 1rem;
+  border-radius: 12px;
+  transition: background-color 0.2s;
+}
+
+.appItem:hover {
+  background-color: rgba(60, 64, 67, 0.04);
+}
+
+.appIconWrapper {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+  background-color: #fff;
+  transition: transform 0.2s;
+}
+
+.appItem:hover .appIconWrapper {
   transform: translateY(-2px);
 }
 
-.cardPurple {
-  background-color: #c5bcd2; /* Pastel purple */
-  color: #3b304a;
+.appName {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-dark-gray);
+  text-align: center;
 }
 
-.cardGreen {
-  background-color: #a4cdcd; /* Pastel teal/green */
-  color: #294040;
+/* Recent Activity Section */
+.recentSection {
+  margin-top: 2rem;
 }
 
-.cardGrey {
-  background-color: #d8d8d6;
-  color: #1a1a1a;
-  opacity: 0.6;
-  cursor: not-allowed;
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-main);
+  margin-bottom: 1.5rem;
 }
 
-.cardBlue {
-  background-color: #bbd2ec;
-  color: #1d3557;
+.recentGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.25rem;
 }
 
-.cardOrange {
-  background-color: #f3d2c1;
-  color: #5c3d2e;
+.recentCard {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  transition: box-shadow 0.2s, border-color 0.2s;
 }
 
-.cardTeal {
-  background-color: #addcc6;
-  color: #1c4a37;
+.recentCard:hover {
+  box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
 }
 
-.cardRose {
-  background-color: #fecdd3;
-  color: #881337;
+.recentIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.appNameCol {
+.recentInfo {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  overflow: hidden;
 }
 
-.appName {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 800;
-}
-
-.appStatus {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.8;
-}
-
-.appDescCol {
+.recentTitle {
   font-size: 0.9rem;
-  line-height: 1.45;
-  opacity: 0.95;
+  font-weight: 500;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.appActionCol {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.actionBadge {
-  background-color: rgba(0, 0, 0, 0.8);
-  color: #ffffff;
-  padding: 0.5rem 1rem;
-  border-radius: 9999px;
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.comingSoonBadge {
-  background-color: rgba(0, 0, 0, 0.05);
-  color: var(--text-dark-gray);
-  padding: 0.5rem 1rem;
-  border-radius: 9999px;
-  font-size: 0.8rem;
-  font-weight: 700;
+.recentDate {
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }

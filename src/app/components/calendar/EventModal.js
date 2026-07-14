@@ -53,6 +53,7 @@ export default function EventModal({
   onClose,
   calendars = [],
   teams = [],
+  departments = [],
   eventTitle, setEventTitle,
   eventDesc, setEventDesc,
   eventStart, setEventStart,
@@ -223,26 +224,42 @@ export default function EventModal({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary, #475569)', marginBottom: '0.4rem' }}>Invite Entire Team (Optional)</label>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary, #475569)', marginBottom: '0.4rem' }}>Invite Group (Team / Dept)</label>
               <select
                 style={{ ...inputStyle, cursor: 'pointer' }}
                 value=""
                 onChange={e => {
-                  const selectedTeamId = e.target.value;
-                  if (!selectedTeamId) return;
-                  const team = teams.find(t => t.id === selectedTeamId);
-                  if (team && team.members) {
-                    const emails = team.members.map(m => m.email).filter(Boolean);
-                    if (emails.length > 0) {
-                      const current = eventInvitees ? eventInvitees.split(',').map(x => x.trim()) : [];
-                      const merged = Array.from(new Set([...current, ...emails])).filter(Boolean).join(', ');
-                      setEventInvitees(merged);
-                    }
+                  const val = e.target.value;
+                  if (!val) return;
+                  const [type, id] = val.split(':');
+                  
+                  let emails = [];
+                  if (type === 'team') {
+                    const team = teams.find(t => t.id === id);
+                    if (team && team.members) emails = team.members.map(m => m.email).filter(Boolean);
+                  } else if (type === 'dept') {
+                    const dept = departments?.find(d => d.id === id);
+                    if (dept && dept.members) emails = dept.members.map(m => m.email).filter(Boolean);
+                  }
+
+                  if (emails.length > 0) {
+                    const current = eventInvitees ? eventInvitees.split(',').map(x => x.trim()) : [];
+                    const merged = Array.from(new Set([...current, ...emails])).filter(Boolean).join(', ');
+                    setEventInvitees(merged);
                   }
                 }}
               >
-                <option value="">— Select a Team —</option>
-                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                <option value="">— Select Group to Invite —</option>
+                {teams.length > 0 && (
+                  <optgroup label="Teams">
+                    {teams.map(t => <option key={t.id} value={`team:${t.id}`}>{t.name}</option>)}
+                  </optgroup>
+                )}
+                {departments?.length > 0 && (
+                  <optgroup label="Departments">
+                    {departments.map(d => <option key={d.id} value={`dept:${d.id}`}>{d.name}</option>)}
+                  </optgroup>
+                )}
               </select>
             </div>
             <div>

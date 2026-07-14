@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Sidebar from '@/app/components/Sidebar';
+import TopNav from '@/app/components/TopNav';
+import AppDisabled from '@/app/components/AppDisabled';
+import { api } from '@/lib/api';
 import styles from '../page.module.css';
 
 export default function WhiteboardPage() {
@@ -10,6 +12,7 @@ export default function WhiteboardPage() {
   const [color, setColor] = useState('#000000');
   const [brushSize, setBrushSize] = useState(4);
   const [tool, setTool] = useState('pencil'); // 'pencil' | 'rectangle' | 'circle'
+  const [appDisabled, setAppDisabled] = useState(false);
   const isDrawing = useRef(false);
   const lastX = useRef(0);
   const lastY = useRef(0);
@@ -21,6 +24,14 @@ export default function WhiteboardPage() {
         try { setUserProfile(JSON.parse(localUser)); } catch (e) {}
       }
     }
+    
+    // Check if whiteboard is enabled
+    api.getWhiteboards().catch(e => {
+      if (e.message?.toLowerCase().includes('disabled') || e.status === 403) setAppDisabled(true);
+    }).then(res => {
+      if (res && (res.status === 403 || res.message?.toLowerCase().includes('disabled'))) setAppDisabled(true);
+    });
+
     // Initialize canvas sizing
     const canvas = canvasRef.current;
     if (canvas) {
@@ -100,9 +111,18 @@ export default function WhiteboardPage() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   };
 
+  if (appDisabled) {
+    return (
+      <div className={styles.container}>
+        <TopNav userProfile={userProfile} isLoggedOut={!userProfile} />
+        <AppDisabled appName="Whiteboard" />
+      </div>
+    );
+  }
+
   return (
     <div className={styles.container}>
-      <Sidebar userProfile={userProfile} isLoggedOut={!userProfile} />
+      <TopNav userProfile={userProfile} isLoggedOut={!userProfile} />
       
       <main className={styles.mainPanel}>
         <header className={styles.header}>

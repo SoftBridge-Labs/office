@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Sidebar from '@/app/components/Sidebar';
+import TopNav from '@/app/components/TopNav';
 import { api } from '@/lib/api';
 import styles from '../page.module.css';
 
@@ -83,7 +83,7 @@ export default function BookmarksPage() {
 
   return (
     <div className={styles.container}>
-      <Sidebar userProfile={userProfile} isLoggedOut={!userProfile} />
+      <TopNav userProfile={userProfile} isLoggedOut={!userProfile} />
       
       <main className={styles.mainPanel}>
         <header className={styles.header}>

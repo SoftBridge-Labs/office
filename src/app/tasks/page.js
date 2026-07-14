@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Sidebar from '@/app/components/Sidebar';
+import TopNav from '@/app/components/TopNav';
+import AppDisabled from '@/app/components/AppDisabled';
 import { api } from '@/lib/api';
 import styles from '../page.module.css';
 
@@ -21,6 +22,7 @@ export default function TasksPage() {
   const [userProfile, setUserProfile] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [appDisabled, setAppDisabled] = useState(false);
 
   // Form states
   const [title, setTitle] = useState('');
@@ -44,9 +46,15 @@ export default function TasksPage() {
       const res = await api.getTasks();
       if (res.success) {
         setTasks(res.data || []);
+      } else if (res.status === 403 || res.message?.toLowerCase().includes('disabled')) {
+        setAppDisabled(true);
       }
     } catch (e) {
-      console.error(e);
+      if (e.message?.toLowerCase().includes('disabled') || e.status === 403) {
+        setAppDisabled(true);
+      } else {
+        console.error(e);
+      }
     }
   };
 
@@ -96,9 +104,18 @@ export default function TasksPage() {
     { id: 'completed', label: 'Completed', color: '#10b981' }
   ];
 
+  if (appDisabled) {
+    return (
+      <div className={styles.container}>
+        <TopNav userProfile={userProfile} isLoggedOut={!userProfile} />
+        <AppDisabled appName="Tasks" />
+      </div>
+    );
+  }
+
   return (
     <div className={styles.container}>
-      <Sidebar userProfile={userProfile} isLoggedOut={!userProfile} />
+      <TopNav userProfile={userProfile} isLoggedOut={!userProfile} />
       
       <main className={styles.mainPanel}>
         <header className={styles.header}>
