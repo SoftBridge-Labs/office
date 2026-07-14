@@ -19,7 +19,7 @@ export default function BillingPage() {
       if (!orderRes.order) throw new Error(orderRes.message || 'Failed to create order');
       const order = orderRes.order;
 
-      const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      const key = (typeof window !== 'undefined' && window.__ENV__?.NEXT_PUBLIC_RAZORPAY_KEY_ID) || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
       const options = {
         key,
         amount: order.amount,
@@ -103,7 +103,7 @@ export default function BillingPage() {
                 if (!orderRes.success) throw new Error(orderRes.message);
                 
                 const options = {
-                  key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+                  key: (typeof window !== 'undefined' && window.__ENV__?.NEXT_PUBLIC_RAZORPAY_KEY_ID) || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
                   amount: orderRes.order.amount,
                   currency: 'INR',
                   name: 'SoftBridge Workspace',

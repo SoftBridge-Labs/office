@@ -2,9 +2,14 @@
 
 import { useState, useCallback } from 'react';
 
-const ACCOUNTS_URL = process.env.NEXT_PUBLIC_ACCOUNTS_URL || "https://account.softbridgelabs.in";
-const CLIENT_ID = process.env.NEXT_PUBLIC_SB_CLIENT_ID ; 
-const CLIENT_SECRET = process.env.NEXT_PUBLIC_SB_CLIENT_SECRET;
+const getEnv = (key, defaultVal) => {
+  if (typeof window !== 'undefined' && window.__ENV__ && window.__ENV__[key]) return window.__ENV__[key];
+  return process.env[key] || defaultVal;
+};
+
+const ACCOUNTS_URL = getEnv('NEXT_PUBLIC_ACCOUNTS_URL', "https://account.softbridgelabs.in");
+const CLIENT_ID = getEnv('NEXT_PUBLIC_SB_CLIENT_ID', '');
+const CLIENT_SECRET = getEnv('NEXT_PUBLIC_SB_CLIENT_SECRET', '');
 
 export default function OneTapLogin({ onSuccess, buttonText = "Sign in with SoftBridge", className = "", style = {} }) {
   const [loading, setLoading] = useState(false);
