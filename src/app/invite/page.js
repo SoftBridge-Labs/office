@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import TopNav from '@/app/components/TopNav';
 
-export default function InvitePage() {
+function InviteContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [token, setToken] = useState('');
@@ -108,5 +108,13 @@ export default function InvitePage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function InvitePage() {
+  return (
+    <Suspense fallback={<div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>}>
+      <InviteContent />
+    </Suspense>
   );
 }

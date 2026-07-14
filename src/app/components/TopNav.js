@@ -161,6 +161,10 @@ export default function TopNav({ userProfile, isLoggedOut }) {
                   </a>
                 )}
                 
+                <a href="https://account.softbridgelabs.in/" target="_blank" rel="noopener noreferrer" style={{ padding: '0.5rem 1rem', textDecoration: 'none', color: '#202124', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f1f3f4'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                  New Account
+                </a>
+                
                 <div 
                   onClick={handleLogout}
                   style={{ padding: '0.5rem 1rem', cursor: 'pointer', color: '#d93025' }}
