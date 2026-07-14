@@ -339,6 +339,8 @@ export const api = {
   // ─── Workspace Invitations & Shared ───────────────────────────────────────
   acceptInvite: (data) => request('/workspace/shared/invite/accept', { method: 'POST', body: JSON.stringify(data) }),
   getMe: () => request('/workspace/shared/me'),
+  getMyWorkspaces: () => request('/workspace/shared/my-workspaces'),
+  initWorkspace: () => request('/workspace/shared/init', { method: 'POST' }),
   getAIGuidance: () => request('/workspace/shared/ai/guidance'),
 
   // ─── Workspace Admin ──────────────────────────────────────────────────────

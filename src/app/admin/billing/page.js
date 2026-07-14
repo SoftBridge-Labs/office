@@ -4,6 +4,19 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { inputStyle, btnPrimary, btnDanger, btnGhost, card, Alert } from '../shared';
 
+const loadRazorpay = () => {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') return resolve(false);
+    if (window.Razorpay) return resolve(true);
+
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 export default function BillingPage() {
   const [status, setStatus] = useState(null);
   const [msg, setMsg] = useState({ text: '', type: 'success' });
@@ -39,14 +52,10 @@ export default function BillingPage() {
         theme: { color: '#1a73e8' },
       };
 
-      if (typeof window.Razorpay === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-        script.onload = () => { new window.Razorpay(options).open(); };
-        document.body.appendChild(script);
-      } else {
-        new window.Razorpay(options).open();
-      }
+      const isLoaded = await loadRazorpay();
+      if (!isLoaded) throw new Error('Failed to load payment gateway');
+      
+      new window.Razorpay(options).open();
     } catch (e) {
       setMsg({ text: e.message, type: 'error' });
     }
@@ -120,6 +129,10 @@ export default function BillingPage() {
                   },
                   theme: { color: '#1a73e8' },
                 };
+                
+                const isLoaded = await loadRazorpay();
+                if (!isLoaded) throw new Error('Failed to load payment gateway');
+                
                 new window.Razorpay(options).open();
               } catch (e) {
                 setMsg({ text: e.message, type: 'error' });

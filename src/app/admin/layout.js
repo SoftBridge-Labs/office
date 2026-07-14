@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import TopNav from '@/app/components/TopNav';
+import { api } from '@/lib/api';
 import styles from '../page.module.css';
 
 const inputStyle = {
@@ -40,12 +41,28 @@ export default function AdminPanelLayout({ children }) {
       if (localUser) {
         try { setUserProfile(JSON.parse(localUser)); } catch (e) {}
       }
-      const wId = localStorage.getItem('sb_workspace_id');
-      if (!wId || wId === 'default') {
-        setShowWorkspaceModal(true);
-      } else {
-        setWorkspaceId(wId);
-      }
+      
+      const checkWorkspaces = async () => {
+        try {
+          const res = await api.getMyWorkspaces();
+          if (res.success && res.data && res.data.length > 0) {
+            const existingId = res.data[0].workspace_id;
+            localStorage.setItem('sb_workspace_id', existingId);
+            setWorkspaceId(existingId);
+          } else {
+            setShowWorkspaceModal(true);
+          }
+        } catch (error) {
+          const wId = localStorage.getItem('sb_workspace_id');
+          if (!wId || wId === 'default') {
+            setShowWorkspaceModal(true);
+          } else {
+            setWorkspaceId(wId);
+          }
+        }
+      };
+      
+      checkWorkspaces();
     }
   }, []);
 
@@ -112,12 +129,18 @@ export default function AdminPanelLayout({ children }) {
                 
                 <div style={{ paddingBottom: '0.5rem' }}>
                   <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>Create New Organization</h3>
-                  <button onClick={() => {
-                    const uniqueId = 'ORG-' + Math.random().toString(36).substr(2, 6).toUpperCase() + Math.floor(Math.random() * 1000);
-                    localStorage.setItem('sb_workspace_id', uniqueId);
-                    setWorkspaceId(uniqueId);
-                    setShowWorkspaceModal(false);
-                    window.location.reload();
+                  <button onClick={async () => {
+                    try {
+                      const res = await api.initWorkspace();
+                      if (res.success && res.workspaceId) {
+                        localStorage.setItem('sb_workspace_id', res.workspaceId);
+                        setWorkspaceId(res.workspaceId);
+                        setShowWorkspaceModal(false);
+                        window.location.reload();
+                      }
+                    } catch (e) {
+                      console.error("Failed to initialize workspace", e);
+                    }
                   }} style={{ ...btnPrimary, width: '100%', backgroundColor: '#0f9d58' }}>Generate Unique Org ID & Continue</button>
                 </div>
               </div>
