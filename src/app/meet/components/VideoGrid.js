@@ -239,7 +239,7 @@ export default function VideoGrid({
     const presenterName = isLocalScreenSharing ? `${userProfile?.name || 'You'} — Screen` : `${remoteStreams[remoteScreenSharePeerId]?.name || 'Participant'} — Screen`;
     const presenterStream = isLocalScreenSharing ? localStream : remoteStreams[remoteScreenSharePeerId]?.stream;
     return (
-      <div style={{ flex: 1, display: 'flex', gap: '1rem', padding: '1rem 1rem 7rem 1rem', boxSizing: 'border-box', overflow: 'hidden', minHeight: 0 }}>
+      <div className="mobile-col" style={{ flex: 1, display: 'flex', gap: '1rem', padding: '1rem 1rem 7rem 1rem', boxSizing: 'border-box', overflow: 'hidden', minHeight: 0 }}>
         {/* Main screen area */}
         <div style={{ flex: 1, position: 'relative', borderRadius: '20px', overflow: 'hidden', background: '#111114', border: '1.5px solid rgba(255,255,255,0.07)', boxShadow: '0 8px 40px rgba(0,0,0,0.7)' }}>
           <video
@@ -253,7 +253,7 @@ export default function VideoGrid({
           </div>
         </div>
         {/* Film strip */}
-        <div style={{ width: '160px', display: 'flex', flexDirection: 'column', gap: '0.75rem', overflowY: 'auto' }}>
+        <div className="mobile-full" style={{ width: '160px', display: 'flex', flexDirection: 'column', gap: '0.75rem', overflowY: 'auto' }}>
           <div style={{ height: '120px', flexShrink: 0 }}>
             <VideoTile name={userProfile?.name || 'You'} avatar_url={userProfile?.avatar_url} isLocal stream={localStream} isVideoOff={!videoActive} isMuted={!micActive} isMini />
           </div>
@@ -282,13 +282,13 @@ export default function VideoGrid({
   if (totalCount === 1) {
     const pId = remotePeerIds[0];
     return (
-      <div style={{ flex: 1, display: 'flex', gap: '1rem', padding: '1rem 1rem 8rem 1rem', boxSizing: 'border-box', minHeight: 0 }}>
+      <div className="mobile-col mobile-full" style={{ flex: 1, display: 'flex', gap: '1rem', padding: '1rem 1rem 8rem 1rem', boxSizing: 'border-box', minHeight: 0 }}>
         {/* Featured remote */}
         <div style={{ flex: 1, minHeight: 0 }}>
           <VideoTile name={remoteStreams[pId]?.name || 'Participant'} avatar_url={remoteStreams[pId]?.avatar_url} stream={remoteStreams[pId]?.stream} isVideoOff={remoteStreams[pId]?.isVideoOff} isMuted={remoteStreams[pId]?.isMuted} isHandRaised={remoteStreams[pId]?.isHandRaised} isFeatured />
         </div>
         {/* Your mini pip */}
-        <div style={{ width: '200px', height: '140px', alignSelf: 'flex-end', flexShrink: 0, marginBottom: '0.5rem' }}>
+        <div className="mobile-full meet-video-cell" style={{ width: '200px', height: '140px', alignSelf: 'flex-end', flexShrink: 0, marginBottom: '0.5rem' }}>
           <VideoTile name={userProfile?.name || 'You'} avatar_url={userProfile?.avatar_url} isLocal stream={localStream} isVideoOff={!videoActive} isMuted={!micActive} isMini />
         </div>
       </div>
@@ -297,9 +297,9 @@ export default function VideoGrid({
 
   // === Multi-party call (featured + strip) ===
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1rem 1rem 7.5rem 1rem', boxSizing: 'border-box', minHeight: 0 }}>
+    <div className="mobile-col mobile-full" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1rem 1rem 7.5rem 1rem', boxSizing: 'border-box', minHeight: 0 }}>
       {/* Featured area */}
-      <div style={{ flex: 1, display: 'flex', gap: '1rem', minHeight: 0 }}>
+      <div className="mobile-col" style={{ flex: 1, display: 'flex', gap: '1rem', minHeight: 0 }}>
         {/* Main featured */}
         <div style={{ flex: 1, minHeight: 0 }}>
           {featuredPeerId ? (
@@ -319,7 +319,7 @@ export default function VideoGrid({
         </div>
 
         {/* Right column: your tile + extra remotes */}
-        <div style={{ width: '200px', display: 'flex', flexDirection: 'column', gap: '0.75rem', flexShrink: 0 }}>
+        <div className="mobile-full meet-video-cell" style={{ width: '200px', display: 'flex', flexDirection: 'column', gap: '0.75rem', flexShrink: 0 }}>
           {/* Your tile always in right column */}
           <div style={{ height: '140px' }}>
             <VideoTile name={userProfile?.name || 'You'} avatar_url={userProfile?.avatar_url} isLocal stream={localStream} isVideoOff={!videoActive} isMuted={!micActive} isMini />

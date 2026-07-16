@@ -142,11 +142,11 @@ export default function Home() {
         </div>
         <p style={{ fontSize: '1.1rem', color: '#5f6368', marginBottom: '3rem' }}>Here is what's happening in your workspace today.</p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
+        <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
 
           {/* AI Guidance Panel */}
           <div style={{
-            background: 'linear-gradient(135deg, #1a73e8 0%, #8E24AA 100%)',
+            backgroundColor: '#1a73e8',
             borderRadius: '16px',
             padding: '2rem',
             color: '#fff',
@@ -185,10 +185,9 @@ export default function Home() {
           </div>
 
           {/* Quick Apps */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+          <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
             {[
               { name: 'Docs', icon: <DocsIcon />, link: '/docs', color: '#1a73e8' },
-              { name: 'Sheets', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>, link: '/sheets', color: '#0f9d58' },
               { name: 'Tasks', icon: <TasksIcon />, link: '/tasks', color: '#fbbc04' },
               { name: 'Calendar', icon: <CalendarIcon />, link: '/calendar', color: '#ea4335' },
               { name: 'Whiteboard', icon: <WhiteboardIcon />, link: '/whiteboard', color: '#8e24aa' },
@@ -233,9 +232,9 @@ export default function Home() {
           <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#202124', marginBottom: '1.5rem' }}>Jump back in</h2>
 
           {loadingItems ? (
-            <div style={{ color: '#5f6368', padding: '2rem', textAlign: 'center' }}>Loading recent items...</div>
+            <div style={{ color: '#5f6368', padding: '2rem', textAlign: 'center' }}>Loading...</div>
           ) : recentItems.length > 0 ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1.5rem' }}>
+            <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
               {recentItems.map((item, index) => (
                 <div key={item._id || index} onClick={() => {
                   if (item.type === 'doc') router.push(`/doc/${item._id}`);

@@ -11,7 +11,7 @@ export const inputStyle = {
 
 export const btnPrimary = {
   padding: '0.6rem 1.25rem',
-  background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+  backgroundColor: '#2563eb',
   color: '#fff',
   border: 'none',
   borderRadius: '8px',
@@ -24,7 +24,7 @@ export const btnPrimary = {
 
 export const btnDanger = {
   ...btnPrimary,
-  background: 'linear-gradient(135deg, #ef4444, #b91c1c)',
+  backgroundColor: '#ef4444',
   boxShadow: '0 2px 4px rgba(239, 68, 68, 0.15)',
 };
 

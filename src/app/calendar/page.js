@@ -377,7 +377,7 @@ export default function CalendarPage() {
 
       <main className={styles.main}>
         {/* Header */}
-        <header className={styles.header}>
+        <header className={`${styles.header} mobile-wrap`}>
           <div className={styles.viewToggle}>
             <button className={`${styles.viewBtn} ${view === 'calendar' ? styles.viewBtnActive : ''}`} onClick={() => setView('calendar')}>Calendar</button>
             <button className={`${styles.viewBtn} ${view === 'agenda'   ? styles.viewBtnActive : ''}`} onClick={() => setView('agenda')}>Today</button>
@@ -400,7 +400,7 @@ export default function CalendarPage() {
             <div className={styles.spinner} />
           </div>
         ) : (
-          <div className={styles.grid}>
+          <div className={`${styles.grid} mobile-col`}>
             {/* Left panel */}
             <div className={styles.leftPanel}>
               <DateCard selectedDate={selectedDate} />

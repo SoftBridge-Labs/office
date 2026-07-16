@@ -32,7 +32,7 @@ export default function AISummaryCard({ summary, loading }) {
           width: '52px',
           height: '52px',
           borderRadius: '50%',
-          background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+          backgroundColor: '#6366f1',
           color: '#ffffff',
           border: 'none',
           cursor: 'pointer',

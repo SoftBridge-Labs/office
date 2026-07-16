@@ -132,6 +132,14 @@ export default function MeetLobbyPage() {
     router.push(`/meet/${cleanRoomId}?mic=${micActive}&video=${videoActive}`);
   };
 
+  const handleEndMeeting = async (roomId) => {
+    try {
+      await api.endMeetingRoom(roomId);
+      setHostedMeetings(prev => prev.map(m => m.room_id === roomId ? { ...m, end_time: new Date().toISOString(), duration: (new Date() - new Date(m.start_time))/1000 } : m));
+    } catch (e) {}
+  };
+
+
   if (meetLimits && meetLimits.appEnabled === false) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#ededeb', color: '#1a1a1a', padding: '2rem' }}>
@@ -303,7 +311,7 @@ export default function MeetLobbyPage() {
               fontSize: '2.2rem',
               fontWeight: 800,
               letterSpacing: '-0.02em',
-              backgroundImage: 'linear-gradient(to right, #4f46e5, #a855f7)',
+              backgroundColor: '#4f46e5',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               marginBottom: '0.5rem'
@@ -387,7 +395,7 @@ export default function MeetLobbyPage() {
                   width: '100%',
                   padding: '0.9rem',
                   borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)',
+                  backgroundColor: '#4f46e5',
                   color: '#fff',
                   fontSize: '0.95rem',
                   fontWeight: 700,
@@ -456,11 +464,11 @@ export default function MeetLobbyPage() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Meetings Hosted:</span>
-                <span>{meetLimits.hostedCount} / {meetLimits.maxMeetings}</span>
+                <span style={{ color: meetLimits.hostedCount >= meetLimits.maxMeetings ? '#ef4444' : meetLimits.hostedCount >= meetLimits.maxMeetings * 0.8 ? '#f59e0b' : '#10b981', fontWeight: 600 }}>{meetLimits.hostedCount} / {meetLimits.maxMeetings}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Total Call Time Used:</span>
-                <span>{Math.round(meetLimits.totalDurationSec / 60)} mins / {Math.round(meetLimits.maxDurationSec / 3600)} hrs</span>
+                <span style={{ color: meetLimits.totalDurationSec >= meetLimits.maxDurationSec ? '#ef4444' : meetLimits.totalDurationSec >= meetLimits.maxDurationSec * 0.8 ? '#f59e0b' : '#10b981', fontWeight: 600 }}>{Math.round(meetLimits.totalDurationSec / 60)} mins / {Math.round(meetLimits.maxDurationSec / 3600)} hrs</span>
               </div>
             </div>
           )}
@@ -519,6 +527,24 @@ export default function MeetLobbyPage() {
                       >
                         Rejoin
                       </button>
+                      {!meet.end_time && (
+                        <button
+                          onClick={() => handleEndMeeting(meet.room_id)}
+                          style={{
+                            background: '#ef4444',
+                            color: '#fff',
+                            border: 'none',
+                            padding: '0.35rem 0.75rem',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            fontSize: '0.75rem',
+                            marginLeft: '0.5rem'
+                          }}
+                        >
+                          End Call
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -48,7 +48,7 @@ export default function PricingPage() {
             position: 'relative',
             overflow: 'hidden'
           }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '6px', background: 'linear-gradient(90deg, #1a73e8, #8b5cf6)' }} />
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '6px', backgroundColor: '#1a73e8' }} />
             
             <h3 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#111827', marginBottom: '0.5rem' }}>Workspace Core</h3>
             <p style={{ color: '#6b7280', marginBottom: '2rem' }}>All the essential tools for your entire organization.</p>
