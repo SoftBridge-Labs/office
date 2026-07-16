@@ -23,6 +23,7 @@ export default function TasksPage() {
   const [tasks, setTasks] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [appDisabled, setAppDisabled] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Form states
   const [title, setTitle] = useState('');
@@ -129,12 +130,30 @@ export default function TasksPage() {
           </button>
         </header>
 
+        <div style={{ marginBottom: '1.5rem' }}>
+          <input
+            type="text"
+            placeholder="Filter tasks by title or description..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '0.75rem 1rem',
+              borderRadius: '8px',
+              border: '1px solid var(--border-subtle)',
+              fontSize: '0.95rem',
+              outline: 'none',
+              backgroundColor: '#fff'
+            }}
+          />
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: showAddForm ? '1.2fr 1fr' : '1fr', gap: '2rem' }}>
           
           {/* Kanban Columns */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', alignItems: 'start' }}>
             {columns.map(col => {
-              const colTasks = tasks.filter(t => t.status === col.id);
+              const colTasks = tasks.filter(t => t.status === col.id && (!searchQuery || (t.title && t.title.toLowerCase().includes(searchQuery.toLowerCase())) || (t.description && t.description.toLowerCase().includes(searchQuery.toLowerCase()))));
               return (
                 <div key={col.id} style={{ background: '#f5f5f3', borderRadius: '16px', padding: '1rem', border: '1px solid var(--border-subtle)', minHeight: '400px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>

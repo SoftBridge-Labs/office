@@ -15,22 +15,31 @@ export default function UsersPage() {
   
   const [msg, setMsg] = useState({ text: '', type: 'success' });
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Edit State
   const [editingUserId, setEditingUserId] = useState(null);
   const [editData, setEditData] = useState({});
 
+  // Pagination State
+  const [limit] = useState(10);
+  const [offset, setOffset] = useState(0);
+  const [total, setTotal] = useState(0);
+
   const load = useCallback(() => {
     setLoading(true);
     Promise.all([
-      api.admin.listUsers().catch(() => ({ success: false, data: [] })),
+      api.admin.listUsers({ limit, offset }).catch(() => ({ success: false, data: [] })),
       api.admin.listDepartments().catch(() => ({ success: false, data: [] }))
     ]).then(([usersRes, deptsRes]) => {
-      if (usersRes.success) setUsers(usersRes.data);
+      if (usersRes.success) {
+        setUsers(usersRes.data);
+        if (usersRes.meta) setTotal(usersRes.meta.total);
+      }
       if (deptsRes.success) setDepartmentsList(deptsRes.data);
     }).catch(e => setMsg({ text: e.message, type: 'error' }))
       .finally(() => setLoading(false));
-  }, []);
+  }, [limit, offset]);
 
   useEffect(load, [load]);
 
@@ -176,6 +185,13 @@ export default function UsersPage() {
       <div style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <h3 style={{ margin: 0, fontWeight: 600, fontSize: '1.1rem', color: '#334155' }}>All Members <span style={{ color: '#94a3b8', fontWeight: 400 }}>({users.length})</span></h3>
+          <input
+            type="text"
+            placeholder="Search users..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ ...inputStyle, width: '250px', marginBottom: 0 }}
+          />
         </div>
         
         {loading ? <p style={{ color: '#64748b' }}>Loading directory…</p> : users.length === 0 ? <p style={{ color: '#64748b' }}>No members yet.</p> : (
@@ -189,7 +205,7 @@ export default function UsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map(u => {
+                {users.filter(u => !searchQuery || (u.name && u.name.toLowerCase().includes(searchQuery.toLowerCase())) || (u.email && u.email.toLowerCase().includes(searchQuery.toLowerCase()))).map(u => {
                   const isEditing = editingUserId === u.id;
                   
                   return (
@@ -305,6 +321,17 @@ export default function UsersPage() {
                 })}
               </tbody>
             </table>
+            
+            {/* Pagination Controls */}
+            {total > limit && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
+                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Showing {offset + 1} to {Math.min(offset + limit, total)} of {total} users</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button onClick={() => setOffset(Math.max(0, offset - limit))} disabled={offset === 0} style={{ ...btnGhost, padding: '0.3rem 0.75rem', fontSize: '0.85rem', border: '1px solid #e2e8f0', opacity: offset === 0 ? 0.5 : 1 }}>Previous</button>
+                  <button onClick={() => setOffset(offset + limit)} disabled={offset + limit >= total} style={{ ...btnGhost, padding: '0.3rem 0.75rem', fontSize: '0.85rem', border: '1px solid #e2e8f0', opacity: offset + limit >= total ? 0.5 : 1 }}>Next</button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

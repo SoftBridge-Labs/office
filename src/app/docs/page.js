@@ -13,6 +13,7 @@ export default function DocsDashboardPage() {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [appDisabled, setAppDisabled] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -139,13 +140,31 @@ export default function DocsDashboardPage() {
             </button>
           </div>
         ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: '1.5rem',
-            paddingBottom: '2rem'
-          }}>
-            {docs.map(doc => (
+          <>
+            <div style={{ marginBottom: '1rem' }}>
+              <input
+                type="text"
+                placeholder="Filter documents by title..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  backgroundColor: 'var(--bg-surface)'
+                }}
+              />
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: '1.5rem',
+              paddingBottom: '2rem'
+            }}>
+              {docs.filter(doc => !searchQuery || (doc.title && doc.title.toLowerCase().includes(searchQuery.toLowerCase()))).map(doc => (
               <div 
                 key={doc._id}
                 onClick={() => router.push(`/doc/${doc._id}`)}
@@ -225,8 +244,9 @@ export default function DocsDashboardPage() {
                   </span>
                 </div>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
       </main>
       

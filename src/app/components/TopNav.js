@@ -10,6 +10,8 @@ export default function TopNav({ userProfile, isLoggedOut }) {
   const router = useRouter();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [workspaceMember, setWorkspaceMember] = useState(null);
+  const [showStartupForm, setShowStartupForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -112,6 +114,13 @@ export default function TopNav({ userProfile, isLoggedOut }) {
           <input 
             type="text" 
             placeholder="Search in Workspace" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && searchQuery.trim()) {
+                router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+              }
+            }}
             style={{
               flex: 1,
               border: 'none',
@@ -125,15 +134,22 @@ export default function TopNav({ userProfile, isLoggedOut }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+        <Link href="/pricing" style={{ textDecoration: 'none', color: '#5f6368', fontWeight: 500, fontSize: '0.95rem' }}>
+          Pricing
+        </Link>
         {!isLoggedOut && userProfile ? (
           <div style={{ position: 'relative' }} ref={menuRef}>
             <div 
-              style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#1a73e8', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', cursor: 'pointer' }} 
+              style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#1a73e8', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', cursor: 'pointer', overflow: 'hidden' }} 
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               title="Account Options"
             >
-              {userProfile.name ? userProfile.name.charAt(0).toUpperCase() : 'U'}
+              {userProfile.avatar_url ? (
+                <img src={userProfile.avatar_url} alt={userProfile.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                userProfile.name ? userProfile.name.charAt(0).toUpperCase() : 'U'
+              )}
             </div>
             
             {showProfileMenu && (
@@ -161,8 +177,14 @@ export default function TopNav({ userProfile, isLoggedOut }) {
                   </a>
                 )}
                 
-                <a href="https://account.softbridgelabs.in/" target="_blank" rel="noopener noreferrer" style={{ padding: '0.5rem 1rem', textDecoration: 'none', color: '#202124', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f1f3f4'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                  New Account
+                <a 
+                  href="#startup-support" 
+                  onClick={(e) => { e.preventDefault(); setShowStartupForm(true); setShowProfileMenu(false); }} 
+                  style={{ padding: '0.5rem 1rem', textDecoration: 'none', color: '#202124', cursor: 'pointer' }} 
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f1f3f4'} 
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  Startup Support
                 </a>
                 
                 <div 
@@ -193,6 +215,36 @@ export default function TopNav({ userProfile, isLoggedOut }) {
           />
         )}
       </div>
+
+      {showStartupForm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', animation: 'fadeIn 0.2s ease-out' }}>
+          <div style={{ background: '#fff', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #eaeaea' }}>
+              <div>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#202124' }}>SoftBridge Startup Program</h2>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#5f6368' }}>Please provide your Organization ID during application: <strong style={{color: '#1a73e8', userSelect: 'all'}}>{userProfile?.workspace_id || 'default'}</strong></p>
+              </div>
+              <button onClick={() => setShowStartupForm(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#5f6368', padding: '0.5rem' }}>&times;</button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
+              <iframe 
+                src="https://forms.softbridgelabs.in/form/6a423feb203629cb06e01af7?embed=true" 
+                width="100%" 
+                height="600px" 
+                frameBorder="0"
+                style={{ border: 'none', borderRadius: '8px' }}
+              ></iframe>
+              <div style={{ fontFamily: 'sans-serif', fontSize: '11px', color: '#666', textAlign: 'center', marginTop: '10px' }}>
+                Powered by <a href="https://forms.softbridgelabs.in" target="_blank" rel="noreferrer" style={{ color: 'var(--brand, #1a73e8)', textDecoration: 'none', fontWeight: 600 }}>SoftBridge Forms</a>
+              </div>
+            </div>
+          </div>
+          <style dangerouslySetInnerHTML={{__html: `
+            @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+          `}} />
+        </div>
+      )}
     </header>
   );
 }

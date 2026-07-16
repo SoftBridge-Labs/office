@@ -8,7 +8,7 @@ export default function MeetLobbyPage() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [roomIdInput, setRoomIdInput] = useState('');
-  const [videoActive, setVideoActive] = useState(true);
+  const [videoActive, setVideoActive] = useState(false);
   const [micActive, setMicActive] = useState(true);
   const [stream, setStream] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -131,6 +131,18 @@ export default function MeetLobbyPage() {
     }
     router.push(`/meet/${cleanRoomId}?mic=${micActive}&video=${videoActive}`);
   };
+
+  if (meetLimits && meetLimits.appEnabled === false) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#ededeb', color: '#1a1a1a', padding: '2rem' }}>
+        <div style={{ background: '#fff', padding: '3rem', borderRadius: '24px', textAlign: 'center', maxWidth: '500px', boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1rem', color: '#dc2626' }}>Meet is Disabled</h2>
+          <p style={{ color: '#5f6368', marginBottom: '2rem' }}>The Meet app has been disabled by your workspace administrator. Please contact them if you need access.</p>
+          <button onClick={() => router.push('/')} style={{ background: '#1a1a1a', color: '#fff', padding: '0.75rem 1.5rem', borderRadius: '99px', fontWeight: 600, border: 'none', cursor: 'pointer' }}>Return to Workspace</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{

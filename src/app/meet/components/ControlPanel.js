@@ -5,6 +5,7 @@ export default function ControlPanel({
   videoActive,
   toggleMic,
   toggleVideo,
+  togglePolls,
   endCall
 }) {
   return (
@@ -86,6 +87,29 @@ export default function ControlPanel({
       </button>
 
       <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.15)' }} />
+
+      <button
+        onClick={togglePolls}
+        style={{
+          width: '48px',
+          height: '48px',
+          borderRadius: '50%',
+          border: 'none',
+          background: 'rgba(255,255,255,0.08)',
+          color: '#fff',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.2s ease',
+        }}
+        title="Polls"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          <path d="M8 10h.01M12 10h.01M16 10h.01"/>
+        </svg>
+      </button>
 
       <button
         onClick={endCall}

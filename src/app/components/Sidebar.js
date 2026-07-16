@@ -149,30 +149,7 @@ export default function Sidebar({ userProfile, isLoggedOut }) {
             Pricing
           </Link>
 
-          <a
-            href="#startup-support"
-            onClick={(e) => {
-              window.dispatchEvent(new Event('open-startup-support'));
-            }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.625rem',
-              padding: '0.55rem 0.625rem', borderRadius: 'var(--radius)',
-              fontWeight: 500, fontSize: '0.85rem',
-              color: 'var(--text-secondary)',
-              background: 'transparent',
-              transition: 'all 0.12s',
-              textDecoration: 'none',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-          >
-            <span style={{ opacity: 0.7 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-              </svg>
-            </span>
-            Startup Support
-          </a>
+
         </nav>
       </div>
 
@@ -234,9 +211,13 @@ export default function Sidebar({ userProfile, isLoggedOut }) {
               width: '30px', height: '30px', borderRadius: '50%', flexShrink: 0,
               background: 'var(--brand-subtle)', border: '1px solid var(--brand-border)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--brand)', fontWeight: 700, fontSize: '0.75rem',
+              color: 'var(--brand)', fontWeight: 700, fontSize: '0.75rem', overflow: 'hidden'
             }}>
-              {(userProfile?.name || userProfile?.email || 'U').charAt(0).toUpperCase()}
+              {userProfile?.avatar_url ? (
+                <img src={userProfile.avatar_url} alt={userProfile.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                (userProfile?.name || userProfile?.email || 'U').charAt(0).toUpperCase()
+              )}
             </div>
             <div style={{ flex: 1, overflow: 'hidden' }}>
               <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

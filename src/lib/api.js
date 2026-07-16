@@ -173,7 +173,7 @@ export const api = {
   }),
 
   // ─── SoftBridge Account ───────────────────────────────────────────────────
-  getAccount: (uid) => request(`/softbridge/account?uid=${uid}`),
+  getAccount: (uid) => fetch(`https://api.softbridgelabs.in/softbridge/profile/${uid}`).then(r => r.json()),
 
   // ─── Calendar Management ──────────────────────────────────────────────────
   createCalendar: (data) => request('/calendar/calendars', {
@@ -285,6 +285,9 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(data)
   }),
+  endMeetingRoom: (roomId) => request(`/calendar/meet/${roomId}/end`, {
+    method: 'POST'
+  }),
   checkMeetLimits: (uid) => request(`/calendar/meet/check-limits?uid=${uid}`),
   getMeetMessages: (roomId) => request(`/calendar/meet/${roomId}/chat`),
   sendMeetMessage: (roomId, data) => request(`/calendar/meet/${roomId}/chat`, {
@@ -297,6 +300,14 @@ export const api = {
     body: JSON.stringify(data)
   }),
   syncMeetState: (roomId) => request(`/calendar/meet/${roomId}/sync`),
+  createMeetPoll: (roomId, data) => request(`/calendar/meet/${roomId}/poll`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  voteMeetPoll: (roomId, data) => request(`/calendar/meet/${roomId}/poll/vote`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
   getHostedMeetings: (uid) => request(`/calendar/meet/hosted?uid=${uid}`),
   updateMeetPeer: (roomId, data) => request(`/calendar/meet/${roomId}/update-peer`, {
     method: 'POST',
@@ -346,7 +357,10 @@ export const api = {
   // ─── Workspace Admin ──────────────────────────────────────────────────────
   admin: {
     // User Management
-    listUsers: () => request('/workspace/admin/users'),
+    listUsers: (params = {}) => {
+      const q = new URLSearchParams(params).toString();
+      return request(`/workspace/admin/users${q ? '?' + q : ''}`);
+    },
     addUser: (data) => request('/workspace/admin/users', { method: 'POST', body: JSON.stringify(data) }),
     modifyUser: (userId, data) => request(`/workspace/admin/users/${userId}`, { method: 'PUT', body: JSON.stringify(data) }),
     removeUser: (userId) => request(`/workspace/admin/users/${userId}`, { method: 'DELETE' }),
@@ -355,6 +369,7 @@ export const api = {
     // Billing
     payBill: (data) => request('/workspace/admin/billing/pay', { method: 'POST', body: JSON.stringify(data) }),
     getBillingStatus: () => request('/workspace/admin/billing/status'),
+    getBillingCreditHistory: () => request('/workspace/admin/billing/credit-history'),
     createOneTimeOrder: (data) => request('/workspace/admin/billing/one-time', { method: 'POST', body: JSON.stringify(data) }),
     createSubscription: (data) => request('/workspace/admin/billing/subscription', { method: 'POST', body: JSON.stringify(data) }),
     getSubscription: (id) => request(`/workspace/admin/billing/subscription/${id}`),

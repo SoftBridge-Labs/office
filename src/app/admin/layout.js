@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import TopNav from '@/app/components/TopNav';
 import { api } from '@/lib/api';
-import styles from '../page.module.css';
+import styles from '../home/page.module.css';
 
 const inputStyle = {
   padding: '0.5rem 0.75rem',

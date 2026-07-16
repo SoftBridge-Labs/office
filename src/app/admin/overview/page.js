@@ -33,7 +33,7 @@ export default function OverviewPage() {
           {statCard('Total Members', stats.members?.total)}
           {statCard('Active Members', stats.members?.active, '#137333')}
           {statCard('Departments', stats.departments, '#8e24aa')}
-          {statCard('Enabled Apps', stats.enabledApps?.length, '#f57c00')}
+          {statCard('Disabled Apps', stats.enabledApps?.length, '#f57c00')}
           {statCard('Audit Events (30d)', stats.auditActivity30d, '#d93025')}
           {stats.subscription && statCard('Billing Plan', stats.subscription.plan?.toUpperCase(), '#1a73e8')}
         </div>

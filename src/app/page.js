@@ -3,298 +3,275 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import styles from './page.module.css';
-import TopNav from '@/app/components/TopNav';
-import { api } from '@/lib/api';
 
-// Helper icons for the apps
-const CalendarIcon = () => (
-  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#4285F4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-    <line x1="16" y1="2" x2="16" y2="6"></line>
-    <line x1="8" y1="2" x2="8" y2="6"></line>
-    <line x1="3" y1="10" x2="21" y2="10"></line>
-    <rect x="8" y="14" width="2" height="2" fill="#4285F4"></rect>
-  </svg>
-);
-
-const DocsIcon = () => (
-  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#4285F4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-    <polyline points="14 2 14 8 20 8"></polyline>
-    <line x1="16" y1="13" x2="8" y2="13"></line>
-    <line x1="16" y1="17" x2="8" y2="17"></line>
-    <polyline points="10 9 9 9 8 9"></polyline>
-  </svg>
-);
-
-const TasksIcon = () => (
-  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#34A853" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 11l3 3L22 4"></path>
-    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-  </svg>
-);
-
-const MeetIcon = () => (
-  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#EA4335" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="23 7 16 12 23 17 23 7"></polygon>
-    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-  </svg>
-);
-
-const BookmarksIcon = () => (
-  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FBBC05" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-  </svg>
-);
-
-const WhiteboardIcon = () => (
-  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#8E24AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-    <circle cx="8.5" cy="8.5" r="1.5"></circle>
-    <polyline points="21 15 16 10 5 21"></polyline>
-  </svg>
-);
-
-export default function Home() {
-  const router = useRouter();
+export default function LandingPage() {
   const [userProfile, setUserProfile] = useState(null);
-  const [recentItems, setRecentItems] = useState([]);
-  const [loadingItems, setLoadingItems] = useState(true);
-
-  // AI Guidance State
-  const [aiGuidance, setAiGuidance] = useState(null);
-  const [loadingAi, setLoadingAi] = useState(true);
-
-  // Startup Form State
-  const [showStartupForm, setShowStartupForm] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const localUser = localStorage.getItem('sb_user');
       if (localUser) {
-        try { setUserProfile(JSON.parse(localUser)); } catch (e) { }
+        try { 
+          const parsed = JSON.parse(localUser);
+          setUserProfile(parsed);
+          // If user logged in then redirect to /home directly
+          router.replace('/home'); 
+        } catch (e) { }
       }
     }
-
-    async function loadDashboardData() {
-      setLoadingItems(true);
-      setLoadingAi(true);
-      try {
-        // Parallel fetch for speed
-        const [docsRes, tasksRes, wbRes, aiRes] = await Promise.all([
-          api.getDocs().catch(() => ({})),
-          api.getTasks().catch(() => ({})),
-          api.getWhiteboards().catch(() => ({})),
-          api.getAIGuidance().catch(() => ({ success: false }))
-        ]);
-
-        let allItems = [];
-        if (docsRes.success && docsRes.data) allItems = [...allItems, ...docsRes.data.map(d => ({ ...d, type: 'doc', icon: <DocsIcon /> }))];
-        if (tasksRes.success && tasksRes.data) allItems = [...allItems, ...tasksRes.data.map(t => ({ ...t, type: 'task', icon: <TasksIcon /> }))];
-        if (wbRes.success && wbRes.data) allItems = [...allItems, ...wbRes.data.map(w => ({ ...w, type: 'whiteboard', icon: <WhiteboardIcon /> }))];
-
-        allItems.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
-        setRecentItems(allItems.slice(0, 4));
-
-        if (aiRes.success && aiRes.data) {
-          setAiGuidance(aiRes.data);
-        }
-      } catch (err) {
-        console.error("Error fetching dashboard data", err);
-      } finally {
-        setLoadingItems(false);
-        setLoadingAi(false);
-      }
-    }
-
-    loadDashboardData();
-  }, []);
-
-  const getIconColor = (type) => {
-    switch (type) {
-      case 'doc': return '#e8f0fe';
-      case 'task': return '#e6f4ea';
-      case 'whiteboard': return '#f3e8fd';
-      default: return '#e8eaed';
-    }
-  };
+  }, [router]);
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#fafafa', display: 'flex', flexDirection: 'column' }}>
-      <TopNav userProfile={userProfile} isLoggedOut={!userProfile} />
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: '"Inter", "Helvetica Neue", sans-serif', backgroundColor: '#e7eaf4', overflowX: 'hidden' }}>
+      
+      {/* Navigation */}
+      <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.5rem 3rem', zIndex: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '3rem' }}>
+          <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#111', letterSpacing: '-0.04em' }}>SoftBridge.</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+          <Link href="/pricing" style={{ textDecoration: 'none', color: '#111', fontWeight: 600, fontSize: '0.95rem' }}>Pricing</Link>
+          <Link href="/login" style={{ background: '#111', color: '#fff', textDecoration: 'none', padding: '0.75rem 1.5rem', borderRadius: '8px', fontWeight: 700, fontSize: '0.85rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            GET STARTED
+          </Link>
+        </div>
+      </nav>
 
-      <main style={{ flex: 1, padding: '3rem 2rem', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
-        <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: '#202124', marginBottom: '0.5rem', letterSpacing: '-0.02em' }}>
-          {userProfile ? `Good afternoon, ${userProfile.name.split(' ')[0]}` : 'Good afternoon'}
-        </h1>
-        <p style={{ fontSize: '1.1rem', color: '#5f6368', marginBottom: '3rem' }}>Here is what's happening in your workspace today.</p>
+      <style dangerouslySetInnerHTML={{__html: `
+        @media (max-width: 900px) {
+          .nav-links { display: none !important; }
+          .hero-container { flex-direction: column !important; padding: 2rem !important; }
+          .hero-text { max-width: 100% !important; margin-bottom: 2rem !important; }
+          .hero-image { position: relative !important; right: 0 !important; max-width: 100% !important; height: auto !important; margin-top: 2rem; }
+          .hero-image img { max-height: 400px !important; }
+          .badge-1, .badge-2 { display: none !important; } /* Hide badges on small screens for cleaner look */
+          
+          .features-grid { grid-template-columns: 1fr !important; }
+          .comparison-table { display: block; overflow-x: auto; white-space: nowrap; }
+          
+          footer { flex-direction: column; gap: 1rem; text-align: center; padding: 2rem !important; }
+          footer .footer-links { flex-direction: column; gap: 1rem; }
+        }
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
+        /* Features Section */
+        .feature-card {
+          background: #fff;
+          border-radius: 16px;
+          padding: 2rem;
+          transition: transform 0.2s, box-shadow 0.2s;
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+        .feature-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 15px 40px rgba(0,0,0,0.06);
+        }
+        .feature-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
 
-          {/* AI Guidance Panel */}
-          <div style={{
-            background: 'linear-gradient(135deg, #1a73e8 0%, #8E24AA 100%)',
-            borderRadius: '16px',
-            padding: '2rem',
-            color: '#fff',
-            boxShadow: '0 12px 24px rgba(26,115,232,0.15)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            <div style={{ position: 'absolute', top: '-20px', right: '-20px', opacity: 0.1, pointerEvents: 'none' }}>
-              <svg width="150" height="150" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2L15 9l7 1-5 5 1 7-7-4-7 4 1-7-5-5 7-1z" />
-              </svg>
-            </div>
+        /* Table Styles */
+        .comp-table {
+          width: 100%;
+          border-collapse: collapse;
+          background: #fff;
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.04);
+        }
+        .comp-table th, .comp-table td {
+          padding: 1.5rem;
+          text-align: left;
+          border-bottom: 1px solid #f1f3f4;
+        }
+        .comp-table th { background: #f8fafc; font-weight: 700; color: '#111'; }
+        .comp-table td { color: #444; }
+        .comp-table .check { color: #10b981; font-weight: bold; }
+        .comp-table .cross { color: #ef4444; opacity: 0.5; }
+      `}} />
 
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                <span style={{ padding: '0.3rem 0.6rem', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.05em' }}>AI INSIGHTS</span>
-              </div>
-              <p style={{ fontSize: '1.1rem', lineHeight: 1.6, fontWeight: 500, marginBottom: '2rem' }}>
-                {loadingAi ? 'Analyzing your workspace data...' : (aiGuidance?.guidance || 'Stay productive and collaborate with your team.')}
-              </p>
-            </div>
+      {/* Hero Section */}
+      <main className="hero-container" style={{ display: 'flex', alignItems: 'center', padding: '0 4rem', maxWidth: '1400px', margin: '0 auto', position: 'relative', width: '100%', minHeight: 'calc(100vh - 100px)' }}>
+        
+        {/* Decorative Star */}
+        <div style={{ position: 'absolute', top: '10%', right: '15%', opacity: 0.6 }}>
+           <svg width="120" height="120" viewBox="0 0 100 100" fill="none">
+             <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#2d3a6c" />
+           </svg>
+        </div>
+        {/* Background shadow blob */}
+        <div style={{ position: 'absolute', right: '10%', top: '20%', width: '400px', height: '600px', background: 'radial-gradient(ellipse at center, rgba(160,175,220,0.3) 0%, rgba(231,234,244,0) 70%)', zIndex: 0 }}></div>
 
-            {aiGuidance?.tasks && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {aiGuidance.tasks.map((task, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', backgroundColor: 'rgba(255,255,255,0.1)', padding: '0.75rem 1rem', borderRadius: '8px' }}>
-                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.5)' }}></div>
-                    <span style={{ fontSize: '0.95rem', fontWeight: 500 }}>{task}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+        {/* Left Text */}
+        <div className="hero-text" style={{ flex: '1', maxWidth: '600px', zIndex: 2, paddingBottom: '4rem' }}>
+          <h1 style={{ fontSize: '4.5rem', fontWeight: 400, color: '#111', margin: '0 0 3rem 0', lineHeight: 1.1, letterSpacing: '-0.03em' }}>
+            Accelerate <br/>
+            productivity <strong style={{fontWeight: 800}}>with <br/>
+            world-class</strong> <br/>
+            workspace tools
+          </h1>
+          <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+            <div style={{ width: '40px', height: '2px', background: '#111', marginTop: '12px' }}></div>
+            <p style={{ fontSize: '1.25rem', color: '#333', margin: 0, lineHeight: 1.5, maxWidth: '350px' }}>
+              Access powerful workspace tools in a secure, unified and mutually trusted environment.
+            </p>
           </div>
-
-          {/* Quick Apps */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-            {[
-              { name: 'Docs', icon: <DocsIcon />, link: '/docs', color: '#1a73e8' },
-              { name: 'Sheets', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>, link: '/sheets', color: '#0f9d58' },
-              { name: 'Tasks', icon: <TasksIcon />, link: '/tasks', color: '#fbbc04' },
-              { name: 'Calendar', icon: <CalendarIcon />, link: '/calendar', color: '#ea4335' },
-              { name: 'Whiteboard', icon: <WhiteboardIcon />, link: '/whiteboard', color: '#8e24aa' },
-              { name: 'Meet', icon: <MeetIcon />, link: '/meet', color: '#00bcd4' },
-              { name: 'Startup Program', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>, onClick: () => setShowStartupForm(true), color: '#e91e63' },
-            ].map(app => {
-              const Wrapper = app.link ? Link : 'div';
-              const props = app.link ? { href: app.link } : { onClick: app.onClick };
-              return (
-                <Wrapper key={app.name} {...props} style={{
-                  backgroundColor: '#fff',
-                  border: '1px solid #eaeaea',
-                  borderRadius: '12px',
-                  padding: '1.25rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.75rem',
-                  textDecoration: 'none',
-                  color: '#202124',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
-                  transition: 'all 0.2s ease',
-                  cursor: 'pointer'
-                }} onMouseEnter={e => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.06)';
-                  e.currentTarget.style.borderColor = app.color;
-                }} onMouseLeave={e => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.02)';
-                  e.currentTarget.style.borderColor = '#eaeaea';
-                }}>
-                  <div style={{ color: app.color, transform: 'scale(0.8)', transformOrigin: 'left center' }}>{app.icon}</div>
-                  <span style={{ fontWeight: 600, fontSize: '1rem' }}>{app.name}</span>
-                </Wrapper>
-              );
-            })}
-          </div>
-
         </div>
 
-        {/* Recent Work */}
-        <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#202124', marginBottom: '1.5rem' }}>Jump back in</h2>
+        {/* Right Image & Badges */}
+        <div className="hero-image" style={{ flex: '1', position: 'relative', zIndex: 1, height: '700px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <img src="/hero_image.png" alt="Professional using phone" style={{ maxHeight: '100%', objectFit: 'contain', mixBlendMode: 'darken' }} />
+          
+          {/* Badge 1 */}
+          <div className="badge-1" style={{ position: 'absolute', right: '-40px', top: '50%', background: '#fff', padding: '12px 20px', borderRadius: '50px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.08)', zIndex: 3, maxWidth: '280px' }}>
+             <img src="https://i.pravatar.cc/100?img=32" alt="Avatar" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
+             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#111', lineHeight: 1.3 }}>Quickly organized a fully managed remote setup</span>
+          </div>
 
-          {loadingItems ? (
-            <div style={{ color: '#5f6368', padding: '2rem', textAlign: 'center' }}>Loading recent items...</div>
-          ) : recentItems.length > 0 ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1.5rem' }}>
-              {recentItems.map((item, index) => (
-                <div key={item._id || index} onClick={() => {
-                  if (item.type === 'doc') router.push(`/doc/${item._id}`);
-                  if (item.type === 'task') router.push(`/tasks`);
-                  if (item.type === 'whiteboard') router.push(`/whiteboard/${item._id}`);
-                }} style={{
-                  backgroundColor: '#fff',
-                  border: '1px solid #eaeaea',
-                  borderRadius: '12px',
-                  padding: '1.25rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }} onMouseEnter={e => e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.05)'} onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: getIconColor(item.type), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <div style={{ transform: 'scale(0.6)' }}>{item.icon}</div>
-                    </div>
-                    <div style={{ flex: 1, overflow: 'hidden' }}>
-                      <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#202124', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.title || 'Untitled'}
-                      </h3>
-                      <span style={{ fontSize: '0.8rem', color: '#5f6368' }}>
-                        {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : 'Recently'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ padding: '3rem', backgroundColor: '#fff', border: '1px solid #eaeaea', borderRadius: '12px', textAlign: 'center' }}>
-              <p style={{ color: '#5f6368', fontSize: '1rem', marginBottom: '1rem' }}>No recent activity found.</p>
-              <button onClick={() => router.push('/docs')} style={{ padding: '0.75rem 1.5rem', backgroundColor: '#1a73e8', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
-                Create a Document
-              </button>
-            </div>
-          )}
+          {/* Badge 2 */}
+          <div className="badge-2" style={{ position: 'absolute', left: '-20px', bottom: '20%', background: '#fff', padding: '12px 20px', borderRadius: '50px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.08)', zIndex: 3, maxWidth: '280px' }}>
+             <img src="https://i.pravatar.cc/100?img=11" alt="Avatar" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
+             <span style={{ fontSize: '0.85rem', fontWeight: 500, color: '#111', lineHeight: 1.3 }}><strong style={{fontWeight: 700}}>With SoftBridge</strong> we got a ton of flexibility for a good price</span>
+          </div>
         </div>
       </main>
 
-      {/* Startup Program Bottom Sheet */}
-      {showStartupForm && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', animation: 'fadeIn 0.2s ease-out' }}>
-          <div style={{ background: '#fff', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #eaeaea' }}>
-              <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#202124' }}>SoftBridge Startup Program</h2>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#5f6368' }}>Please provide your Organization ID during application: <strong style={{color: '#1a73e8', userSelect: 'all'}}>{userProfile?.workspace_id || 'default'}</strong></p>
+      {/* Extended Details Section: What We Offer */}
+      <section style={{ padding: '6rem 4rem', background: '#ffffff', borderTopLeftRadius: '40px', borderTopRightRadius: '40px' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <h2 style={{ fontSize: '2.5rem', fontWeight: 800, color: '#111', margin: '0 0 1rem 0', letterSpacing: '-0.02em', textAlign: 'center' }}>Everything you need to succeed</h2>
+          <p style={{ fontSize: '1.1rem', color: '#555', textAlign: 'center', maxWidth: '600px', margin: '0 auto 4rem auto' }}>
+            SoftBridge brings together video conferencing, task management, document editing, and whiteboarding into a single, unified platform.
+          </p>
+          
+          <div className="features-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }}>
+            
+            <div className="feature-card">
+              <div className="feature-icon" style={{ background: '#fce8e6', color: '#d93025' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
               </div>
-              <button onClick={() => setShowStartupForm(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#5f6368', padding: '0.5rem' }}>&times;</button>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#111' }}>Meet</h3>
+              <p style={{ margin: 0, fontSize: '0.95rem', color: '#555', lineHeight: 1.5 }}>End-to-end encrypted video calls with AI moderation, polls, and screen sharing.</p>
             </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
-              <iframe 
-                src="https://forms.softbridgelabs.in/form/6a423feb203629cb06e01af7?embed=true" 
-                width="100%" 
-                height="600px" 
-                frameBorder="0"
-                style={{ border: 'none', borderRadius: '8px' }}
-              ></iframe>
-              <div style={{ fontFamily: 'sans-serif', fontSize: '11px', color: '#666', textAlign: 'center', marginTop: '10px' }}>
-                Powered by <a href="https://forms.softbridgelabs.in" target="_blank" rel="noreferrer" style={{ color: 'var(--brand, #1a73e8)', textDecoration: 'none', fontWeight: 600 }}>SoftBridge Forms</a>
+
+            <div className="feature-card">
+              <div className="feature-icon" style={{ background: '#e8f0fe', color: '#1a73e8' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
               </div>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#111' }}>Calendar</h3>
+              <p style={{ margin: 0, fontSize: '0.95rem', color: '#555', lineHeight: 1.5 }}>Seamlessly schedule meetings and integrate with external providers.</p>
             </div>
+
+            <div className="feature-card">
+              <div className="feature-icon" style={{ background: '#e6f4ea', color: '#1e8e3e' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+              </div>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#111' }}>Tasks</h3>
+              <p style={{ margin: 0, fontSize: '0.95rem', color: '#555', lineHeight: 1.5 }}>Organize your projects with powerful Kanban boards and checklists.</p>
+            </div>
+
+            <div className="feature-card">
+              <div className="feature-icon" style={{ background: '#e8f0fe', color: '#1a73e8' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+              </div>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#111' }}>Docs</h3>
+              <p style={{ margin: 0, fontSize: '0.95rem', color: '#555', lineHeight: 1.5 }}>Real-time collaborative document editing, directly within your workspace.</p>
+            </div>
+
+            <div className="feature-card">
+              <div className="feature-icon" style={{ background: '#f3e8fd', color: '#8e24aa' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+              </div>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#111' }}>Whiteboard</h3>
+              <p style={{ margin: 0, fontSize: '0.95rem', color: '#555', lineHeight: 1.5 }}>Infinite canvas for brainstorming, diagramming, and freeform creativity.</p>
+            </div>
+
+            <div className="feature-card" style={{ background: '#111', color: '#fff' }}>
+              <div className="feature-icon" style={{ background: '#333', color: '#fff' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+              </div>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#fff' }}>Unified AI</h3>
+              <p style={{ margin: 0, fontSize: '0.95rem', color: '#aaa', lineHeight: 1.5 }}>Get intelligent assistance across all tools with our integrated AI co-pilot.</p>
+            </div>
+
           </div>
-          <style dangerouslySetInnerHTML={{__html: `
-            @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-          `}} />
         </div>
-      )}
+      </section>
+
+      {/* Extended Details Section: Comparison */}
+      <section style={{ padding: '6rem 4rem', background: '#f8fafc' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          <h2 style={{ fontSize: '2.5rem', fontWeight: 800, color: '#111', margin: '0 0 1rem 0', letterSpacing: '-0.02em', textAlign: 'center' }}>How we are different</h2>
+          <p style={{ fontSize: '1.1rem', color: '#555', textAlign: 'center', maxWidth: '600px', margin: '0 auto 4rem auto' }}>
+            See why forward-thinking enterprises are choosing SoftBridge over traditional disjointed tools.
+          </p>
+
+          <div className="comparison-table">
+            <table className="comp-table">
+              <thead>
+                <tr>
+                  <th>Features</th>
+                  <th>SoftBridge</th>
+                  <th>Microsoft Teams</th>
+                  <th>Google Workspace</th>
+                  <th>Slack</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>True Unified Interface</strong></td>
+                  <td className="check">✔ Yes</td>
+                  <td className="cross">✖ Fragmented</td>
+                  <td className="cross">✖ Fragmented</td>
+                  <td className="cross">✖ Fragmented</td>
+                </tr>
+                <tr>
+                  <td><strong>Built-in AI Assistant</strong></td>
+                  <td className="check">✔ Included</td>
+                  <td>Paid Add-on</td>
+                  <td>Paid Add-on</td>
+                  <td>Paid Add-on</td>
+                </tr>
+                <tr>
+                  <td><strong>End-to-End Encryption</strong></td>
+                  <td className="check">✔ Default</td>
+                  <td>Optional</td>
+                  <td>Optional</td>
+                  <td className="cross">✖ No</td>
+                </tr>
+                <tr>
+                  <td><strong>Pricing Structure</strong></td>
+                  <td className="check">Transparent</td>
+                  <td>Complex Tiers</td>
+                  <td>Complex Tiers</td>
+                  <td>Complex Tiers</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer style={{ padding: '2rem 4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#e7eaf4', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+        <div style={{ fontSize: '0.85rem', color: '#555', fontWeight: 500 }}>
+          © {new Date().getFullYear()} SoftBridge Labs
+        </div>
+        <div className="footer-links" style={{ display: 'flex', gap: '2rem' }}>
+          <a href="https://softbridgelabs.in/" target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: '#555', fontSize: '0.85rem', fontWeight: 600 }}>Website</a>
+          <a href="https://softbridgelabs.in/legal/privacy.html" target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: '#555', fontSize: '0.85rem', fontWeight: 600 }}>Privacy</a>
+          <a href="https://softbridgelabs.in/legal/terms.html" target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: '#555', fontSize: '0.85rem', fontWeight: 600 }}>Terms</a>
+          <a href="https://www.linkedin.com/company/softbridge-labs" target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: '#555', fontSize: '0.85rem', fontWeight: 600 }}>LinkedIn</a>
+          <a href="https://www.instagram.com/softbridge.labs/" target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: '#555', fontSize: '0.85rem', fontWeight: 600 }}>Instagram</a>
+        </div>
+      </footer>
     </div>
   );
 }

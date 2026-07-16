@@ -21,6 +21,7 @@ export default function BookmarksPage() {
   const [userProfile, setUserProfile] = useState(null);
   const [bookmarks, setBookmarks] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Form states
   const [title, setTitle] = useState('');
@@ -97,6 +98,24 @@ export default function BookmarksPage() {
           </button>
         </header>
 
+        <div style={{ marginBottom: '1.5rem' }}>
+          <input
+            type="text"
+            placeholder="Filter bookmarks by title or description..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '0.75rem 1rem',
+              borderRadius: '8px',
+              border: '1px solid var(--border-subtle)',
+              fontSize: '0.95rem',
+              outline: 'none',
+              backgroundColor: '#fff'
+            }}
+          />
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: showAddForm ? '1.2fr 1fr' : '1fr', gap: '2rem' }}>
           
           {/* Bookmarks List */}
@@ -108,7 +127,7 @@ export default function BookmarksPage() {
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
-                {bookmarks.map((bm) => (
+                {bookmarks.filter(bm => !searchQuery || (bm.title && bm.title.toLowerCase().includes(searchQuery.toLowerCase())) || (bm.description && bm.description.toLowerCase().includes(searchQuery.toLowerCase()))).map((bm) => (
                   <div key={bm._id} style={{ background: '#ffffff', padding: '1.25rem', borderRadius: '16px', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative' }}>
                     <button 
                       onClick={() => handleDeleteBookmark(bm._id)}
