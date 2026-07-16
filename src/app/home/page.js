@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import styles from './page.module.css';
+import styles from '../page.module.css';
 import TopNav from '@/app/components/TopNav';
 import { api } from '@/lib/api';
 
