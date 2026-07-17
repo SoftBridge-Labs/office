@@ -420,5 +420,90 @@ export const api = {
     verifyDomain: (domainName) => request(`/workspace/admin/domains/${domainName}/verify`, { method: 'POST' }),
     getDomainPolicy: () => request('/workspace/admin/domains/policy'),
     updateDomainPolicy: (data) => request('/workspace/admin/domains/policy', { method: 'PUT', body: JSON.stringify(data) })
+  },
+
+  // ─── Workspace Ping (Chat) ────────────────────────────────────────────────
+  ping: {
+    // Channels
+    getChannels: () => request('/workspace/ping/channels'),
+    createChannel: (data) => request('/workspace/ping/channels', { method: 'POST', body: JSON.stringify(data) }),
+    getChannelDetails: (id) => request(`/workspace/ping/channels/${id}`),
+    updateChannelSettings: (id, data) => request(`/workspace/ping/channels/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    deleteChannel: (id) => request(`/workspace/ping/channels/${id}`, { method: 'DELETE' }),
+    addMemberToChannel: (id, data) => request(`/workspace/ping/channels/${id}/members`, { method: 'POST', body: JSON.stringify(data) }),
+    addMembersBulk: (id, data) => request(`/workspace/ping/channels/${id}/members/bulk`, { method: 'POST', body: JSON.stringify(data) }),
+    
+    // Messages
+    getMessages: (channelId, params = {}) => {
+      const q = new URLSearchParams(params).toString();
+      return request(`/workspace/ping/messages/${channelId}${q ? '?' + q : ''}`);
+    },
+    sendMessage: (data) => request('/workspace/ping/messages', { method: 'POST', body: JSON.stringify(data) }),
+    editMessage: (messageId, data) => request(`/workspace/ping/messages/${messageId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    deleteMessage: (messageId) => request(`/workspace/ping/messages/${messageId}`, { method: 'DELETE' }),
+    addReaction: (messageId, data) => request(`/workspace/ping/messages/${messageId}/reaction`, { method: 'POST', body: JSON.stringify(data) }),
+    markMessageAsRead: (messageId) => request(`/workspace/ping/messages/${messageId}/read`, { method: 'POST' }),
+    markAllRead: (channelId) => request(`/workspace/ping/channels/${channelId}/readAll`, { method: 'POST' }),
+    
+    // Presence
+    updatePresence: (data) => request('/workspace/ping/presence', { method: 'POST', body: JSON.stringify(data) }),
+    getPresence: (targetUid) => request(`/workspace/ping/presence/${targetUid}`),
+
+    // Users & Departments
+    listWorkspaceUsers: () => request('/workspace/ping/users'),
+    listWorkspaceDepartments: () => request('/workspace/ping/departments')
+  },
+
+  // ─── CDN (Media Uploads) ────────────────────────────────────────────────
+  cdn: {
+    uploadFile: (file) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const token = typeof window !== 'undefined' ? localStorage.getItem('sb_id_token') : '';
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+      return fetch(`${API_BASE}/cdn/upload`, {
+        method: 'POST',
+        headers,
+        body: formData
+      }).then(async r => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          const err = new Error(data.error || data.message || `Upload failed with status ${r.status}`);
+          err.status = r.status;
+          throw err;
+        }
+        return data;
+      });
+    },
+    editFile: (file, targetFileName, targetFileId) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('targetFileName', targetFileName);
+      formData.append('targetFileId', targetFileId);
+      
+      const token = typeof window !== 'undefined' ? localStorage.getItem('sb_id_token') : '';
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+      return fetch(`${API_BASE}/cdn/edit`, {
+        method: 'POST',
+        headers,
+        body: formData
+      }).then(async r => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          const err = new Error(data.error || data.message || `Edit failed with status ${r.status}`);
+          err.status = r.status;
+          throw err;
+        }
+        return data;
+      });
+    },
+    deleteFile: (fileName, fileId) => request('/cdn/delete', {
+      method: 'DELETE',
+      body: JSON.stringify({ fileName, fileId })
+    }),
+    getViewUrl: (fileName) => `${API_BASE}/cdn/view/${fileName}`
   }
 };

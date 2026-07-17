@@ -50,6 +50,28 @@ npm run start
 
 ---
 
+## API Usage
+
+The SoftBridge Office Suite exposes multiple REST APIs available under `/api-proxy` (which proxies requests to the backend defined in `NEXT_PUBLIC_API_URL`).
+You can use `src/lib/api.js` for interacting with the backend API.
+
+### Meeting Reactions API
+
+Meeting reactions are handled real-time through WebRTC Data Channels and synchronized with the backend. 
+- **Send Reaction**: `api.sendMeetReaction(roomId, { emoji, sender })`
+- **Receive Reactions**: Reactions are polled automatically via `api.syncMeetState(roomId)` returning `{ success, reactions }`.
+- **Note**: The client automatically ignores duplicate reactions and accounts for clock drift.
+
+### Ping API (Chat & Channels)
+
+The Ping component is built to integrate with our unified messaging API. 
+- **Conversations List**: Returns channels, DMs, and pinned chats. 
+- **Department/Channel Sync**: Fetches members, presence (At Work, Away), and Meetings for the specified department.
+
+*Check `src/lib/api.js` for the full collection of backend API methods (including Docs, Tasks, Whiteboard, and Admin tools).*
+
+---
+
 ## License & Ownership
 
 © 2026 SoftBridge Labs. All rights reserved.

@@ -1,11 +1,47 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+import { io } from 'socket.io-client';
+
+const getApiUrl = () => {
+  if (typeof window !== 'undefined' && window.__ENV__ && window.__ENV__.NEXT_PUBLIC_API_URL) return window.__ENV__.NEXT_PUBLIC_API_URL;
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+};
 
 export default function GlobalLayoutHelper() {
+  const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const uid = localStorage.getItem('sb_uid');
+    if (!uid) return;
+
+    // Only establish background notification socket if we are NOT on the /ping chat page
+    if (pathname.startsWith('/ping')) return;
+
+    const url = getApiUrl();
+    const bgSocket = io(`${url}/workspace/ping`, {
+      auth: { token: uid },
+      transports: ['websocket', 'polling']
+    });
+
+    bgSocket.on('new_message', (msg) => {
+      if (msg.senderUid !== uid && msg.type !== 'system') {
+        try {
+          const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+          audio.play().catch(() => {});
+        } catch (e) {}
+      }
+    });
+
+    return () => {
+      bgSocket.disconnect();
+    };
+  }, [pathname]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

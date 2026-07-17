@@ -311,7 +311,7 @@ export default function UsersPage() {
                               {u.status === 'invited' && (
                                 <button onClick={() => handleResend(u.id)} style={{ ...btnGhost, padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}>Resend</button>
                               )}
-                              <button onClick={() => handleRemove(u.id)} style={{ ...btnDanger, padding: '0.3rem 0.75rem', fontSize: '0.8rem', backgroundColor: 'transparent', color: '#ef4444', border: '1px solid #fca5a5' }}>Remove</button>
+                              <button onClick={() => handleRemove(u.id)} style={{ ...btnDanger, padding: '0.3rem 0.75rem', fontSize: '0.8rem', background: 'transparent', color: '#ef4444', border: '1px solid #fca5a5' }}>Remove</button>
                             </>
                           )}
                         </div>

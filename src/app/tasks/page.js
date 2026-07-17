@@ -133,18 +133,23 @@ export default function TasksPage() {
         <div style={{ marginBottom: '1.5rem' }}>
           <input
             type="text"
-            placeholder="Filter tasks by title or description..."
+            placeholder="Search tasks..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
               width: '100%',
-              padding: '0.75rem 1rem',
-              borderRadius: '8px',
-              border: '1px solid var(--border-subtle)',
+              padding: '0.85rem 1.2rem',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.4)',
               fontSize: '0.95rem',
               outline: 'none',
-              backgroundColor: '#fff'
+              backgroundColor: 'rgba(255, 255, 255, 0.6)',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)',
+              transition: 'all 0.2s ease'
             }}
+            onFocus={e => e.target.style.boxShadow = '0 4px 20px rgba(233, 30, 99, 0.15)'}
+            onBlur={e => e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.03)'}
           />
         </div>
 
@@ -155,53 +160,55 @@ export default function TasksPage() {
             {columns.map(col => {
               const colTasks = tasks.filter(t => t.status === col.id && (!searchQuery || (t.title && t.title.toLowerCase().includes(searchQuery.toLowerCase())) || (t.description && t.description.toLowerCase().includes(searchQuery.toLowerCase()))));
               return (
-                <div key={col.id} style={{ background: '#f5f5f3', borderRadius: '16px', padding: '1rem', border: '1px solid var(--border-subtle)', minHeight: '400px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: col.color }} />
-                    <h3 style={{ fontSize: '0.95rem', fontWeight: 800 }}>{col.label} ({colTasks.length})</h3>
+                <div key={col.id} className="task-column" style={{ background: 'linear-gradient(145deg, #f8f9fa, #f1f5f9)', borderRadius: '20px', padding: '1.25rem', border: '1px solid rgba(255,255,255,0.7)', minHeight: '400px', boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.02)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid rgba(0,0,0,0.03)' }}>
+                    <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: col.color, boxShadow: `0 0 10px ${col.color}80` }} />
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#1e293b' }}>{col.label} <span style={{ opacity: 0.5, fontSize: '0.85rem' }}>({colTasks.length})</span></h3>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     {colTasks.map(task => (
-                      <div key={task._id} style={{ background: '#ffffff', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div key={task._id} className="task-card" style={{ background: '#ffffff', padding: '1.25rem', borderRadius: '16px', border: '1px solid rgba(226, 232, 240, 0.8)', boxShadow: '0 4px 12px rgba(0,0,0,0.04)', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', position: 'relative' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                           <span style={{ 
                             fontSize: '0.65rem', 
-                            fontWeight: 700, 
+                            fontWeight: 800, 
                             textTransform: 'uppercase', 
-                            padding: '1px 6px', 
-                            borderRadius: '4px',
-                            background: task.priority === 'high' ? '#fee2e2' : task.priority === 'medium' ? '#fef3c7' : '#dcfce7',
-                            color: task.priority === 'high' ? '#b91c1c' : task.priority === 'medium' ? '#d97706' : '#15803d'
+                            padding: '4px 8px', 
+                            borderRadius: '8px',
+                            letterSpacing: '0.05em',
+                            background: task.priority === 'high' ? 'linear-gradient(135deg, #fee2e2, #fecaca)' : task.priority === 'medium' ? 'linear-gradient(135deg, #fef3c7, #fde68a)' : 'linear-gradient(135deg, #dcfce7, #bbf7d0)',
+                            color: task.priority === 'high' ? '#991b1b' : task.priority === 'medium' ? '#b45309' : '#166534',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.05)'
                           }}>
                             {task.priority}
                           </span>
                           
-                          <button onClick={() => handleDeleteTask(task._id)} style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}>
+                          <button onClick={() => handleDeleteTask(task._id)} className="delete-btn" style={{ border: 'none', background: '#fee2e2', color: '#ef4444', cursor: 'pointer', padding: '4px', borderRadius: '6px', display: 'flex', transition: 'all 0.2s', opacity: 0 }}>
                             <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>delete</span>
                           </button>
                         </div>
 
-                        <h4 style={{ fontWeight: 800, fontSize: '0.95rem', marginTop: '0.5rem', marginBottom: '0.25rem' }}>{task.title}</h4>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-dark-gray)', marginBottom: '0.75rem' }}>{task.description}</p>
+                        <h4 style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a', marginTop: '0.75rem', marginBottom: '0.5rem', lineHeight: 1.3 }}>{task.title}</h4>
+                        <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '1rem', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{task.description}</p>
                         
                         {task.dueDate && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '0.8rem' }}>calendar_today</span>
-                            <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#64748b', marginBottom: '1rem', background: '#f8fafc', padding: '4px 8px', borderRadius: '6px', width: 'fit-content' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '0.85rem', color: '#3b82f6' }}>calendar_today</span>
+                            <span style={{ fontWeight: 600 }}>{new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                           </div>
                         )}
 
                         {/* Status Mover Quick Actions */}
-                        <div style={{ display: 'flex', gap: '4px', marginTop: '0.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.5rem' }}>
+                        <div className="task-actions" style={{ display: 'flex', gap: '8px', marginTop: 'auto', borderTop: '1px dashed #e2e8f0', paddingTop: '1rem' }}>
                           {col.id !== 'todo' && (
-                            <button onClick={() => moveTaskStatus(task, col.id === 'completed' ? 'in_progress' : 'todo')} style={{ flex: 1, padding: '2px', fontSize: '0.7rem', background: '#f1f5f9', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                              ◀ Move Left
+                            <button onClick={() => moveTaskStatus(task, col.id === 'completed' ? 'in_progress' : 'todo')} style={{ flex: 1, padding: '6px', fontSize: '0.75rem', fontWeight: 600, background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={e => e.target.style.background = '#e2e8f0'} onMouseLeave={e => e.target.style.background = '#f1f5f9'}>
+                              ◀ Move
                             </button>
                           )}
                           {col.id !== 'completed' && (
-                            <button onClick={() => moveTaskStatus(task, col.id === 'todo' ? 'in_progress' : 'completed')} style={{ flex: 1, padding: '2px', fontSize: '0.7rem', background: '#f1f5f9', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                              Move Right ▶
+                            <button onClick={() => moveTaskStatus(task, col.id === 'todo' ? 'in_progress' : 'completed')} style={{ flex: 1, padding: '6px', fontSize: '0.75rem', fontWeight: 600, background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={e => e.target.style.background = '#e2e8f0'} onMouseLeave={e => e.target.style.background = '#f1f5f9'}>
+                              Move ▶
                             </button>
                           )}
                         </div>
@@ -215,39 +222,66 @@ export default function TasksPage() {
 
           {/* Add Task Sidebar */}
           {showAddForm && (
-            <div style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '24px', border: '1px solid var(--border-subtle)', height: 'fit-content' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '1.25rem' }}>New Task</h3>
+            <div style={{ background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(16px)', padding: '2rem', borderRadius: '24px', border: '1px solid rgba(255, 255, 255, 0.6)', height: 'fit-content', boxShadow: '0 8px 32px rgba(0,0,0,0.06)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>✨ New Task</h3>
+                <button onClick={() => setShowAddForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
               
               <form onSubmit={handleCreateTask}>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.25rem' }}>Title *</label>
-                <input style={inputStyle} type="text" placeholder="e.g. Implement Docs Router" value={title} onChange={e => setTitle(e.target.value)} required />
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.4rem', color: '#475569' }}>TITLE *</label>
+                <input style={{ ...inputStyle, background: 'rgba(255,255,255,0.9)', border: '1px solid #cbd5e1', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }} type="text" placeholder="e.g. Implement Docs Router" value={title} onChange={e => setTitle(e.target.value)} required />
 
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.25rem' }}>Description</label>
-                <textarea style={{ ...inputStyle, resize: 'vertical' }} rows="3" placeholder="Describe the work..." value={description} onChange={e => setDescription(e.target.value)} />
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.4rem', color: '#475569', marginTop: '1rem' }}>DESCRIPTION</label>
+                <textarea style={{ ...inputStyle, resize: 'vertical', background: 'rgba(255,255,255,0.9)', border: '1px solid #cbd5e1', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }} rows="4" placeholder="Describe the work..." value={description} onChange={e => setDescription(e.target.value)} />
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.25rem' }}>Priority</label>
-                    <select style={inputStyle} value={priority} onChange={e => setPriority(e.target.value)}>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.4rem', color: '#475569' }}>PRIORITY</label>
+                    <select style={{ ...inputStyle, background: 'rgba(255,255,255,0.9)', border: '1px solid #cbd5e1' }} value={priority} onChange={e => setPriority(e.target.value)}>
                       <option value="low">Low</option>
                       <option value="medium">Medium</option>
                       <option value="high">High</option>
                     </select>
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.25rem' }}>Due Date</label>
-                    <input style={inputStyle} type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.4rem', color: '#475569' }}>DUE DATE</label>
+                    <input style={{ ...inputStyle, background: 'rgba(255,255,255,0.9)', border: '1px solid #cbd5e1' }} type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
                   </div>
                 </div>
 
-                <button type="submit" style={{ width: '100%', padding: '0.65rem', background: 'var(--text-main)', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}>
-                  Save Task
+                <button className="submit-btn" type="submit" style={{ width: '100%', padding: '0.85rem', background: 'linear-gradient(135deg, #E91E63, #ec4899)', color: '#ffffff', border: 'none', borderRadius: '12px', fontSize: '0.95rem', fontWeight: 800, cursor: 'pointer', marginTop: '1.5rem', boxShadow: '0 4px 14px rgba(233, 30, 99, 0.4)', transition: 'all 0.2s' }}>
+                  Create Task
                 </button>
               </form>
             </div>
           )}
 
         </div>
+        
+        <style>{`
+          .task-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.08) !important;
+            border-color: rgba(233, 30, 99, 0.3) !important;
+          }
+          .task-card:hover .delete-btn {
+            opacity: 1 !important;
+          }
+          .delete-btn:hover {
+            background: #ef4444 !important;
+            color: #ffffff !important;
+          }
+          .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(233, 30, 99, 0.6) !important;
+          }
+          .submit-btn:active {
+            transform: translateY(0);
+          }
+        `}</style>
       </main>
     </div>
   );

@@ -125,63 +125,68 @@ export default function WhiteboardPage() {
       <TopNav userProfile={userProfile} isLoggedOut={!userProfile} />
       
       <main className={styles.mainPanel}>
-        <header className={styles.header}>
+        <header className={styles.header} style={{ marginBottom: '1rem' }}>
           <h2 className={styles.pageTitle}>Whiteboard & Sketch</h2>
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+        </header>
+
+        {/* Canvas container with floating toolbar */}
+        <div style={{ position: 'relative', background: '#ffffff', borderRadius: '24px', border: '1px solid rgba(226, 232, 240, 0.8)', overflow: 'hidden', cursor: 'crosshair', boxShadow: '0 12px 40px rgba(0,0,0,0.06)', minHeight: '500px' }}>
+          
+          {/* Floating Toolbar */}
+          <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '1rem', alignItems: 'center', background: 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(12px)', padding: '0.5rem 1rem', borderRadius: '100px', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', border: '1px solid rgba(255,255,255,0.8)', zIndex: 10 }}>
             
-            {/* Color picker */}
-            <input 
-              type="color" 
-              value={color} 
-              onChange={e => setColor(e.target.value)} 
-              style={{ width: '32px', height: '32px', border: 'none', borderRadius: '50%', cursor: 'pointer', outline: 'none' }} 
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderRight: '1px solid rgba(0,0,0,0.1)', paddingRight: '1rem' }}>
+              <input 
+                type="color" 
+                value={color} 
+                onChange={e => setColor(e.target.value)} 
+                style={{ width: '28px', height: '28px', border: 'none', borderRadius: '50%', cursor: 'pointer', outline: 'none', padding: 0, background: 'transparent' }} 
+              />
+              <select 
+                value={brushSize} 
+                onChange={e => setBrushSize(parseInt(e.target.value))}
+                style={{ padding: '0.3rem 0.5rem', borderRadius: '8px', border: 'none', background: 'rgba(0,0,0,0.04)', fontSize: '0.85rem', outline: 'none', cursor: 'pointer', fontWeight: 600, color: '#334155' }}
+              >
+                <option value="2">2px</option>
+                <option value="4">4px</option>
+                <option value="8">8px</option>
+                <option value="16">16px</option>
+              </select>
+            </div>
 
-            {/* Brush Size selector */}
-            <select 
-              value={brushSize} 
-              onChange={e => setBrushSize(parseInt(e.target.value))}
-              style={{ padding: '0.4rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', background: '#ffffff', fontSize: '0.85rem' }}
-            >
-              <option value="2">2px (Fine)</option>
-              <option value="4">4px (Medium)</option>
-              <option value="8">8px (Thick)</option>
-              <option value="16">16px (Bold)</option>
-            </select>
-
-            {/* Tools Selector */}
-            <div style={{ display: 'flex', background: '#f5f5f3', padding: '2px', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', gap: '4px' }}>
               <button 
                 onClick={() => setTool('pencil')}
-                style={{ padding: '0.4rem 0.75rem', border: 'none', borderRadius: '6px', cursor: 'pointer', background: tool === 'pencil' ? 'var(--text-main)' : 'transparent', color: tool === 'pencil' ? '#fff' : 'var(--text-main)' }}
+                className={`tool-btn ${tool === 'pencil' ? 'active' : ''}`}
               >
-                Pencil
+                <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>edit</span>
               </button>
               <button 
                 onClick={() => setTool('rectangle')}
-                style={{ padding: '0.4rem 0.75rem', border: 'none', borderRadius: '6px', cursor: 'pointer', background: tool === 'rectangle' ? 'var(--text-main)' : 'transparent', color: tool === 'rectangle' ? '#fff' : 'var(--text-main)' }}
+                className={`tool-btn ${tool === 'rectangle' ? 'active' : ''}`}
               >
-                Rect
+                <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>rectangle</span>
               </button>
               <button 
                 onClick={() => setTool('circle')}
-                style={{ padding: '0.4rem 0.75rem', border: 'none', borderRadius: '6px', cursor: 'pointer', background: tool === 'circle' ? 'var(--text-main)' : 'transparent', color: tool === 'circle' ? '#fff' : 'var(--text-main)' }}
+                className={`tool-btn ${tool === 'circle' ? 'active' : ''}`}
               >
-                Circle
+                <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>circle</span>
               </button>
             </div>
 
-            <button 
-              onClick={clearCanvas}
-              style={{ padding: '0.45rem 1rem', background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem' }}
-            >
-              Clear Board
-            </button>
+            <div style={{ borderLeft: '1px solid rgba(0,0,0,0.1)', paddingLeft: '1rem' }}>
+              <button 
+                onClick={clearCanvas}
+                className="clear-btn"
+                style={{ padding: '0.4rem 1rem', background: 'linear-gradient(135deg, #fee2e2, #fecaca)', color: '#dc2626', border: 'none', borderRadius: '20px', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem', boxShadow: '0 2px 8px rgba(220, 38, 38, 0.15)', transition: 'all 0.2s' }}
+              >
+                Clear
+              </button>
+            </div>
           </div>
-        </header>
 
-        {/* Canvas container */}
-        <div style={{ background: '#ffffff', borderRadius: '24px', border: '1px solid var(--border-subtle)', overflow: 'hidden', cursor: 'crosshair', boxShadow: '0 8px 30px rgba(0,0,0,0.02)' }}>
+
           <canvas
             ref={canvasRef}
             onMouseDown={startDrawing}
@@ -191,9 +196,44 @@ export default function WhiteboardPage() {
           />
         </div>
         
-        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.75rem', textAlign: 'center' }}>
-          * Choose Pencil to sketch freehand, or Rect / Circle to place shape stamps by clicking anywhere on the board.
+        <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '1.25rem', textAlign: 'center', fontWeight: 500 }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '1rem', verticalAlign: 'middle', marginRight: '4px', color: '#3b82f6' }}>info</span>
+          Choose Pencil to sketch freehand, or Rect / Circle to place shape stamps by clicking anywhere on the board.
         </p>
+
+        <style>{`
+          .tool-btn {
+            padding: 0.4rem;
+            border: none;
+            borderRadius: 50%;
+            cursor: pointer;
+            background: transparent;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+          }
+          .tool-btn:hover {
+            background: rgba(0,0,0,0.05);
+            color: #0f172a;
+          }
+          .tool-btn.active {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+          }
+          .clear-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(220, 38, 38, 0.2) !important;
+          }
+          .clear-btn:active {
+            transform: translateY(0);
+          }
+        `}</style>
       </main>
     </div>
   );

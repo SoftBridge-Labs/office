@@ -6,6 +6,8 @@ export const metadata = {
   description: "Next-generation office suite: Calendar, Sheets, Docs and more — designed for modern teams.",
 };
 
+import AuthGuard from "./components/AuthGuard";
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
@@ -14,8 +16,10 @@ export default function RootLayout({ children }) {
         <script src="/api/env" />
       </head>
       <body>
-        {children}
-        <GlobalLayoutHelper />
+        <AuthGuard>
+          {children}
+          <GlobalLayoutHelper />
+        </AuthGuard>
       </body>
     </html>
   );

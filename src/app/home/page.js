@@ -56,6 +56,12 @@ const WhiteboardIcon = () => (
   </svg>
 );
 
+const PingIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E91E63" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+  </svg>
+);
+
 export default function Home() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState(null);
@@ -192,6 +198,8 @@ export default function Home() {
               { name: 'Calendar', icon: <CalendarIcon />, link: '/calendar', color: '#ea4335' },
               { name: 'Whiteboard', icon: <WhiteboardIcon />, link: '/whiteboard', color: '#8e24aa' },
               { name: 'Meet', icon: <MeetIcon />, link: '/meet', color: '#00bcd4' },
+              { name: 'Ping', icon: <PingIcon />, link: '/ping', color: '#e91e63' },
+
             ].map(app => {
               const Wrapper = app.link ? Link : 'div';
               const props = app.link ? { href: app.link } : { onClick: app.onClick };

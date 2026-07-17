@@ -127,6 +127,28 @@ export default function CalendarPage() {
     const token = localStorage.getItem('sb_id_token');
     if (!token) { setIsLoggedOut(true); loadMockData(); setLoading(false); }
     else         { setIsLoggedOut(false); loadUserData(); }
+    
+    // Check for ping cross-linking parameters
+    const action = params.get('action');
+    if (action === 'new_event') {
+      const pTitle = params.get('title') || 'New Meeting';
+      const pDate = params.get('date'); // ISO string expected
+      
+      setEventTitle(pTitle);
+      if (pDate) {
+        const parsedDate = new Date(pDate);
+        setEventStart(parsedDate.toISOString().slice(0, 16));
+        const endDate = new Date(parsedDate.getTime() + 60*60*1000);
+        setEventEnd(endDate.toISOString().slice(0, 16));
+      } else {
+        const now = new Date();
+        now.setMinutes(Math.ceil(now.getMinutes() / 15) * 15);
+        setEventStart(now.toISOString().slice(0, 16));
+        now.setHours(now.getHours() + 1);
+        setEventEnd(now.toISOString().slice(0, 16));
+      }
+      setShowEventModal(true);
+    }
   }, []);
 
   function loadMockData() {

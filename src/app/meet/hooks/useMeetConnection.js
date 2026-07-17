@@ -360,11 +360,22 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
         }
 
         if (res.reactions?.length) {
-          const now = Date.now();
-          const incoming = res.reactions.filter(r => now - new Date(r.timestamp).getTime() < 5000);
           setFloatingReactions(prev => {
             const ids = prev.map(p => p.id);
-            const newE = incoming.map(r => ({ id: `${r.sender}-${r.timestamp}`, emoji: r.emoji, sender: r.sender })).filter(n => !ids.includes(n.id));
+            // Use a 15-second window to account for server clock drift, and rely on ID deduplication
+            const now = Date.now();
+            const incoming = res.reactions.filter(r => {
+               const rTime = new Date(r.timestamp).getTime();
+               return Math.abs(now - rTime) < 15000;
+            });
+            const newE = incoming.map(r => ({ id: r.id || `${r.sender}-${r.timestamp}`, emoji: r.emoji, sender: r.sender })).filter(n => !ids.includes(n.id) && !(window.processedReactions && window.processedReactions.has(n.id)));
+            
+            if (newE.length > 0) {
+              if (!window.processedReactions) window.processedReactions = new Set();
+              newE.forEach(e => window.processedReactions.add(e.id));
+              // Cleanup old processed reactions occasionally
+              if (window.processedReactions.size > 200) window.processedReactions.clear();
+            }
             return [...prev, ...newE].slice(-10);
           });
         }
