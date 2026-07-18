@@ -10,7 +10,7 @@ export default function AuthGuard({ children }) {
 
   useEffect(() => {
     // List of paths that do not require authentication
-    const publicPaths = ['/', '/login', '/meet', '/api'];
+    const publicPaths = ['/', '/login', '/meet', '/api', '/booking'];
     const isPublic = publicPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
 
     if (isPublic) {
