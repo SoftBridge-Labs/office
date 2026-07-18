@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname, useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { usePingSocket } from '../hooks/usePingSocket';
 
@@ -11,13 +11,21 @@ export function PingProvider({ children }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const channelParam = searchParams.get('channel');
+  const params = useParams();
+  const channelParam = params?.channelId ? params.channelId[0] : null;
 
   const [activeChannelId, setActiveChannelId] = useState(channelParam || null);
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingMessageContent, setEditingMessageContent] = useState('');
-  const [channels, setChannels] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [activeUnreadCount, setActiveUnreadCount] = useState(0);
+  const [channels, setChannels] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('ping_channels');
+      return cached ? JSON.parse(cached) : [];
+    }
+    return [];
+  });
+  const [loading, setLoading] = useState(channels.length === 0);
   const [inputText, setInputText] = useState('');
   const [userProfile, setUserProfile] = useState(null);
   const [showRightPanel, setShowRightPanel] = useState(true);
@@ -37,8 +45,20 @@ export function PingProvider({ children }) {
   
   // Invite states
   const [inviteTab, setInviteTab] = useState('link'); // 'dept', 'user', 'link'
-  const [departments, setDepartments] = useState([]);
-  const [workspaceUsers, setWorkspaceUsers] = useState([]);
+  const [departments, setDepartments] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('ping_departments');
+      return cached ? JSON.parse(cached) : [];
+    }
+    return [];
+  });
+  const [workspaceUsers, setWorkspaceUsers] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('ping_workspaceUsers');
+      return cached ? JSON.parse(cached) : [];
+    }
+    return [];
+  });
   const [selectedDept, setSelectedDept] = useState('');
   const [selectedUser, setSelectedUser] = useState('');
   const [userSearch, setUserSearch] = useState('');
@@ -69,6 +89,9 @@ export function PingProvider({ children }) {
         }
         
         setChannels(fetchedChannels);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('ping_channels', JSON.stringify(fetchedChannels));
+        }
 
         // Initial active channel selection if none is set
         setActiveChannelId(prev => {
@@ -82,14 +105,20 @@ export function PingProvider({ children }) {
 
         try {
           const deptRes = await api.ping.listWorkspaceDepartments();
-          if (deptRes && deptRes.success) setDepartments(deptRes.data);
+          if (deptRes && deptRes.success) {
+            setDepartments(deptRes.data);
+            if (typeof window !== 'undefined') localStorage.setItem('ping_departments', JSON.stringify(deptRes.data));
+          }
         } catch (e) {
           if (e.message !== 'Access denied') console.error('Failed to fetch departments', e);
         }
         
         try {
           const usersRes = await api.ping.listWorkspaceUsers();
-          if (usersRes && usersRes.success) setWorkspaceUsers(usersRes.data);
+          if (usersRes && usersRes.success) {
+            setWorkspaceUsers(usersRes.data);
+            if (typeof window !== 'undefined') localStorage.setItem('ping_workspaceUsers', JSON.stringify(usersRes.data));
+          }
         } catch (e) {
           if (e.message !== 'Access denied') console.error('Failed to fetch users', e);
         }
@@ -107,7 +136,7 @@ export function PingProvider({ children }) {
   // Sync active channel to URL parameter if changed internally
   useEffect(() => {
     if (activeChannelId && channelParam !== activeChannelId) {
-      router.replace(`${pathname}?channel=${activeChannelId}`, { scroll: false });
+      router.replace(`/ping/${activeChannelId}`, { scroll: false });
     }
   }, [activeChannelId, pathname, router, channelParam]);
 
@@ -119,15 +148,33 @@ export function PingProvider({ children }) {
   useEffect(() => {
     activeChannelRef.current = activeChannelId;
     userProfileRef.current = userProfile;
+    
+    // Capture and clear unread count for the active channel
+    if (activeChannelId) {
+      setChannels(prev => {
+        let changed = false;
+        const newChannels = prev.map(c => {
+          if ((c._id || c.id) === activeChannelId && c.unreadCount > 0) {
+            changed = true;
+            setActiveUnreadCount(c.unreadCount);
+            return { ...c, unreadCount: 0 };
+          }
+          return c;
+        });
+        if (!changed) setActiveUnreadCount(0);
+        return changed ? newChannels : prev;
+      });
+    }
   }, [activeChannelId, userProfile]);
 
   useEffect(() => {
     if (socket) {
-      const handleNewChannel = (c) => {
+      const handleNewChannel = (channel) => {
         setChannels(prev => {
-          if (prev.find(ch => (ch._id || ch.id) === (c._id || c.id))) return prev;
-          return [c, ...prev];
+          if (prev.find(c => (c._id || c.id) === (channel._id || channel.id))) return prev;
+          return [channel, ...prev];
         });
+        socket.emit('join_channel', channel._id || channel.id);
       };
       const handleChannelDeleted = ({ channelId }) => {
         setChannels(prev => prev.filter(c => (c._id || c.id) !== channelId));
@@ -141,7 +188,7 @@ export function PingProvider({ children }) {
         // If the message is not in the active channel and not from the current user, increment its unread count
         const currentUserUid = userProfileRef.current?.uid || localStorage.getItem('sb_uid');
         const activeChanId = activeChannelRef.current;
-        if (msg.channelId && activeChanId && msg.channelId.toString() !== activeChanId.toString() && msg.senderUid !== currentUserUid && msg.type !== 'system') {
+        if (msg.channelId && (!activeChanId || msg.channelId.toString() !== activeChanId.toString()) && msg.senderUid !== currentUserUid && msg.type !== 'system') {
           setChannels(prev => prev.map(c => {
             const cid = c._id || c.id;
             if (cid && cid.toString() === msg.channelId.toString()) {
@@ -425,6 +472,7 @@ export function PingProvider({ children }) {
 
   const contextValue = {
     activeChannelId, setActiveChannelId,
+    activeUnreadCount,
     editingMessageId, setEditingMessageId,
     editingMessageContent, setEditingMessageContent,
     channels, setChannels,

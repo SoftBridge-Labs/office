@@ -43,12 +43,12 @@ export function usePingSocket(uid, activeChannelId) {
       // Play sound for all incoming messages not from the user
       if (msg.senderUid !== uid) {
         try {
-          const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+          const audio = new Audio('/sounds/message.mp3');
           audio.play().catch(() => {});
         } catch (e) {}
       }
 
-      if (msg.channelId === activeChannelRef.current) {
+      if (msg.channelId && activeChannelRef.current && msg.channelId.toString() === activeChannelRef.current.toString()) {
         setMessages(prev => {
           if (prev.find(m => m._id === msg._id)) return prev;
           return [...prev, msg];
@@ -103,9 +103,6 @@ export function usePingSocket(uid, activeChannelId) {
   useEffect(() => {
     if (socket && isConnected && activeChannelId) {
       socket.emit('join_channel', activeChannelId);
-      return () => {
-        socket.emit('leave_channel', activeChannelId);
-      };
     }
   }, [socket, isConnected, activeChannelId]);
 

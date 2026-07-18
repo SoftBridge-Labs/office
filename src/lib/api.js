@@ -444,6 +444,7 @@ export const api = {
     addReaction: (messageId, data) => request(`/workspace/ping/messages/${messageId}/reaction`, { method: 'POST', body: JSON.stringify(data) }),
     markMessageAsRead: (messageId) => request(`/workspace/ping/messages/${messageId}/read`, { method: 'POST' }),
     markAllRead: (channelId) => request(`/workspace/ping/channels/${channelId}/readAll`, { method: 'POST' }),
+    checkUrlSecurity: (url) => request('/workspace/ping/url-security', { method: 'POST', body: JSON.stringify({ url }) }),
     
     // Presence
     updatePresence: (data) => request('/workspace/ping/presence', { method: 'POST', body: JSON.stringify(data) }),

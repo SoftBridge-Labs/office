@@ -4,6 +4,9 @@ import React, { useRef, useState, useEffect } from 'react';
 import { usePingContext } from '../context/PingContext';
 import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import PingAttachment from './PingAttachment';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const Icon = ({ name, size = 20, className = '', style = {}, ...props }) => (
   <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, ...style }} {...props}>{name}</span>
@@ -27,6 +30,7 @@ export default function PingMainChat() {
     editingMessageContent, setEditingMessageContent,
     isMemberOfActive, isOwnerOrAdmin,
     setShowRightPanel,
+    activeUnreadCount,
     messagesEndRef,
     handleLoadMore, handleSendMessage, handleJoinChannel,
     handleSaveEdit, handleDeleteMessage, handleReaction,
@@ -39,10 +43,34 @@ export default function PingMainChat() {
 
   const router = useRouter();
   const [isUploading, setIsUploading] = useState(false);
+  const [isScanningUrl, setIsScanningUrl] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+
+  useEffect(() => {
+    let interval = null;
+    if (isRecording) {
+      interval = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+    } else {
+      setRecordingDuration(0);
+    }
+    return () => clearInterval(interval);
+  }, [isRecording]);
+
+  const formatRecordingTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+
   const videoInputRef = useRef(null);
   const imageInputRef = useRef(null);
-  const audioInputRef = useRef(null);
-
+  const fileInputRef = useRef(null);
   // Lightbox state
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [lightboxType, setLightboxType] = useState(null);
@@ -59,6 +87,28 @@ export default function PingMainChat() {
   const remoteVideoRef = useRef(null);
   const peerConnection = useRef(null);
   const localStream = useRef(null);
+  const [isMicMuted, setIsMicMuted] = useState(false);
+  const [isVideoMuted, setIsVideoMuted] = useState(false);
+
+  const toggleMic = () => {
+    if (localStream.current) {
+      const audioTrack = localStream.current.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsMicMuted(!audioTrack.enabled);
+      }
+    }
+  };
+
+  const toggleVideo = () => {
+    if (localStream.current) {
+      const videoTrack = localStream.current.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsVideoMuted(!videoTrack.enabled);
+      }
+    }
+  };
 
   const endCall = () => {
     if (peerConnection.current) {
@@ -76,6 +126,8 @@ export default function PingMainChat() {
     }
     setCallState('idle');
     setCallTarget(null);
+    setIsMicMuted(false);
+    setIsVideoMuted(false);
   };
 
   useEffect(() => {
@@ -91,7 +143,7 @@ export default function PingMainChat() {
         }
         setCallTarget(sender);
         setCallState('incoming');
-        const audio = new Audio('/ringtone.mp3');
+        const audio = new Audio('/sounds/ringtone.mp3');
         audio.play().catch(e => {}); 
       }
       
@@ -204,51 +256,129 @@ export default function PingMainChat() {
     setShowSettingsModal(true);
   };
 
-  const handleFileUpload = async (e, type) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const tempId = 'temp_' + Date.now();
-    try {
-      setIsUploading(true);
-      const res = await api.cdn.uploadFile(file);
-      if (res && res.success) {
-        const url = api.cdn.getViewUrl(res.result.fileName);
-        const attachment = {
-          url,
-          fileType: type,
-          fileName: res.result.fileName,
-          fileId: res.result.fileId,
-          size: file.size
-        };
-        const msgPayload = {
-          channelId: activeChannelId,
-          content: `Attached ${type}`,
-          attachments: [attachment]
-        };
-        setMessages(prev => [...prev, {
-          _id: tempId,
-          ...msgPayload,
-          senderUid: userProfile?.uid,
-          senderName: userProfile?.name || 'You',
-          createdAt: new Date().toISOString()
-        }]);
+  const handleFileSelect = (e, type) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setPendingAttachments(prev => [...prev, ...files.map(file => ({ file, type, id: Date.now() + Math.random() }))]);
+    e.target.value = null;
+  };
 
-        const serverRes = await api.ping.sendMessage(msgPayload);
-        if (serverRes && serverRes.success && serverRes.data) {
-          setMessages(prev => {
-            if (prev.some(m => m._id === serverRes.data._id && m._id !== tempId)) {
-              return prev.filter(m => m._id !== tempId);
+  const removePendingAttachment = (id) => {
+    setPendingAttachments(prev => prev.filter(a => a.id !== id));
+  };
+
+  const handleAudioRecord = async () => {
+    if (isRecording) {
+      mediaRecorderRef.current?.stop();
+      setIsRecording(false);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      recorder.ondataavailable = e => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const file = new File([audioBlob], `audio_${Date.now()}.webm`, { type: 'audio/webm' });
+        setPendingAttachments(prev => [...prev, { file, type: 'audio', id: Date.now() }]);
+        stream.getTracks().forEach(track => track.stop());
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+    } catch (err) {
+      alert('Could not access microphone');
+    }
+  };
+
+  const onFormSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (!inputText.trim() && pendingAttachments.length === 0) return;
+    
+    // URL Security Check
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const urls = inputText.match(urlRegex) || [];
+    let linkPreviews = [];
+    
+    if (urls.length > 0) {
+      setIsScanningUrl(true);
+      for (let url of urls) {
+        try {
+          const securityRes = await api.ping.checkUrlSecurity(url);
+          if (securityRes.success) {
+            if (securityRes.verdict !== 'SAFE') {
+              alert(`Cannot send message. The link ${url} is marked as ${securityRes.verdictEmoji} ${securityRes.verdict}.`);
+              setIsScanningUrl(false);
+              return;
             }
-            return prev.map(m => m._id === tempId ? serverRes.data : m);
-          });
+            if (securityRes.preview) {
+              linkPreviews.push(securityRes.preview);
+            }
+          }
+        } catch (err) {
+          console.error('URL security check failed:', err);
         }
       }
+      setIsScanningUrl(false);
+    }
+    
+    setIsUploading(true);
+
+    let uploadedAttachments = [];
+    
+    if (pendingAttachments.length > 0) {
+      for (let att of pendingAttachments) {
+        try {
+          const res = await api.cdn.uploadFile(att.file);
+          if (res && res.success) {
+            const url = api.cdn.getViewUrl(res.result.fileName);
+            uploadedAttachments.push({
+              url,
+              fileType: att.type,
+              fileName: res.result.fileName,
+              originalName: att.file.name,
+              fileId: res.result.fileId,
+              size: att.file.size
+            });
+          }
+        } catch (err) {
+          console.error('Upload failed', err);
+        }
+      }
+    }
+    
+    const content = inputText.trim() || (uploadedAttachments.length ? 'Sent attachments' : '');
+    const tempId = 'temp_' + Date.now();
+    const msgPayload = { channelId: activeChannelId, content, attachments: uploadedAttachments, linkPreviews };
+    
+    setInputText('');
+    setPendingAttachments([]);
+    setIsUploading(false);
+    
+    setMessages(prev => [...prev, {
+      _id: tempId,
+      ...msgPayload,
+      senderUid: userProfile?.uid,
+      senderName: userProfile?.name || 'You',
+      createdAt: new Date().toISOString()
+    }]);
+
+    try {
+      const serverRes = await api.ping.sendMessage(msgPayload);
+      if (serverRes && serverRes.success && serverRes.data) {
+        setMessages(prev => {
+          if (prev.some(m => m._id === serverRes.data._id && m._id !== tempId)) {
+             return prev.filter(m => m._id !== tempId);
+          }
+          return prev.map(m => m._id === tempId ? serverRes.data : m);
+        });
+      }
     } catch (err) {
-      alert(`Upload failed: ${err.message}`);
+      alert('Failed to send message: ' + err.message);
       setMessages(prev => prev.filter(m => m._id !== tempId));
-    } finally {
-      setIsUploading(false);
-      e.target.value = null;
     }
   };
 
@@ -304,17 +434,11 @@ export default function PingMainChat() {
     router.push(`/calendar?${params.toString()}`);
   };
 
-  const firstUnreadIndex = messages.findIndex(msg => 
-    msg.senderUid !== userProfile?.uid && 
-    msg.type !== 'system' &&
-    (!msg.readBy || !msg.readBy.some(r => r.uid === userProfile?.uid))
-  );
-  const unreadCount = firstUnreadIndex !== -1 ? messages.length - firstUnreadIndex : 0;
+  const unreadCount = activeUnreadCount || 0;
+  const firstUnreadIndex = unreadCount > 0 ? Math.max(0, messages.length - unreadCount) : -1;
   let hasRenderedDivider = false;
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    
     // Mark messages as read if we have unread ones and the channel is active
     if (activeChannelId && unreadCount > 0) {
        api.ping.markAllRead(activeChannelId).catch(err => {
@@ -337,7 +461,7 @@ export default function PingMainChat() {
          return m;
        }));
     }
-  }, [messages, activeChannelId, unreadCount, setChannels, setMessages, userProfile]);
+  }, [activeChannelId, unreadCount, setChannels, setMessages, userProfile]);
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', background: '#ffffff', position: 'relative' }}>
@@ -473,29 +597,35 @@ export default function PingMainChat() {
                         {msg.attachments && msg.attachments.length > 0 && (
                           <div style={{ marginBottom: '8px', maxWidth: '400px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {msg.attachments.map((att, i) => (
-                              <React.Fragment key={i}>
-                                {att.fileType === 'image' && (
-                                  <img
-                                    src={att.url}
-                                    alt="uploaded"
-                                    onClick={() => { setLightboxUrl(att.url); setLightboxType('image'); }}
-                                    style={{ maxWidth: '100%', borderRadius: '8px', border: '1px solid #e5e7eb', cursor: 'zoom-in' }}
-                                  />
-                                )}
-                                {att.fileType === 'video' && (
-                                  <video
-                                    src={att.url}
-                                    onClick={() => { setLightboxUrl(att.url); setLightboxType('video'); }}
-                                    style={{ maxWidth: '100%', borderRadius: '8px', border: '1px solid #e5e7eb', cursor: 'zoom-in' }}
-                                  />
-                                )}
-                                {att.fileType === 'audio' && <audio src={att.url} controls style={{ width: '100%', maxWidth: '300px' }} />}
-                              </React.Fragment>
+                              <PingAttachment
+                                key={i}
+                                att={att}
+                                setLightboxUrl={setLightboxUrl}
+                                setLightboxType={setLightboxType}
+                              />
                             ))}
                           </div>
                         )}
-                        {msg.content}
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                          a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" style={{ color: '#E91E63', textDecoration: 'underline' }} />
+                        }}>
+                          {msg.content}
+                        </ReactMarkdown>
                         {msg.isEdited && <span style={{ fontSize: '0.75rem', color: '#9ca3af', marginLeft: '8px' }}>(edited)</span>}
+                        {msg.linkPreviews && msg.linkPreviews.length > 0 && (
+                          <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {msg.linkPreviews.map((lp, i) => (
+                              <a key={i} href={lp.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', gap: '12px', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', textDecoration: 'none', color: 'inherit', background: '#f9fafb', maxWidth: '400px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'} onMouseLeave={e => e.currentTarget.style.background = '#f9fafb'}>
+                                {lp.image && <img src={lp.image} alt="preview" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '4px', flexShrink: 0 }} />}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden' }}>
+                                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lp.title}</div>
+                                  <div style={{ fontSize: '0.75rem', color: '#6b7280', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{lp.description}</div>
+                                  <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 'auto', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{new URL(lp.url).hostname}</div>
+                                </div>
+                              </a>
+                            ))}
+                          </div>
+                        )}
                       </>
                     )}
 
@@ -545,42 +675,81 @@ export default function PingMainChat() {
               ['owner', 'admin'].includes(activeChannel?.members?.find(m => m.uid === userProfile?.uid)?.role);
 
             return (
-              <form onSubmit={handleSendMessage} style={{ display: 'flex', flexDirection: 'column', background: canPost ? '#ffffff' : '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '16px', padding: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', minHeight: '120px' }}>
-                <textarea
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); }
-                  }}
-                  placeholder={canPost ? 'Write a message...' : 'Only admins can send messages in this channel.'}
-                  disabled={!canPost}
-                  style={{ flex: 1, background: 'transparent', border: 'none', color: '#111827', fontSize: '0.95rem', outline: 'none', resize: 'none', minHeight: '60px' }}
-                />
+              <form onSubmit={onFormSubmit} style={{ display: 'flex', flexDirection: 'column', background: canPost ? '#ffffff' : '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '16px', padding: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', minHeight: '120px' }}>
+                {isScanningUrl && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', background: '#fef3c7', color: '#92400e', borderRadius: '8px', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 500 }}>
+                    <Icon name="policy" size={16} /> Scanning links for security...
+                  </div>
+                )}
+                {pendingAttachments.length > 0 && (
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                    {pendingAttachments.map(att => (
+                      <div key={att.id} style={{ position: 'relative', background: '#f3f4f6', borderRadius: '8px', padding: '8px', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid #e5e7eb' }}>
+                        <Icon name={att.type === 'image' ? 'image' : att.type === 'video' ? 'videocam' : att.type === 'audio' ? 'mic' : 'insert_drive_file'} size={16} />
+                        <span style={{ fontSize: '0.8rem', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.file.name || `Recorded Audio`}</span>
+                        <button type="button" onClick={() => removePendingAttachment(att.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: '#ef4444' }}><Icon name="close" size={14} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {isRecording ? (
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '16px', padding: '0 16px', minHeight: '60px', background: '#fef2f2', borderRadius: '12px', border: '1px dashed #fca5a5' }}>
+                    <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ef4444', animation: 'pulse 1.5s infinite' }} />
+                    <span style={{ fontSize: '1rem', fontWeight: 600, color: '#ef4444', fontVariantNumeric: 'tabular-nums' }}>
+                      Recording... {formatRecordingTime(recordingDuration)}
+                    </span>
+                    <button type="button" onClick={handleAudioRecord} style={{ marginLeft: 'auto', background: '#ef4444', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Icon name="stop" size={18} /> Stop
+                    </button>
+                    <style>{`
+                      @keyframes pulse {
+                        0% { opacity: 1; transform: scale(1); }
+                        50% { opacity: 0.5; transform: scale(1.2); }
+                        100% { opacity: 1; transform: scale(1); }
+                      }
+                    `}</style>
+                  </div>
+                ) : (
+                  <textarea
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onFormSubmit(e); }
+                    }}
+                    placeholder={canPost ? 'Write a message...' : 'Only admins can send messages in this channel.'}
+                    disabled={!canPost}
+                    style={{ flex: 1, background: 'transparent', border: 'none', color: '#111827', fontSize: '0.95rem', outline: 'none', resize: 'none', minHeight: '60px' }}
+                  />
+                )}
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <input type="file" accept="video/*" ref={videoInputRef} style={{ display: 'none' }} onChange={(e) => handleFileUpload(e, 'video')} />
+                    <input type="file" accept="video/*" ref={videoInputRef} style={{ display: 'none' }} onChange={(e) => handleFileSelect(e, 'video')} />
                     <button type="button" disabled={isUploading || !canPost} onClick={() => canPost && videoInputRef.current?.click()} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '6px 10px', fontSize: '0.82rem', color: '#4b5563', cursor: (canPost && !isUploading) ? 'pointer' : 'not-allowed', fontWeight: 500 }}>
-                      <Icon name="videocam" size={16} /> {isUploading ? 'Uploading...' : 'Video'}
+                      <Icon name="videocam" size={16} /> Video
                     </button>
 
-                    <input type="file" accept="image/*" ref={imageInputRef} style={{ display: 'none' }} onChange={(e) => handleFileUpload(e, 'image')} />
+                    <input type="file" accept="image/*" ref={imageInputRef} style={{ display: 'none' }} onChange={(e) => handleFileSelect(e, 'image')} />
                     <button type="button" disabled={isUploading || !canPost} onClick={() => canPost && imageInputRef.current?.click()} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '6px 10px', fontSize: '0.82rem', color: '#4b5563', cursor: (canPost && !isUploading) ? 'pointer' : 'not-allowed', fontWeight: 500 }}>
-                      <Icon name="image" size={16} /> {isUploading ? 'Uploading...' : 'Photo'}
+                      <Icon name="image" size={16} /> Photo
                     </button>
 
-                    <input type="file" accept="audio/*" ref={audioInputRef} style={{ display: 'none' }} onChange={(e) => handleFileUpload(e, 'audio')} />
-                    <button type="button" disabled={isUploading || !canPost} onClick={() => canPost && audioInputRef.current?.click()} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '6px 10px', fontSize: '0.82rem', color: '#4b5563', cursor: (canPost && !isUploading) ? 'pointer' : 'not-allowed', fontWeight: 500 }}>
-                      <Icon name="mic" size={16} /> Audio
+                    <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={(e) => handleFileSelect(e, 'file')} />
+                    <button type="button" disabled={isUploading || !canPost} onClick={() => canPost && fileInputRef.current?.click()} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '6px 10px', fontSize: '0.82rem', color: '#4b5563', cursor: (canPost && !isUploading) ? 'pointer' : 'not-allowed', fontWeight: 500 }}>
+                      <Icon name="attach_file" size={16} /> Attach
+                    </button>
+
+                    <button type="button" disabled={isUploading || !canPost} onClick={() => canPost && handleAudioRecord()} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: isRecording ? '#fef2f2' : 'transparent', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '6px', fontSize: '0.82rem', color: isRecording ? '#ef4444' : '#4b5563', cursor: (canPost && !isUploading) ? 'pointer' : 'not-allowed', fontWeight: 500, borderColor: isRecording ? '#fca5a5' : '#e5e7eb' }}>
+                      <Icon name="mic" size={16} />
                     </button>
                   </div>
 
                   <button
                     type="submit"
-                    disabled={!inputText.trim()}
-                    style={{ background: inputText.trim() ? '#111827' : '#e5e7eb', border: 'none', color: inputText.trim() ? '#ffffff' : '#9ca3af', width: 36, height: 36, borderRadius: '12px', cursor: inputText.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}
+                    disabled={(!inputText.trim() && pendingAttachments.length === 0) || isUploading || isScanningUrl}
+                    style={{ background: (inputText.trim() || pendingAttachments.length > 0) ? '#111827' : '#e5e7eb', border: 'none', color: (inputText.trim() || pendingAttachments.length > 0) ? '#ffffff' : '#9ca3af', width: 36, height: 36, borderRadius: '12px', cursor: (inputText.trim() || pendingAttachments.length > 0) && !isUploading && !isScanningUrl ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}
                   >
-                    <Icon name="arrow_upward" size={20} />
+                    {isScanningUrl ? <Icon name="policy" size={20} /> : isUploading ? <Icon name="hourglass_empty" size={20} /> : <Icon name="arrow_upward" size={20} />}
                   </button>
                 </div>
               </form>
@@ -713,6 +882,16 @@ export default function PingMainChat() {
           </div>
 
           <div style={{ marginTop: '30px', display: 'flex', gap: '20px' }}>
+            {callState === 'connected' && (
+              <>
+                <button onClick={toggleMic} style={{ background: isMicMuted ? '#fef2f2' : '#f3f4f6', color: isMicMuted ? '#ef4444' : '#374151', border: 'none', width: '48px', height: '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}>
+                  <Icon name={isMicMuted ? 'mic_off' : 'mic'} size={24} />
+                </button>
+                <button onClick={toggleVideo} style={{ background: isVideoMuted ? '#fef2f2' : '#f3f4f6', color: isVideoMuted ? '#ef4444' : '#374151', border: 'none', width: '48px', height: '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}>
+                  <Icon name={isVideoMuted ? 'videocam_off' : 'videocam'} size={24} />
+                </button>
+              </>
+            )}
             {callState === 'incoming' && (
               <button onClick={acceptCall} style={{ background: '#10b981', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: '30px', fontSize: '1rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Icon name="call" /> Accept
