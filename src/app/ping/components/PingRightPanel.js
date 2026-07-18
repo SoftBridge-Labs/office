@@ -23,7 +23,18 @@ export default function PingRightPanel() {
   if (!showRightPanel) return null;
 
   return (
-    <div style={{ 
+    <>
+    <style>{`
+      @media (max-width: 768px) {
+        .ping-right-panel {
+          position: fixed !important;
+          top: 0; left: 0; right: 0; bottom: 0;
+          width: 100% !important;
+          z-index: 50 !important;
+        }
+      }
+    `}</style>
+    <div className="ping-right-panel" style={{ 
       width: '320px', 
       background: '#ffffff', 
       borderLeft: '1px solid #e5e7eb', 
@@ -164,5 +175,6 @@ export default function PingRightPanel() {
         </div>
       )}
     </div>
+    </>
   );
 }

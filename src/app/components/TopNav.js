@@ -83,6 +83,16 @@ export default function TopNav({ userProfile, isLoggedOut }) {
       flexShrink: 0,
       position: 'relative'
     }}>
+      <style>{`
+        .topnav-search { display: block; }
+        .topnav-logo-text { display: block; }
+        .topnav-right-nav { gap: 1.5rem; }
+        @media (max-width: 768px) {
+          .topnav-search { display: none !important; }
+          .topnav-logo-text { display: none !important; }
+          .topnav-right-nav { gap: 0.5rem !important; }
+        }
+      `}</style>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', position: 'relative' }}>
         <div 
           onClick={() => setShowAppSwitcher(!showAppSwitcher)}
@@ -137,13 +147,13 @@ export default function TopNav({ userProfile, isLoggedOut }) {
           <div style={{ color: '#1a73e8', display: 'flex', alignItems: 'center', padding: '4px', background: 'rgba(26, 115, 232, 0.1)', borderRadius: '8px' }}>
             {currentApp.icon}
           </div>
-          <span style={{ fontSize: '1.3rem', fontWeight: 600, color: '#202124', letterSpacing: '-0.02em' }}>
+          <span className="topnav-logo-text" style={{ fontSize: '1.3rem', fontWeight: 600, color: '#202124', letterSpacing: '-0.02em' }}>
             {currentApp.label}
           </span>
         </Link>
       </div>
 
-      <div style={{ flex: 1, maxWidth: '720px', margin: '0 2rem' }}>
+      <div className="topnav-search" style={{ flex: 1, maxWidth: '720px', margin: '0 2rem' }}>
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -180,7 +190,7 @@ export default function TopNav({ userProfile, isLoggedOut }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+      <div className="topnav-right-nav" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
         <Link href="/pricing" style={{ textDecoration: 'none', color: '#5f6368', fontWeight: 500, fontSize: '0.95rem' }}>
           Pricing
         </Link>

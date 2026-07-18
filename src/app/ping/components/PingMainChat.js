@@ -464,9 +464,69 @@ export default function PingMainChat() {
   }, [activeChannelId, unreadCount, setChannels, setMessages, userProfile]);
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', background: '#ffffff', position: 'relative' }}>
+    <>
+    <style>{`
+      @media (max-width: 768px) {
+        .ping-main {
+          display: ${activeChannelId ? 'flex' : 'none'} !important;
+          width: 100% !important;
+          position: absolute;
+          top: 0; left: 0; right: 0; bottom: 0;
+          z-index: 20;
+        }
+        .ping-back-btn {
+          display: flex !important;
+          padding: 8px !important;
+          margin-right: -4px !important;
+        }
+        .ping-main-header {
+          padding: 0 0.5rem !important;
+        }
+        .ping-channel-name {
+          max-width: 120px !important;
+          white-space: nowrap !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+        }
+        .ping-header-actions {
+          gap: 4px !important;
+        }
+        .ping-header-action-text {
+          display: none !important;
+        }
+        .ping-header-btn {
+          padding: 8px !important;
+        }
+        .ping-search-box, .ping-settings-btn {
+          display: none !important;
+        }
+        .ping-msg-avatar {
+          width: 28px !important;
+          height: 28px !important;
+        }
+        .ping-msg-bubble {
+          padding: 8px 12px !important;
+          border-radius: 18px !important;
+          font-size: 0.95rem !important;
+        }
+        .ping-input-toolbar-advanced {
+          display: none !important;
+        }
+        .ping-input-container {
+          padding: 8px !important;
+        }
+      }
+    `}</style>
+    <div className="ping-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', background: '#ffffff', position: 'relative' }}>
       {/* Header */}
-      <div style={{ height: '60px', display: 'flex', alignItems: 'center', padding: '0 2rem', gap: '1rem', borderBottom: '1px solid #e5e7eb', flexShrink: 0, background: '#ffffff' }}>
+      <div className="ping-main-header" style={{ height: '60px', display: 'flex', alignItems: 'center', padding: '0 2rem', gap: '1rem', borderBottom: '1px solid #e5e7eb', flexShrink: 0, background: '#ffffff' }}>
+        <button 
+          className="ping-back-btn" 
+          onClick={() => setActiveChannelId(null)}
+          style={{ display: 'none', background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px', alignItems: 'center', color: '#1a73e8' }}
+        >
+          <Icon name="arrow_back_ios" size={24} />
+        </button>
         {/* Ping branding + channel name */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <PingIcon />
@@ -474,7 +534,7 @@ export default function PingMainChat() {
           {activeChannel && (
             <>
               <span style={{ color: '#d1d5db', fontSize: '1rem' }}>/</span>
-              <h1 style={{ fontSize: '1.05rem', fontWeight: 600, margin: 0, color: '#111827' }}>
+              <h1 className="ping-channel-name" style={{ fontSize: '1.05rem', fontWeight: 600, margin: 0, color: '#111827' }}>
                 {activeChannel.type === 'direct' ? (() => {
                   const other = activeChannel.members?.find(m => m.uid !== userProfile?.uid);
                   const otherObj = workspaceUsers.find(u => u.uid === (other?.uid || userProfile?.uid));
@@ -486,24 +546,24 @@ export default function PingMainChat() {
           {!activeChannel && <h1 style={{ fontSize: '1.05rem', fontWeight: 600, margin: 0, color: '#9ca3af' }}>Select a conversation</h1>}
         </div>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', alignItems: 'center' }}>
+        <div className="ping-header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '6px', alignItems: 'center' }}>
           
           {activeChannelId && (
-            <button onClick={activeChannel?.type === 'direct' ? initiateCall : () => router.push('/meet?action=new_meet')} style={{ background: '#E91E63', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', boxShadow: '0 2px 4px rgba(233, 30, 99, 0.2)' }}>
-              <Icon name="videocam" size={15} /> Call
+            <button className="ping-header-btn" onClick={activeChannel?.type === 'direct' ? initiateCall : () => router.push('/meet?action=new_meet')} style={{ background: '#E91E63', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', boxShadow: '0 2px 4px rgba(233, 30, 99, 0.2)' }}>
+              <Icon name="videocam" size={18} /> <span className="ping-header-action-text">Call</span>
             </button>
           )}
-<button onClick={() => setShowRightPanel(prev => !prev)} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', color: '#374151', padding: '6px 12px', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-            <Icon name="info" size={15} /> Details
+          <button className="ping-header-btn" onClick={() => setShowRightPanel(prev => !prev)} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', color: '#374151', padding: '6px 12px', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+            <Icon name="info" size={18} /> <span className="ping-header-action-text">Details</span>
           </button>
 
           {activeChannelId && (
-            <button onClick={openSettings} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', color: '#374151', padding: '6px 12px', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-              <Icon name="settings" size={15} /> Settings
+            <button className="ping-settings-btn ping-header-btn" onClick={openSettings} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', color: '#374151', padding: '6px 12px', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+              <Icon name="settings" size={18} /> <span className="ping-header-action-text">Settings</span>
             </button>
           )}
 
-          <div style={{ position: 'relative' }}>
+          <div className="ping-search-box" style={{ position: 'relative' }}>
             <Icon name="search" size={15} style={{ position: 'absolute', top: 8, left: 8, color: '#9ca3af' }} />
             <input type="text" placeholder="Search..." style={{ background: '#f9fafb', border: '1px solid #e5e7eb', padding: '6px 12px 6px 30px', borderRadius: '6px', fontSize: '0.82rem', width: '140px' }} />
           </div>
@@ -564,6 +624,7 @@ export default function PingMainChat() {
                 )}
                 <div className="message-container" style={{ display: 'flex', gap: '1rem', alignSelf: 'flex-start', width: '100%', position: 'relative' }}>
                 <div
+                  className="ping-msg-avatar"
                   style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f3f4f6', color: '#4b5563', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontWeight: 'bold', overflow: 'hidden', cursor: 'default' }}
                 >
                   {displayAvatar ? (
@@ -578,7 +639,7 @@ export default function PingMainChat() {
                     <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>{displayName}</span>
                     <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{new Date(msg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
-                  <div style={{ color: '#374151', fontSize: '0.95rem', lineHeight: 1.5, position: 'relative' }}>
+                  <div className="ping-msg-bubble" style={{ color: '#374151', fontSize: '0.95rem', lineHeight: 1.5, position: 'relative' }}>
                     {editingMessageId === msg._id ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '300px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px' }}>
                         <textarea
@@ -663,7 +724,7 @@ export default function PingMainChat() {
 
       {/* Input Box */}
       {activeChannelId && (
-        <div style={{ padding: '0 2rem 2rem 2rem', background: '#ffffff' }}>
+        <div className="ping-input-container" style={{ padding: '0 2rem 2rem 2rem', background: '#ffffff' }}>
           {!isMemberOfActive ? (
             <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '1.5rem', textAlign: 'center' }}>
               <h3 style={{ margin: '0 0 0.5rem 0', color: '#111827' }}>You are viewing a public channel</h3>
@@ -723,7 +784,7 @@ export default function PingMainChat() {
                 )}
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div className="ping-input-toolbar-advanced" style={{ display: 'flex', gap: '8px' }}>
                     <input type="file" accept="video/*" ref={videoInputRef} style={{ display: 'none' }} onChange={(e) => handleFileSelect(e, 'video')} />
                     <button type="button" disabled={isUploading || !canPost} onClick={() => canPost && videoInputRef.current?.click()} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '6px 10px', fontSize: '0.82rem', color: '#4b5563', cursor: (canPost && !isUploading) ? 'pointer' : 'not-allowed', fontWeight: 500 }}>
                       <Icon name="videocam" size={16} /> Video
@@ -904,5 +965,6 @@ export default function PingMainChat() {
         </div>
       )}
     </div>
+    </>
   );
 }

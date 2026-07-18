@@ -86,6 +86,14 @@ export default function BookmarksPage() {
     <div className={styles.container}>
       <TopNav userProfile={userProfile} isLoggedOut={!userProfile} />
       
+      <style>{`
+        @media (max-width: 768px) {
+          .bookmarks-main-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
+      
       <main className={styles.mainPanel}>
         <header className={styles.header}>
           <h2 className={styles.pageTitle}>Bookmarks Manager</h2>
@@ -121,7 +129,7 @@ export default function BookmarksPage() {
           />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: showAddForm ? '1.2fr 1fr' : '1fr', gap: '2rem' }}>
+        <div className="bookmarks-main-grid" style={{ display: 'grid', gridTemplateColumns: showAddForm ? '1.2fr 1fr' : '1fr', gap: '2rem' }}>
           
           {/* Bookmarks List */}
           <div>

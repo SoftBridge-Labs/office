@@ -118,6 +118,17 @@ export default function TasksPage() {
     <div className={styles.container}>
       <TopNav userProfile={userProfile} isLoggedOut={!userProfile} />
       
+      <style>{`
+        @media (max-width: 768px) {
+          .tasks-main-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .tasks-kanban-cols {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
+      
       <main className={styles.mainPanel}>
         <header className={styles.header}>
           <h2 className={styles.pageTitle}>Sprint Tasks Board</h2>
@@ -153,10 +164,10 @@ export default function TasksPage() {
           />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: showAddForm ? '1.2fr 1fr' : '1fr', gap: '2rem' }}>
+        <div className="tasks-main-grid" style={{ display: 'grid', gridTemplateColumns: showAddForm ? '1.2fr 1fr' : '1fr', gap: '2rem' }}>
           
           {/* Kanban Columns */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', alignItems: 'start' }}>
+          <div className="tasks-kanban-cols" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', alignItems: 'start' }}>
             {columns.map(col => {
               const colTasks = tasks.filter(t => t.status === col.id && (!searchQuery || (t.title && t.title.toLowerCase().includes(searchQuery.toLowerCase())) || (t.description && t.description.toLowerCase().includes(searchQuery.toLowerCase()))));
               return (

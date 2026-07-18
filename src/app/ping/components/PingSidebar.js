@@ -25,17 +25,49 @@ export default function PingSidebar() {
   } = usePingContext();
 
   return (
-    <div style={{ 
+    <>
+    <style>{`
+      @media (max-width: 768px) {
+        .ping-sidebar {
+          display: ${activeChannelId ? 'none' : 'flex'} !important;
+          width: 100% !important;
+          border-right: none !important;
+          padding: 1rem !important;
+        }
+        .ping-sidebar-header {
+          margin-bottom: 1.5rem !important;
+        }
+        .ping-search-input {
+          padding: 12px 16px !important;
+          font-size: 1rem !important;
+        }
+        .ping-channel-item {
+          padding: 12px 12px !important;
+          font-size: 1rem !important;
+          border-radius: 8px !important;
+        }
+        .ping-section-title {
+          font-size: 1rem !important;
+          margin-bottom: 0.75rem !important;
+        }
+        .ping-add-btn {
+          font-size: 0.85rem !important;
+          padding: 8px !important;
+        }
+      }
+    `}</style>
+    <div className="ping-sidebar" style={{ 
       width: '280px', 
       background: '#ffffff', 
       borderRight: '1px solid #eaeaea', 
       display: 'flex', 
       flexDirection: 'column',
       padding: '1.5rem',
-      zIndex: 10
+      zIndex: 10,
+      flexShrink: 0
     }}>
       {/* Ping App Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2.5rem' }}>
+      <div className="ping-sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }} onClick={() => router.push('/home')}>
           <div style={{ width: 36, height: 36, borderRadius: '10px', background: '#fce4ec', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E91E63" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -54,6 +86,7 @@ export default function PingSidebar() {
       <div style={{ marginBottom: '1rem' }}>
         <input 
           type="text" 
+          className="ping-search-input"
           placeholder="Search channels..." 
           value={channelSearch}
           onChange={(e) => setChannelSearch(e.target.value)}
@@ -68,8 +101,8 @@ export default function PingSidebar() {
             {/* Channels Section */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', padding: '0 4px' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#111827' }}>Channels</div>
-                <button onClick={() => setShowCreateModal(true)} style={{ background: 'transparent', border: 'none', color: '#1a73e8', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '2px' }} title="Create new group">
+                <div className="ping-section-title" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#111827' }}>Channels</div>
+                <button className="ping-add-btn" onClick={() => setShowCreateModal(true)} style={{ background: 'transparent', border: 'none', color: '#1a73e8', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '2px' }} title="Create new group">
                   <Icon name="add" size={16} /> New Group
                 </button>
               </div>
@@ -87,7 +120,7 @@ export default function PingSidebar() {
                     return (
                       <div 
                         key={id}
-                        className="conv-item"
+                        className="conv-item ping-channel-item"
                         onClick={() => setActiveChannelId(id)}
                         style={{
                           display: 'flex', alignItems: 'center', gap: '8px',
@@ -148,7 +181,7 @@ export default function PingSidebar() {
                     return (
                       <div 
                         key={id}
-                        className="conv-item"
+                        className="conv-item ping-channel-item"
                         onClick={() => setActiveChannelId(id)}
                         style={{
                           display: 'flex', alignItems: 'center', gap: '10px',
@@ -225,5 +258,6 @@ export default function PingSidebar() {
         )}
       </div>
     </div>
+    </>
   );
 }

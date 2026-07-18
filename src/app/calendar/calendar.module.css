@@ -180,3 +180,43 @@
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Mobile Responsiveness ───────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .header {
+    padding: 0.75rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .headerRight {
+    flex: 1;
+    justify-content: flex-end;
+  }
+  
+  .grid {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+  
+  .leftPanel {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 1rem;
+  }
+  
+  .rightPanel {
+    min-height: 500px; 
+    overflow-x: auto; /* Allow horizontal scroll for the calendar grid */
+  }
+}
+
+@media (max-width: 480px) {
+  .createBtn {
+    padding: 0.5rem;
+    font-size: 0; 
+  }
+  .createBtn svg {
+    margin-right: 0;
+  }
+}
