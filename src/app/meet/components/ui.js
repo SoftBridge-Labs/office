@@ -2,19 +2,19 @@ import React from 'react';
 
 // ─── Design Tokens ──────────────────────────────────────────────────────────
 export const C = {
-  bg:        '#13141b',
-  sidebar:   '#0f1017',
-  panel:     '#1a1b25',
-  card:      '#1f2030',
-  border:    'rgba(255,255,255,0.07)',
-  text:      '#e8eaf0',
-  muted:     '#6b7280',
-  accent:    '#4f7ef7',
+  bg: '#13141b',
+  sidebar: '#0f1017',
+  panel: '#1a1b25',
+  card: '#1f2030',
+  border: 'rgba(255,255,255,0.07)',
+  text: '#e8eaf0',
+  muted: '#6b7280',
+  accent: '#4f7ef7',
   accentHov: '#6b93ff',
-  danger:    '#ef4444',
-  success:   '#10b981',
-  amber:     '#f59e0b',
-  violet:    '#7c3aed',
+  danger: '#ef4444',
+  success: '#10b981',
+  amber: '#f59e0b',
+  violet: '#7c3aed',
 };
 
 // ─── Reusable UI Atoms ───────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ export const Avatar = ({ name, avatar_url, size = 32, color }) => {
       />
     );
   }
-  const palette = ['#4f7ef7','#7c3aed','#ec4899','#14b8a6','#f59e0b','#ef4444','#10b981','#6366f1'];
+  const palette = ['#4f7ef7', '#7c3aed', '#ec4899', '#14b8a6', '#f59e0b', '#ef4444', '#10b981', '#6366f1'];
   const bg = color || palette[(name || 'U').charCodeAt(0) % palette.length];
   return (
     <div style={{

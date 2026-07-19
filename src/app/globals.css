@@ -130,7 +130,7 @@ button { cursor: pointer; }
   }
 
   /* Main Flex Container Layout */
-  div[class*="container"] {
+  div[class*="_container__"] {
     flex-direction: column !important;
     height: auto !important;
     min-height: 100vh !important;

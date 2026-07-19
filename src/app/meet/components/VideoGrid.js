@@ -5,14 +5,14 @@ import { useState, useEffect } from 'react';
 function AvatarPlaceholder({ name, avatar_url, size = 64, fontSize = '1.5rem' }) {
   if (avatar_url) {
     return (
-      <img 
-        src={avatar_url} 
-        alt={name} 
-        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(255,255,255,0.1)' }} 
+      <img
+        src={avatar_url}
+        alt={name}
+        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(255,255,255,0.1)' }}
       />
     );
   }
-  const colors = ['#6366f1','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f59e0b','#ef4444','#10b981'];
+  const colors = ['#6366f1', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b', '#ef4444', '#10b981'];
   const colorIdx = name ? name.charCodeAt(0) % colors.length : 0;
   return (
     <div style={{
@@ -47,7 +47,7 @@ function VideoTile({ stream, name, avatar_url, isMuted, isVideoOff, isHandRaised
           if (el && stream) {
             if (el.srcObject !== stream) {
               el.srcObject = stream;
-              el.play().catch(() => {});
+              el.play().catch(() => { });
             }
           }
         }}
@@ -160,10 +160,10 @@ export default function VideoGrid({
     if (remotePeerIds.length === 0) return;
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
-    
+
     let audioCtx;
-    try { audioCtx = new AudioContext(); } catch(e) { return; }
-    
+    try { audioCtx = new AudioContext(); } catch (e) { return; }
+
     const analysers = {};
     const dataArrays = {};
 
@@ -201,7 +201,7 @@ export default function VideoGrid({
 
     return () => {
       clearInterval(interval);
-      audioCtx.close().catch(() => {});
+      audioCtx.close().catch(() => { });
     };
   }, [remotePeerIds, remoteStreams]);
 
@@ -244,7 +244,7 @@ export default function VideoGrid({
         <div style={{ flex: 1, position: 'relative', borderRadius: '20px', overflow: 'hidden', background: '#111114', border: '1.5px solid rgba(255,255,255,0.07)', boxShadow: '0 8px 40px rgba(0,0,0,0.7)' }}>
           <video
             autoPlay playsInline muted={isLocalScreenSharing}
-            ref={el => { if (el && presenterStream) { if (el.srcObject !== presenterStream) { el.srcObject = presenterStream; el.play().catch(() => {}); } } }}
+            ref={el => { if (el && presenterStream) { if (el.srcObject !== presenterStream) { el.srcObject = presenterStream; el.play().catch(() => { }); } } }}
             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
           />
           <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', padding: '0.4rem 0.85rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

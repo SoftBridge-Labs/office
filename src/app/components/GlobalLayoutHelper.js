@@ -14,6 +14,36 @@ export default function GlobalLayoutHelper() {
   const [isMobile, setIsMobile] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [dialog, setDialog] = useState(null); // { type, message, resolve }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    window.alert = (msg) => {
+      const event = new CustomEvent('show-custom-dialog', {
+        detail: { type: 'alert', message: String(msg) }
+      });
+      window.dispatchEvent(event);
+    };
+
+    window.confirmAsync = (msg) => {
+      return new Promise((resolve) => {
+        const event = new CustomEvent('show-custom-dialog', {
+          detail: { type: 'confirm', message: String(msg), resolve }
+        });
+        window.dispatchEvent(event);
+      });
+    };
+
+    const handleDialog = (e) => {
+      setDialog(e.detail);
+    };
+
+    window.addEventListener('show-custom-dialog', handleDialog);
+    return () => {
+      window.removeEventListener('show-custom-dialog', handleDialog);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -244,6 +274,104 @@ export default function GlobalLayoutHelper() {
         </div>
       )}
 
+      {/* Custom Dialog Alert / Confirm Modal */}
+      {dialog && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.4)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 999999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '24px',
+            padding: '2rem',
+            width: '100%',
+            maxWidth: '450px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            border: '1px solid rgba(0, 0, 0, 0.08)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.5rem',
+            animation: 'scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            fontFamily: "'Outfit', sans-serif"
+          }}>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+              <div style={{
+                width: '48px', height: '48px', borderRadius: '12px',
+                backgroundColor: dialog.type === 'confirm' ? '#eff6ff' : '#fef2f2',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: dialog.type === 'confirm' ? '#3b82f6' : '#ef4444',
+                flexShrink: 0
+              }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>
+                  {dialog.type === 'confirm' ? 'help_outline' : 'info'}
+                </span>
+              </div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: '#0f172a' }}>
+                  {dialog.type === 'confirm' ? 'Confirm Action' : 'Notification'}
+                </h3>
+                <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: '#475569', lineHeight: 1.5 }}>
+                  {dialog.message}
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              {dialog.type === 'confirm' && (
+                <button
+                  onClick={() => {
+                    dialog.resolve(false);
+                    setDialog(null);
+                  }}
+                  style={{
+                    padding: '0.6rem 1.25rem',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#475569',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  if (dialog.resolve) dialog.resolve(true);
+                  setDialog(null);
+                }}
+                style={{
+                  padding: '0.6rem 1.25rem',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: dialog.type === 'confirm' ? '#ef4444' : '#4f46e5',
+                  color: '#ffffff',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.filter = 'brightness(0.95)'}
+                onMouseLeave={e => e.currentTarget.style.filter = 'none'}
+              >
+                {dialog.type === 'confirm' ? 'Confirm' : 'OK'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Style overrides for animations */}
       <style jsx global>{`
         @keyframes slideUp {
@@ -253,6 +381,10 @@ export default function GlobalLayoutHelper() {
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
+        }
+        @keyframes scaleUp {
+          from { transform: scale(0.95); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
         }
       `}</style>
     </>

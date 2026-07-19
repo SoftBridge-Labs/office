@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { usePingContext } from '../context/PingContext';
+import WMAGraphPanel from '@/app/components/WMAGraphPanel';
 
 const Icon = ({ name, size = 20, className = '', style = {}, ...props }) => (
   <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, ...style }} {...props}>{name}</span>
@@ -170,6 +171,17 @@ export default function PingRightPanel() {
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* WMA Graph Links for this channel */}
+          {activeChannel && (
+            <div style={{ marginTop: '1.5rem' }}>
+              <WMAGraphPanel
+                appName="ping"
+                entityId={activeChannel._id || activeChannel.id}
+                style={{ border: '1px solid #e5e7eb', borderRadius: '12px' }}
+              />
             </div>
           )}
         </div>

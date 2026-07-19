@@ -67,7 +67,7 @@ export default function UsersPage() {
   };
 
   const handleRemove = async (userId) => {
-    if (!confirm('Are you sure you want to remove this member from the workspace?')) return;
+    if (!await window.confirmAsync('Are you sure you want to remove this member from the workspace?')) return;
     try {
       const res = await api.admin.removeUser(userId);
       setMsg({ text: res.message, type: res.success ? 'success' : 'error' });

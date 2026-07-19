@@ -28,7 +28,7 @@ export function PingProvider({ children }) {
   const [loading, setLoading] = useState(channels.length === 0);
   const [inputText, setInputText] = useState('');
   const [userProfile, setUserProfile] = useState(null);
-  const [showRightPanel, setShowRightPanel] = useState(true);
+  const [showRightPanel, setShowRightPanel] = useState(false);
   
   // Feature states
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -144,6 +144,62 @@ export function PingProvider({ children }) {
 
   const activeChannelRef = useRef(activeChannelId);
   const userProfileRef = useRef(userProfile);
+  const manualStatusRef = useRef(null);
+  const lastActivityRef = useRef(Date.now());
+  const currentStatusRef = useRef('online');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleActivity = () => {
+      lastActivityRef.current = Date.now();
+      if (manualStatusRef.current === 'dnd' || manualStatusRef.current === 'offline') return;
+      if (currentStatusRef.current !== 'online' && document.visibilityState === 'visible') {
+        handlePresenceUpdate('online', false);
+      }
+    };
+    
+    const handleVisibility = () => {
+      if (manualStatusRef.current === 'dnd' || manualStatusRef.current === 'offline') return;
+      if (document.visibilityState === 'hidden') {
+        handlePresenceUpdate('away', false);
+      } else {
+        handleActivity();
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      if (userProfileRef.current) {
+        const uid = userProfileRef.current.uid || userProfileRef.current._id;
+        navigator.sendBeacon(`/workspace/forms/ping/presence?uid=${uid}`, JSON.stringify({ status: 'offline' }));
+      }
+    };
+
+    window.addEventListener('mousemove', handleActivity);
+    window.addEventListener('keydown', handleActivity);
+    window.addEventListener('touchstart', handleActivity);
+    window.addEventListener('scroll', handleActivity);
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    const interval = setInterval(() => {
+      if (manualStatusRef.current === 'dnd' || manualStatusRef.current === 'offline') return;
+      if (Date.now() - lastActivityRef.current > 5 * 60 * 1000) {
+        if (currentStatusRef.current !== 'away') {
+          handlePresenceUpdate('away', false);
+        }
+      }
+    }, 60000);
+
+    return () => {
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+      window.removeEventListener('touchstart', handleActivity);
+      window.removeEventListener('scroll', handleActivity);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     activeChannelRef.current = activeChannelId;
@@ -354,7 +410,7 @@ export function PingProvider({ children }) {
 
   const handleDeleteChannel = async (id, e) => {
     if (e) e.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) return;
+    if (!await window.confirmAsync('Are you sure you want to delete this conversation? This action cannot be undone.')) return;
     try {
       const res = await api.ping.deleteChannel(id);
       if (res && res.success) {
@@ -383,7 +439,7 @@ export function PingProvider({ children }) {
   };
 
   const handleDeleteMessage = async (msgId) => {
-    if (!window.confirm('Delete message?')) return;
+    if (!await window.confirmAsync('Delete message?')) return;
     try {
       const res = await api.ping.deleteMessage(msgId);
       if (res && res.success) {
@@ -395,6 +451,18 @@ export function PingProvider({ children }) {
   };
 
   const handleReaction = async (messageId, emoji) => {
+    if (userProfile?.uid) {
+      setMessages(prev => prev.map(m => {
+        if (m._id === messageId) {
+          const newReactions = [...(m.reactions || [])];
+          if (!newReactions.find(r => r.emoji === emoji && r.uid === userProfile.uid)) {
+            newReactions.push({ emoji, uid: userProfile.uid });
+          }
+          return { ...m, reactions: newReactions };
+        }
+        return m;
+      }));
+    }
     try {
       await api.ping.addReaction(messageId, { emoji });
     } catch (err) {
@@ -402,10 +470,15 @@ export function PingProvider({ children }) {
     }
   };
 
-  const handlePresenceUpdate = async (status) => {
+  const handlePresenceUpdate = async (status, isManual = true) => {
+    if (isManual) {
+      manualStatusRef.current = status;
+    }
+    if (currentStatusRef.current === status && isManual === false) return; // Ignore auto-updates if already in that state
+    currentStatusRef.current = status;
     try {
       await api.ping.updatePresence({ status });
-      setPresenceDropdown(false);
+      if (isManual) setPresenceDropdown(false);
     } catch (err) {
       console.error('Failed to update presence', err);
     }

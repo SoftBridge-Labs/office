@@ -27,7 +27,7 @@ export default function DepartmentsPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this department? All positions inside will also be removed.')) return;
+    if (!await window.confirmAsync('Are you sure you want to delete this department? All positions inside will also be removed.')) return;
     try {
       const res = await api.admin.deleteDepartment(id);
       setMsg({ text: res.message, type: res.success ? 'success' : 'error' });

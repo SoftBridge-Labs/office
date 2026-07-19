@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 export default function LandingPage() {
   const [userProfile, setUserProfile] = useState(null);
@@ -22,6 +24,42 @@ export default function LandingPage() {
     }
   }, [router]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      gsap.registerPlugin(ScrollTrigger);
+
+      gsap.fromTo('.hero-text', { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 1, ease: 'power3.out' });
+      gsap.fromTo('.hero-image', { scale: 0.95, opacity: 0 }, { scale: 1, opacity: 1, duration: 1, delay: 0.2, ease: 'power3.out' });
+      
+      gsap.utils.toArray('.feature-card').forEach((card, i) => {
+        gsap.fromTo(card, 
+          { y: 40, opacity: 0 }, 
+          { 
+            y: 0, opacity: 1, duration: 0.6, 
+            scrollTrigger: {
+              trigger: card,
+              start: 'top 85%',
+              toggleActions: 'play none none none'
+            },
+            delay: (i % 3) * 0.1 
+          }
+        );
+      });
+      
+      gsap.fromTo('.comparison-table', 
+        { y: 40, opacity: 0 }, 
+        { 
+          y: 0, opacity: 1, duration: 0.8, 
+          scrollTrigger: {
+            trigger: '.comparison-section',
+            start: 'top 80%',
+            toggleActions: 'play none none none'
+          }
+        }
+      );
+    }
+  }, []);
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: '"Inter", "Helvetica Neue", sans-serif', backgroundColor: '#e7eaf4', overflowX: 'hidden' }}>
       
@@ -30,7 +68,7 @@ export default function LandingPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '3rem' }}>
           <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#111', letterSpacing: '-0.04em' }}>SoftBridge.</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+        <div className="nav-links" style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
           <Link href="/pricing" style={{ textDecoration: 'none', color: '#111', fontWeight: 600, fontSize: '0.95rem' }}>Pricing</Link>
           <Link href="/login" style={{ background: '#111', color: '#fff', textDecoration: 'none', padding: '0.75rem 1.5rem', borderRadius: '8px', fontWeight: 700, fontSize: '0.85rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
             GET STARTED
@@ -40,18 +78,156 @@ export default function LandingPage() {
 
       <style dangerouslySetInnerHTML={{__html: `
         @media (max-width: 900px) {
-          .nav-links { display: none !important; }
-          .hero-container { flex-direction: column !important; padding: 2rem !important; }
-          .hero-text { max-width: 100% !important; margin-bottom: 2rem !important; }
-          .hero-image { position: relative !important; right: 0 !important; max-width: 100% !important; height: auto !important; margin-top: 2rem; }
-          .hero-image img { max-height: 400px !important; }
-          .badge-1, .badge-2 { display: none !important; } /* Hide badges on small screens for cleaner look */
+          /* Glassmorphic Navigation */
+          nav {
+            padding: 1rem 1.2rem !important;
+            position: sticky !important;
+            top: 0;
+            background: rgba(231, 234, 244, 0.85) !important;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+            z-index: 100 !important;
+          }
+          .nav-links a:first-child { display: none !important; } /* Hide Pricing */
+          .nav-links { display: flex !important; gap: 1rem !important; }
+          .nav-links a:last-child {
+            padding: 0.6rem 1rem !important;
+            font-size: 0.75rem !important;
+            border-radius: 8px !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+          }
           
-          .features-grid { grid-template-columns: 1fr !important; }
-          .comparison-table { display: block; overflow-x: auto; white-space: nowrap; }
+          /* Hero Section Refinement */
+          .hero-container {
+            flex-direction: column !important;
+            padding: 2.5rem 1.2rem 2rem 1.2rem !important;
+            min-height: auto !important;
+            text-align: center;
+          }
+          .hero-text {
+            max-width: 100% !important;
+            margin-bottom: 1.5rem !important;
+            padding-bottom: 0 !important;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+          }
+          .hero-text h1 {
+            font-size: 2.5rem !important;
+            margin-bottom: 1rem !important;
+            line-height: 1.1 !important;
+            background: linear-gradient(135deg, #111 0%, #444 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em !important;
+          }
+          .hero-text p {
+            font-size: 1rem !important;
+            text-align: center !important;
+            max-width: 100% !important;
+            color: #555 !important;
+            line-height: 1.5 !important;
+          }
           
-          footer { flex-direction: column; gap: 1rem; text-align: center; padding: 2rem !important; }
-          footer .footer-links { flex-direction: column; gap: 1rem; }
+          /* Hide the small line in hero */
+          .hero-text > div > div:first-child { display: none !important; }
+          .hero-text > div { justify-content: center !important; }
+          
+          /* Hide decorative elements that clutter mobile */
+          .decorative-star { display: none !important; }
+          .badge-1, .badge-2 { display: none !important; }
+          
+          /* Hero Image */
+          .hero-image {
+            position: relative !important;
+            right: 0 !important;
+            max-width: 100% !important;
+            height: auto !important;
+            margin-top: 1rem !important;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            padding: 0 !important;
+          }
+          .hero-image img { 
+            max-height: 300px !important; 
+            filter: drop-shadow(0 15px 25px rgba(0,0,0,0.1)); 
+          }
+          
+          /* Sections Refinement */
+          .features-section {
+            padding: 3rem 1.2rem !important;
+            border-top-left-radius: 24px !important;
+            border-top-right-radius: 24px !important;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.03);
+          }
+          .comparison-section {
+            padding: 3rem 1.2rem !important;
+          }
+          .features-section h2, .comparison-section h2 {
+            font-size: 1.8rem !important;
+            line-height: 1.2 !important;
+            letter-spacing: -0.02em !important;
+          }
+          .features-section p, .comparison-section p {
+            font-size: 0.95rem !important;
+            margin-bottom: 2rem !important;
+          }
+          
+          /* Feature Cards - Mobile Premium Look */
+          .features-grid {
+            grid-template-columns: 1fr !important;
+            gap: 1rem !important;
+          }
+          .feature-card {
+            padding: 1.25rem !important;
+            border: 1px solid rgba(0,0,0,0.04);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.03) !important;
+            border-radius: 16px !important;
+          }
+          .feature-icon {
+            width: 40px !important;
+            height: 40px !important;
+            border-radius: 10px !important;
+          }
+          
+          /* Comparison Table - Smooth Scroll on Mobile */
+          .comparison-table {
+            display: block;
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 1rem;
+            margin: 0 -1.2rem;
+            padding-left: 1.2rem;
+            padding-right: 1.2rem;
+            scroll-snap-type: x mandatory;
+          }
+          .comparison-table::-webkit-scrollbar { display: none; }
+          .comp-table {
+            border-radius: 12px !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03) !important;
+            border: 1px solid #f1f3f4;
+          }
+          .comp-table th, .comp-table td {
+            padding: 0.75rem 1rem !important;
+            font-size: 0.85rem;
+          }
+          
+          /* Footer Refinement */
+          footer {
+            flex-direction: column;
+            gap: 1.2rem;
+            text-align: center;
+            padding: 2rem 1.2rem !important;
+            background: #ffffff !important;
+          }
+          footer .footer-links {
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem !important;
+          }
         }
 
         /* Features Section */
@@ -101,7 +277,7 @@ export default function LandingPage() {
       <main className="hero-container" style={{ display: 'flex', alignItems: 'center', padding: '0 4rem', maxWidth: '1400px', margin: '0 auto', position: 'relative', width: '100%', minHeight: 'calc(100vh - 100px)' }}>
         
         {/* Decorative Star */}
-        <div style={{ position: 'absolute', top: '10%', right: '15%', opacity: 0.6 }}>
+        <div className="decorative-star" style={{ position: 'absolute', top: '10%', right: '15%', opacity: 0.6 }}>
            <svg width="120" height="120" viewBox="0 0 100 100" fill="none">
              <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="#2d3a6c" />
            </svg>
@@ -144,7 +320,7 @@ export default function LandingPage() {
       </main>
 
       {/* Extended Details Section: What We Offer */}
-      <section style={{ padding: '6rem 4rem', background: '#ffffff', borderTopLeftRadius: '40px', borderTopRightRadius: '40px' }}>
+      <section className="features-section" style={{ padding: '6rem 4rem', background: '#ffffff', borderTopLeftRadius: '40px', borderTopRightRadius: '40px' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <h2 style={{ fontSize: '2.5rem', fontWeight: 800, color: '#111', margin: '0 0 1rem 0', letterSpacing: '-0.02em', textAlign: 'center' }}>Everything you need to succeed</h2>
           <p style={{ fontSize: '1.1rem', color: '#555', textAlign: 'center', maxWidth: '600px', margin: '0 auto 4rem auto' }}>
@@ -206,7 +382,7 @@ export default function LandingPage() {
       </section>
 
       {/* Extended Details Section: Comparison */}
-      <section style={{ padding: '6rem 4rem', background: '#f8fafc' }}>
+      <section className="comparison-section" style={{ padding: '6rem 4rem', background: '#f8fafc' }}>
         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
           <h2 style={{ fontSize: '2.5rem', fontWeight: 800, color: '#111', margin: '0 0 1rem 0', letterSpacing: '-0.02em', textAlign: 'center' }}>How we are different</h2>
           <p style={{ fontSize: '1.1rem', color: '#555', textAlign: 'center', maxWidth: '600px', margin: '0 auto 4rem auto' }}>

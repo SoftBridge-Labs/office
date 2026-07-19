@@ -80,7 +80,7 @@ export default function DocumentEditorPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this document?')) return;
+    if (!await window.confirmAsync('Are you sure you want to delete this document?')) return;
     try {
       await api.deleteDoc(id);
       router.push('/docs');

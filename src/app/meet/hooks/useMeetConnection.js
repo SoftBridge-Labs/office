@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
 import { encryptPayload, decryptPayload } from '@/lib/crypto';
+import { io } from 'socket.io-client';
+
+const getApiUrl = () => {
+  if (typeof window !== 'undefined' && window.__ENV__ && window.__ENV__.NEXT_PUBLIC_API_URL) return window.__ENV__.NEXT_PUBLIC_API_URL;
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+};
 
 export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, activePanel, setActivePanel }) {
   const initMic = searchParams.get('mic') !== 'false';
@@ -43,6 +49,7 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
   const dataConns = useRef({});
   const screenTrackRef = useRef(null);
   const hasJoinedRoomRef = useRef(false);
+  const socketRef = useRef(null);
 
   // Audio refs
   const joinAudioRef = useRef(null);
@@ -181,6 +188,34 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
     document.body.appendChild(s);
     return () => { try { document.body.removeChild(s); } catch {} };
   }, [authorized]);
+
+  // 2b. Load Socket.io connection for real-time signaling/reactions
+  useEffect(() => {
+    if (!authorized || !userProfile) return;
+
+    const url = getApiUrl();
+    const socket = io(`${url}/workspace/ping`, {
+      auth: { token: userProfile.uid || 'guest' },
+      transports: ['websocket', 'polling']
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      socket.emit('join_meet', id);
+    });
+
+    socket.on('meet_reaction', (data) => {
+      setFloatingReactions(prev => {
+        const newE = { id: `${data.sender}-${Date.now()}-${Math.random()}`, emoji: data.emoji, sender: data.sender };
+        return [...prev, newE].slice(-10);
+      });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [authorized, userProfile, id]);
 
   const optimalVideo = { width: { ideal: 640, max: 1280 }, height: { ideal: 480, max: 720 }, frameRate: { ideal: 30, max: 60 } };
 
@@ -359,26 +394,7 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
           setChatMessages(msgs);
         }
 
-        if (res.reactions?.length) {
-          setFloatingReactions(prev => {
-            const ids = prev.map(p => p.id);
-            // Use a 15-second window to account for server clock drift, and rely on ID deduplication
-            const now = Date.now();
-            const incoming = res.reactions.filter(r => {
-               const rTime = new Date(r.timestamp).getTime();
-               return Math.abs(now - rTime) < 15000;
-            });
-            const newE = incoming.map(r => ({ id: r.id || `${r.sender}-${r.timestamp}`, emoji: r.emoji, sender: r.sender })).filter(n => !ids.includes(n.id) && !(window.processedReactions && window.processedReactions.has(n.id)));
-            
-            if (newE.length > 0) {
-              if (!window.processedReactions) window.processedReactions = new Set();
-              newE.forEach(e => window.processedReactions.add(e.id));
-              // Cleanup old processed reactions occasionally
-              if (window.processedReactions.size > 200) window.processedReactions.clear();
-            }
-            return [...prev, ...newE].slice(-10);
-          });
-        }
+        // Meet reactions are handled purely client-side/peer-to-peer, no backend sync.
 
         if (res.polls) {
           let pp = res.polls;
@@ -423,7 +439,7 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
 
   const fetchChatAndReactions = async () => {
     try {
-      const [cr, rr] = await Promise.all([api.getMeetMessages(id), api.getMeetReactions(id)]);
+      const cr = await api.getMeetMessages(id);
       if (cr.success) setChatMessages(cr.messages);
     } catch {}
   };
@@ -562,15 +578,16 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
     const reactionId = `local-${Date.now()}`;
     const sender = userProfile?.name || 'You';
     
-    // Broadcast via Data Channels instantly
-    Object.values(dataConns.current).forEach(conn => {
-      if (conn.open) conn.send(JSON.stringify({ type: 'reaction', id: reactionId, emoji, sender }));
-    });
+    // Broadcast via Socket.io instantly (fallback to WebRTC data channels)
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('meet_reaction', { roomId: id, emoji, sender });
+    } else {
+      Object.values(dataConns.current).forEach(conn => {
+        if (conn.open) conn.send(JSON.stringify({ type: 'reaction', id: reactionId, emoji, sender }));
+      });
+    }
     // Update local UI
     setFloatingReactions(prev => [...prev, { id: reactionId, emoji, sender }]);
-    
-    // Send to server in background
-    api.sendMeetReaction(id, { emoji, sender: userProfile?.name || 'Teammate' }).catch(() => {});
   };
 
   const toggleBlockPeer = async (pId, device) => {

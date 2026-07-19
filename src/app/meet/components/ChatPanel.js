@@ -16,7 +16,7 @@ export default function ChatPanel({
       <div style={{ flex: 1, padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', minHeight: 0, overflowY: 'auto', height: 'calc(100vh - 56px - 70px - 4rem)' }}>
         {chatMessages.length === 0 ? (
           <div style={{ textAlign: 'center', color: C.muted, fontSize: '0.85rem', marginTop: '3rem' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.5rem', color: '#374151' }}>chat_bubble_outline</span>
+            <span className="material-symbols-outlined" style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.5rem', color: C.muted }}>chat_bubble_outline</span>
             No messages yet. Say hello!
           </div>
         ) : chatMessages.map((msg, idx) => {
@@ -34,7 +34,7 @@ export default function ChatPanel({
               }}>
                 {msg.text}
               </div>
-              <span style={{ fontSize: '0.65rem', color: '#374151', paddingLeft: isMe ? 0 : '0.5rem', paddingRight: isMe ? '0.5rem' : 0 }}>
+              <span style={{ fontSize: '0.65rem', color: C.muted, paddingLeft: isMe ? 0 : '0.5rem', paddingRight: isMe ? '0.5rem' : 0 }}>
                 {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
               </span>
             </div>

@@ -6,6 +6,8 @@ import TopNav from '@/app/components/TopNav';
 import AppDisabled from '@/app/components/AppDisabled';
 import { api } from '@/lib/api';
 import styles from '../page.module.css';
+import { BookmarkWMA } from '@/lib/wma';
+import WMAResultToast from '@/app/components/WMAResultToast';
 
 export default function DocsDashboardPage() {
   const router = useRouter();
@@ -14,6 +16,9 @@ export default function DocsDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [appDisabled, setAppDisabled] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  // WMA state
+  const [wmaExecution, setWmaExecution] = useState(null);
+  const [wmaSpawning, setWmaSpawning] = useState(null); // doc id being spawned
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -53,6 +58,21 @@ export default function DocsDashboardPage() {
       }
     } catch (e) {
       alert(e.message);
+    }
+  };
+
+  const handleSpawnWhiteboard = async (e, doc) => {
+    e.stopPropagation(); // Don't navigate to doc
+    const docId = doc._id || doc.id;
+    if (wmaSpawning === docId) return;
+    setWmaSpawning(docId);
+    try {
+      const result = await BookmarkWMA.spawnWhiteboardFromDoc(doc);
+      setWmaExecution(result);
+    } catch (err) {
+      console.error('[WMA] spawnWhiteboardFromDoc failed:', err);
+    } finally {
+      setWmaSpawning(null);
     }
   };
 
@@ -233,15 +253,34 @@ export default function DocsDashboardPage() {
                   color: 'var(--text-muted)'
                 }}>
                   <span>Updated {doc.updatedAt ? new Date(doc.updatedAt).toLocaleDateString() : (doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : 'recently')}</span>
-                  <span style={{
-                    color: 'var(--brand)',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '2px'
-                  }}>
-                    Edit &rarr;
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {/* WMA: Spawn Whiteboard */}
+                    <button
+                      onClick={(e) => handleSpawnWhiteboard(e, doc)}
+                      disabled={wmaSpawning === (doc._id || doc.id)}
+                      title="WMA: Create linked Whiteboard"
+                      style={{
+                        padding: '3px 7px',
+                        background: wmaSpawning === (doc._id || doc.id) ? 'rgba(139,92,246,0.15)' : 'rgba(99,102,241,0.1)',
+                        border: '1px solid rgba(99,102,241,0.25)',
+                        borderRadius: '6px',
+                        cursor: wmaSpawning === (doc._id || doc.id) ? 'not-allowed' : 'pointer',
+                        color: '#6366f1',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 12 }}>hub</span>
+                      {wmaSpawning === (doc._id || doc.id) ? '...' : 'Board'}
+                    </button>
+                    <span style={{ color: 'var(--brand)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '2px' }}>
+                      Edit &rarr;
+                    </span>
+                  </div>
                 </div>
               </div>
               ))}
@@ -253,6 +292,20 @@ export default function DocsDashboardPage() {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
+
+      {/* WMA: Spawn Whiteboard Result Toast */}
+      {wmaExecution && (
+        <WMAResultToast
+          execution={wmaExecution}
+          payload={[
+            { action: 'apps.whiteboard.create', label: 'Linked Whiteboard', params: {} },
+            { action: 'database.graph.createEdge', label: 'Graph: Whiteboard → Doc', params: {} },
+            { action: 'database.graph.createEdge', label: 'Graph: Doc → Whiteboard', params: {} },
+          ]}
+          title="Whiteboard Spawned via WMA"
+          onDismiss={() => setWmaExecution(null)}
+        />
+      )}
     </div>
   );
 }

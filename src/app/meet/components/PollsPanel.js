@@ -26,7 +26,7 @@ export default function PollsPanel({
         )}
         {polls.length === 0 && (
           <div style={{ textAlign: 'center', color: C.muted, fontSize: '0.85rem', marginTop: '2rem' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.5rem', color: '#374151' }}>poll</span>
+            <span className="material-symbols-outlined" style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.5rem', color: C.muted }}>poll</span>
             No active polls
           </div>
         )}

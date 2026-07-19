@@ -135,10 +135,45 @@ export default function Home() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#fafafa', display: 'flex', flexDirection: 'column' }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .home-main { padding: 1.5rem 1.25rem !important; }
+          .home-header { gap: 1rem !important; }
+          .home-header img { width: 50px !important; height: 50px !important; }
+          .home-header h1 { font-size: 2rem !important; line-height: 1.1 !important; }
+          .home-subtitle { font-size: 0.95rem !important; margin-bottom: 2rem !important; }
+          
+          .apps-grid {
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 0.75rem !important;
+          }
+          .app-card {
+            padding: 1rem 0.5rem !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border-radius: 16px !important;
+          }
+          .app-card-icon {
+            transform: scale(1) !important;
+            transform-origin: center center !important;
+            display: flex;
+            justify-content: center;
+          }
+          .app-card-text {
+            font-size: 0.75rem !important;
+            text-align: center;
+          }
+          
+          .recent-grid {
+            grid-template-columns: 1fr !important;
+            gap: 1rem !important;
+          }
+        }
+      `}</style>
       <TopNav userProfile={userProfile} isLoggedOut={!userProfile} />
 
-      <main style={{ flex: 1, padding: '3rem 2rem', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '0.5rem' }}>
+      <main className="home-main" style={{ flex: 1, padding: '3rem 2rem', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+        <div className="home-header" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '0.5rem' }}>
           {userProfile?.avatar_url && (
             <img src={userProfile.avatar_url} alt={userProfile.name} style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid #fff', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} />
           )}
@@ -146,9 +181,9 @@ export default function Home() {
             {userProfile ? `Good afternoon, ${userProfile.name.split(' ')[0]}` : 'Good afternoon'}
           </h1>
         </div>
-        <p style={{ fontSize: '1.1rem', color: '#5f6368', marginBottom: '3rem' }}>Here is what's happening in your workspace today.</p>
+        <p className="home-subtitle" style={{ fontSize: '1.1rem', color: '#5f6368', marginBottom: '3rem' }}>Here is what's happening in your workspace today.</p>
 
-        <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
 
           {/* AI Guidance Panel */}
           <div style={{
@@ -191,7 +226,7 @@ export default function Home() {
           </div>
 
           {/* Quick Apps */}
-          <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+          <div className="apps-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
             {[
               { name: 'Docs', icon: <DocsIcon />, link: '/docs', color: '#1a73e8' },
               { name: 'Tasks', icon: <TasksIcon />, link: '/tasks', color: '#fbbc04' },
@@ -204,7 +239,7 @@ export default function Home() {
               const Wrapper = app.link ? Link : 'div';
               const props = app.link ? { href: app.link } : { onClick: app.onClick };
               return (
-                <Wrapper key={app.name} {...props} style={{
+                <Wrapper className="app-card" key={app.name} {...props} style={{
                   backgroundColor: '#fff',
                   border: '1px solid #eaeaea',
                   borderRadius: '12px',
@@ -226,8 +261,8 @@ export default function Home() {
                   e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.02)';
                   e.currentTarget.style.borderColor = '#eaeaea';
                 }}>
-                  <div style={{ color: app.color, transform: 'scale(0.8)', transformOrigin: 'left center' }}>{app.icon}</div>
-                  <span style={{ fontWeight: 600, fontSize: '1rem' }}>{app.name}</span>
+                  <div className="app-card-icon" style={{ color: app.color, transform: 'scale(0.8)', transformOrigin: 'left center' }}>{app.icon}</div>
+                  <span className="app-card-text" style={{ fontWeight: 600, fontSize: '1rem' }}>{app.name}</span>
                 </Wrapper>
               );
             })}
@@ -242,7 +277,7 @@ export default function Home() {
           {loadingItems ? (
             <div style={{ color: '#5f6368', padding: '2rem', textAlign: 'center' }}>Loading...</div>
           ) : recentItems.length > 0 ? (
-            <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+            <div className="recent-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
               {recentItems.map((item, index) => (
                 <div key={item._id || index} onClick={() => {
                   if (item.type === 'doc') router.push(`/doc/${item._id}`);

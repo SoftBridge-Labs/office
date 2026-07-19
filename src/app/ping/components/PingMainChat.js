@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 import PingAttachment from './PingAttachment';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { PingWMA } from '@/lib/wma';
+import WMAResultToast from '@/app/components/WMAResultToast';
 
 const Icon = ({ name, size = 20, className = '', style = {}, ...props }) => (
   <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, ...style }} {...props}>{name}</span>
@@ -19,9 +21,29 @@ const PingIcon = () => (
   </svg>
 );
 
+function parseSmartDates(text) {
+  if (!text) return '';
+  const dateRegex = /\b(today|tomorrow|yesterday|\d{1,2}(?:st|nd|rd|th)?\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2}(?:st|nd|rd|th)?|next\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday))\b/gi;
+  
+  return text.replace(dateRegex, (match) => {
+    let dateObj = new Date();
+    const lMatch = match.toLowerCase();
+    if (lMatch === 'tomorrow') dateObj.setDate(dateObj.getDate() + 1);
+    else if (lMatch === 'yesterday') dateObj.setDate(dateObj.getDate() - 1);
+    else if (lMatch.startsWith('next')) {
+       dateObj.setDate(dateObj.getDate() + 7);
+    } else if (lMatch !== 'today') {
+       const parsed = new Date(match + ' ' + new Date().getFullYear());
+       if (!isNaN(parsed.getTime())) dateObj = parsed;
+    }
+    const isoDate = dateObj.toISOString();
+    return `[${match}](/calendar?action=new_event&title=Meeting&date=${encodeURIComponent(isoDate)})`;
+  });
+}
+
 export default function PingMainChat() {
   const {
-    activeChannel, activeChannelId,
+    activeChannel, activeChannelId, setActiveChannelId,
     messages, setMessages,
     inputText, setInputText,
     loadingMore, hasMoreMessages,
@@ -46,6 +68,10 @@ export default function PingMainChat() {
   const [isScanningUrl, setIsScanningUrl] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
+  // WMA state
+  const [wmaExecution, setWmaExecution] = useState(null);
+  const [wmaPayload, setWmaPayload] = useState([]);
+  const [wmaToastTitle, setWmaToastTitle] = useState('Workspace Mesh Agent');
   const [recordingDuration, setRecordingDuration] = useState(0);
 
   useEffect(() => {
@@ -66,6 +92,7 @@ export default function PingMainChat() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
   const mediaRecorderRef = useRef(null);
+  const ringtoneRef = useRef(null);
   const audioChunksRef = useRef([]);
 
   const videoInputRef = useRef(null);
@@ -110,7 +137,16 @@ export default function PingMainChat() {
     }
   };
 
+  const stopRingtone = () => {
+    if (ringtoneRef.current) {
+      ringtoneRef.current.pause();
+      ringtoneRef.current.currentTime = 0;
+      ringtoneRef.current = null;
+    }
+  };
+
   const endCall = () => {
+    stopRingtone();
     if (peerConnection.current) {
       peerConnection.current.close();
       peerConnection.current = null;
@@ -144,6 +180,8 @@ export default function PingMainChat() {
         setCallTarget(sender);
         setCallState('incoming');
         const audio = new Audio('/sounds/ringtone.mp3');
+        audio.loop = true;
+        ringtoneRef.current = audio;
         audio.play().catch(e => {}); 
       }
       
@@ -152,6 +190,7 @@ export default function PingMainChat() {
       }
 
       if (type === 'call_accept') {
+        stopRingtone();
         setCallState('connected');
         peerConnection.current = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
         
@@ -175,6 +214,7 @@ export default function PingMainChat() {
       }
 
       if (type === 'offer') {
+        stopRingtone();
         setCallState('connected');
         peerConnection.current = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
         
@@ -239,6 +279,7 @@ export default function PingMainChat() {
 
   const acceptCall = async () => {
     if (!callTarget) return;
+    stopRingtone();
     try {
       localStream.current = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       if (localVideoRef.current) localVideoRef.current.srcObject = localStream.current;
@@ -382,33 +423,93 @@ export default function PingMainChat() {
     }
   };
 
+  // ── WMA-powered message actions ─────────────────────────────────────────
   const shareToTasks = async (msg) => {
     setShowMoreMenu(false);
     try {
-      await api.createTask({
-        title: `From Ping: ${msg?.content || 'Shared message'}`,
-        description: `Shared from #${activeChannel?.name} at ${new Date(msg?.createdAt).toLocaleString()}`,
-        status: 'todo',
-      });
-      alert('Created as a task! Opening Tasks...');
-      router.push('/tasks');
+      const channelId = activeChannelId;
+      // Build the WMA payload for reference in the toast
+      const payload = [
+        { action: 'apps.tasks.createTask', label: 'Task from Ping message', params: {} },
+        { action: 'database.graph.createEdge', label: 'Graph: Task → Ping Message', params: {} },
+      ];
+      setWmaPayload(payload);
+      setWmaToastTitle('Task Created via WMA');
+
+      const execution = await PingWMA.createTaskFromMessage(msg, channelId);
+      setWmaExecution(execution);
+
+      if (execution.taskId) {
+        // Navigate to tasks after a short delay so the toast is visible
+        setTimeout(() => router.push('/tasks'), 1200);
+      }
     } catch (err) {
-      alert('Failed to create task: ' + err.message);
+      console.error('[WMA] shareToTasks failed:', err);
+      // Graceful fallback
+      try {
+        await api.createTask({
+          title: `From Ping: ${msg?.content || 'Shared message'}`,
+          description: `Shared from #${activeChannel?.name} at ${new Date(msg?.createdAt).toLocaleString()}`,
+          status: 'todo',
+        });
+        router.push('/tasks');
+      } catch (e2) { console.error(e2); }
     }
   };
 
   const shareToDoc = async (msg) => {
     setShowMoreMenu(false);
     try {
-      await api.createDoc({
-        title: `Ping note: ${activeChannel?.name}`,
-        content: msg?.content || '',
-      });
-      alert('Saved as a document! Opening Docs...');
-      router.push('/docs');
+      const channelId = activeChannelId;
+      const channelName = activeChannel?.name || 'channel';
+      const payload = [
+        { action: 'apps.docs.createDocument', label: 'Doc from Ping message', params: {} },
+        { action: 'database.graph.createEdge', label: 'Graph: Doc → Ping Message', params: {} },
+      ];
+      setWmaPayload(payload);
+      setWmaToastTitle('Doc Saved via WMA');
+
+      const execution = await PingWMA.createDocFromMessage(msg, channelId, channelName);
+      setWmaExecution(execution);
+
+      if (execution.docId) {
+        setTimeout(() => router.push(`/doc/${execution.docId}`), 1200);
+      }
     } catch (err) {
-      alert('Failed to create doc: ' + err.message);
+      console.error('[WMA] shareToDoc failed:', err);
+      try {
+        await api.createDoc({
+          title: `Ping note: ${activeChannel?.name}`,
+          content: msg?.content || '',
+        });
+        router.push('/docs');
+      } catch (e2) { console.error(e2); }
     }
+  };
+
+  const linkToCalendar = async (msg) => {
+    setShowMoreMenu(false);
+    // Navigate to calendar with pre-filled event, then graph-link back to message
+    const content = msg?.content || '';
+    let extractedDate = new Date();
+    if (content.toLowerCase().includes('tomorrow')) {
+      extractedDate.setDate(extractedDate.getDate() + 1);
+    }
+    // Store pending link info so calendar can pick it up post-creation
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('wma_pending_ping_link', JSON.stringify({
+        message_id: msg?._id || msg?.id,
+        channel_id: activeChannelId,
+        message_preview: content.slice(0, 100),
+      }));
+    }
+    const params = new URLSearchParams({
+      action: 'new_event',
+      title: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
+      date: extractedDate.toISOString(),
+      wma_link: '1',
+    });
+    router.push(`/calendar?${params.toString()}`);
   };
 
   const shareToMeet = () => {
@@ -470,8 +571,6 @@ export default function PingMainChat() {
         .ping-main {
           display: ${activeChannelId ? 'flex' : 'none'} !important;
           width: 100% !important;
-          position: absolute;
-          top: 0; left: 0; right: 0; bottom: 0;
           z-index: 20;
         }
         .ping-back-btn {
@@ -668,9 +767,23 @@ export default function PingMainChat() {
                           </div>
                         )}
                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
-                          a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" style={{ color: '#E91E63', textDecoration: 'underline' }} />
+                          a: ({node, ...props}) => {
+                            const isSmartDate = props.href && props.href.includes('/calendar?action=new_event');
+                            return (
+                              <a {...props} 
+                                 target={props.href.startsWith('/') ? undefined : "_blank"} 
+                                 rel={props.href.startsWith('/') ? undefined : "noopener noreferrer"} 
+                                 style={{ 
+                                   color: '#E91E63', 
+                                   textDecoration: 'none',
+                                   borderBottom: isSmartDate ? '2px dotted #E91E63' : '1px solid #E91E63',
+                                   cursor: 'pointer'
+                                 }} 
+                              />
+                            );
+                          }
                         }}>
-                          {msg.content}
+                          {parseSmartDates(msg.content)}
                         </ReactMarkdown>
                         {msg.isEdited && <span style={{ fontSize: '0.75rem', color: '#9ca3af', marginLeft: '8px' }}>(edited)</span>}
                         {msg.linkPreviews && msg.linkPreviews.length > 0 && (
@@ -699,10 +812,11 @@ export default function PingMainChat() {
                           <span onClick={() => handleDeleteMessage(msg._id)} style={{ padding: '4px', display: 'flex', alignItems: 'center', borderRadius: '4px' }} title="Delete" onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}><Icon name="delete" size={16} style={{ color: '#ef4444' }} /></span>
                         </>
                       )}
-                      <span onClick={() => shareToTasks(msg)} style={{ padding: '4px', display: 'flex', alignItems: 'center', borderRadius: '4px' }} title="Share to Tasks" onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}><Icon name="task_alt" size={16} /></span>
-                      <span onClick={() => shareToDoc(msg)} style={{ padding: '4px', display: 'flex', alignItems: 'center', borderRadius: '4px' }} title="Save to Docs" onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}><Icon name="description" size={16} /></span>
+                      <span onClick={() => shareToTasks(msg)} style={{ padding: '4px', display: 'flex', alignItems: 'center', borderRadius: '4px', position: 'relative' }} title="WMA: Share to Tasks" onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}><Icon name="task_alt" size={16} style={{ color: '#10b981' }} /></span>
+                      <span onClick={() => shareToDoc(msg)} style={{ padding: '4px', display: 'flex', alignItems: 'center', borderRadius: '4px' }} title="WMA: Save to Docs" onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}><Icon name="description" size={16} style={{ color: '#6366f1' }} /></span>
                       <span onClick={shareToMeet} style={{ padding: '4px', display: 'flex', alignItems: 'center', borderRadius: '4px' }} title="Schedule a Meet" onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}><Icon name="videocam" size={16} /></span>
-                      <span onClick={() => addToCalendar(msg)} style={{ padding: '4px', display: 'flex', alignItems: 'center', borderRadius: '4px' }} title="Add to Calendar" onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}><Icon name="event" size={16} /></span>
+                      <span onClick={() => linkToCalendar(msg)} style={{ padding: '4px', display: 'flex', alignItems: 'center', borderRadius: '4px' }} title="WMA: Link to Calendar" onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}><Icon name="event" size={16} style={{ color: '#3b82f6' }} /></span>
+                      <span onClick={() => shareToDoc(msg)} style={{ padding: '4px', display: 'flex', alignItems: 'center', borderRadius: '4px', borderLeft: '1px solid #e5e7eb' }} title="WMA: Graph Links" onMouseEnter={e => e.currentTarget.style.background = '#faf5ff'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}><Icon name="hub" size={16} style={{ color: '#8b5cf6' }} /></span>
                     </div>
 
                     {msg.reactions && msg.reactions.length > 0 && (
@@ -963,6 +1077,16 @@ export default function PingMainChat() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* WMA Result Toast */}
+      {wmaExecution && (
+        <WMAResultToast
+          execution={wmaExecution}
+          payload={wmaPayload}
+          title={wmaToastTitle}
+          onDismiss={() => setWmaExecution(null)}
+        />
       )}
     </div>
     </>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import TopNav from '@/app/components/TopNav';
 
 export default function MeetLobbyPage() {
   const router = useRouter();
@@ -159,11 +160,17 @@ export default function MeetLobbyPage() {
       color: '#1a1a1a',
       fontFamily: 'var(--font-body)',
       display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '2rem 1.5rem',
+      flexDirection: 'column'
     }}>
+      <TopNav userProfile={userProfile} isLoggedOut={!userProfile} />
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2rem 1.5rem',
+      }}>
       <div style={{
         maxWidth: '1000px',
         width: '100%',
@@ -468,7 +475,15 @@ export default function MeetLobbyPage() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Total Call Time Used:</span>
-                <span style={{ color: meetLimits.totalDurationSec >= meetLimits.maxDurationSec ? '#ef4444' : meetLimits.totalDurationSec >= meetLimits.maxDurationSec * 0.8 ? '#f59e0b' : '#10b981', fontWeight: 600 }}>{Math.round(meetLimits.totalDurationSec / 60)} mins / {Math.round(meetLimits.maxDurationSec / 3600)} hrs</span>
+                <span style={{ color: meetLimits.totalDurationSec >= meetLimits.maxDurationSec ? '#ef4444' : meetLimits.totalDurationSec >= meetLimits.maxDurationSec * 0.8 ? '#f59e0b' : '#10b981', fontWeight: 600 }}>
+                  {(() => {
+                    const mins = Math.round(meetLimits.totalDurationSec / 60);
+                    const hrs = Math.floor(mins / 60);
+                    const remMins = mins % 60;
+                    const durationStr = hrs > 0 ? `${hrs} hr ${remMins} mins` : `${mins} mins`;
+                    return `${durationStr} / ${Math.round(meetLimits.maxDurationSec / 3600)} hrs`;
+                  })()}
+                </span>
               </div>
             </div>
           )}
@@ -601,6 +616,7 @@ export default function MeetLobbyPage() {
           }
         }
       `}</style>
+      </div>
     </div>
   );
 }

@@ -7,6 +7,9 @@ import { api } from '@/lib/api';
 import { jsPDF } from 'jspdf';
 import pptxgen from 'pptxgenjs';
 import styles from '../page.module.css';
+import { BookmarkWMA } from '@/lib/wma';
+import WMAResultToast from '@/app/components/WMAResultToast';
+import WMAGraphPanel from '@/app/components/WMAGraphPanel';
 
 export default function WhiteboardPage() {
   const [userProfile, setUserProfile] = useState(null);
@@ -21,6 +24,27 @@ export default function WhiteboardPage() {
   const isDrawing = useRef(false);
   const lastX = useRef(0);
   const lastY = useRef(0);
+  // WMA state
+  const [wmaExecution, setWmaExecution] = useState(null);
+  const [urlEmbedMode, setUrlEmbedMode] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
+  const [whiteboardSessionId] = useState(() => `wb_session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+  const [isEmbedding, setIsEmbedding] = useState(false);
+
+  const handleEmbedUrl = async () => {
+    if (!urlInput.trim()) return;
+    setIsEmbedding(true);
+    try {
+      const result = await BookmarkWMA.urlToWhiteboardCard(urlInput.trim(), whiteboardSessionId);
+      setWmaExecution(result);
+      setUrlInput('');
+      setUrlEmbedMode(false);
+    } catch (err) {
+      console.error('[WMA] URL embed failed:', err);
+    } finally {
+      setIsEmbedding(false);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -298,6 +322,15 @@ export default function WhiteboardPage() {
             <div style={{ display: 'flex', gap: '0.5rem', borderLeft: '1px solid rgba(0,0,0,0.1)', paddingLeft: '1rem' }}>
               <button onClick={exportPDF} style={{ padding: '6px 12px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>PDF</button>
               <button onClick={exportPPT} style={{ padding: '6px 12px', background: '#f97316', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>PPT</button>
+              {/* WMA: Embed URL as Bookmark */}
+              <button
+                onClick={() => setUrlEmbedMode(v => !v)}
+                style={{ padding: '6px 10px', background: urlEmbedMode ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(99,102,241,0.1)', color: urlEmbedMode ? '#fff' : '#6366f1', border: `1px solid ${urlEmbedMode ? 'transparent' : 'rgba(99,102,241,0.3)'}`, borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', transition: 'all 0.2s' }}
+                title="WMA: Embed URL as metadata card"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 15 }}>hub</span>
+                Embed URL
+              </button>
               <button onClick={toggleFullScreen} style={{ padding: '4px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#475569', display: 'flex' }} title="Full Screen">
                 <span className="material-symbols-outlined">fullscreen</span>
               </button>
@@ -313,10 +346,36 @@ export default function WhiteboardPage() {
             onMouseLeave={stopDrawing}
           />
         </div>
-        
+
+        {/* WMA URL Embed Panel */}
+        {urlEmbedMode && (
+          <div style={{ display: 'flex', gap: '8px', marginTop: '12px', padding: '12px 16px', background: 'linear-gradient(135deg, rgba(99,102,241,0.06) 0%, rgba(139,92,246,0.04) 100%)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '12px', alignItems: 'center' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#6366f1', flexShrink: 0 }}>hub</span>
+            <input
+              type="url"
+              placeholder="Paste a URL to embed as a metadata bookmark on this board..."
+              value={urlInput}
+              onChange={e => setUrlInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleEmbedUrl()}
+              autoFocus
+              style={{ flex: 1, padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.3)', background: '#fff', fontSize: '0.85rem', outline: 'none', color: '#0f172a' }}
+            />
+            <button
+              onClick={handleEmbedUrl}
+              disabled={isEmbedding || !urlInput.trim()}
+              style={{ padding: '6px 16px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff', border: 'none', borderRadius: '8px', cursor: isEmbedding ? 'not-allowed' : 'pointer', fontSize: '0.8rem', fontWeight: 600, opacity: isEmbedding ? 0.7 : 1, transition: 'all 0.15s', whiteSpace: 'nowrap' }}
+            >
+              {isEmbedding ? 'Embedding...' : 'Embed'}
+            </button>
+            <button onClick={() => { setUrlEmbedMode(false); setUrlInput(''); }} style={{ padding: '6px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+            </button>
+          </div>
+        )}
+
         <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '1.25rem', textAlign: 'center', fontWeight: 500 }}>
           <span className="material-symbols-outlined" style={{ fontSize: '1rem', verticalAlign: 'middle', marginRight: '4px', color: '#3b82f6' }}>info</span>
-          Choose Pencil to sketch freehand, or Rect / Circle to place shape stamps by clicking anywhere on the board.
+          Choose Pencil to sketch freehand, or Rect / Circle to place shape stamps. Use <strong>Embed URL</strong> to bookmark links to this board.
         </p>
 
         <style>{`
@@ -352,7 +411,29 @@ export default function WhiteboardPage() {
             transform: translateY(0);
           }
         `}</style>
+
+        {/* WMA Graph Panel — shows all bookmarks/docs linked to this board session */}
+        <div style={{ marginTop: '2rem' }}>
+          <WMAGraphPanel
+            appName="whiteboard"
+            entityId={whiteboardSessionId}
+            style={{ borderRadius: '16px' }}
+          />
+        </div>
       </main>
+
+      {/* WMA URL Embed Toast */}
+      {wmaExecution && (
+        <WMAResultToast
+          execution={wmaExecution}
+          payload={[
+            { action: 'apps.bookmarks.create', label: 'Bookmark embedded', params: {} },
+            { action: 'database.graph.createEdge', label: 'Graph: Bookmark → Whiteboard', params: {} },
+          ]}
+          title="URL Embedded via WMA"
+          onDismiss={() => setWmaExecution(null)}
+        />
+      )}
     </div>
   );
 }

@@ -14,6 +14,8 @@ import EventModal     from '@/app/components/calendar/EventModal';
 import SettingsModal  from '@/app/components/calendar/SettingsModal';
 import ConfirmModal   from '@/app/components/calendar/ConfirmModal';
 import styles from './calendar.module.css';
+import { MeetingLifecycle, PingWMA } from '@/lib/wma';
+import WMAResultToast from '@/app/components/WMAResultToast';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function getDaysInMonth(date) {
@@ -108,6 +110,16 @@ export default function CalendarPage() {
 
   // ── Notification ──────────────────────────────────────────────────────────
   const [notif, setNotif] = useState(null);
+  // ── WMA ────────────────────────────────────────────────────────────────────
+  const [wmaExecution, setWmaExecution] = useState(null);
+  const [wmaPayload] = useState([
+    { action: 'apps.docs.createDocument', label: 'Meeting Notes Doc', params: {} },
+    { action: 'apps.whiteboard.create', label: 'Scratchpad Whiteboard', params: {} },
+    { action: 'apps.calendar.updateEvent', label: 'Attach assets to event', params: {} },
+    { action: 'database.graph.createEdge', label: 'Graph: Doc → Event', params: {} },
+    { action: 'database.graph.createEdge', label: 'Graph: Whiteboard → Event', params: {} },
+  ]);
+
   const notify = useCallback((message, type = 'info') => {
     setNotif({ message, type });
     setTimeout(() => setNotif(null), 4000);
@@ -130,6 +142,7 @@ export default function CalendarPage() {
     
     // Check for ping cross-linking parameters
     const action = params.get('action');
+    const wmaLink = params.get('wma_link') === '1';
     if (action === 'new_event') {
       const pTitle = params.get('title') || 'New Meeting';
       const pDate = params.get('date'); // ISO string expected
@@ -271,13 +284,41 @@ export default function CalendarPage() {
         } else {
           try {
             const r = await api.createEvent(payload);
-            if (r.success && r.event) setEvents(p => [...p, r.event]);
+            if (r.success && r.event) {
+              setEvents(p => [...p, r.event]);
+
+              // ── WMA PRE-MEETING: Auto-generate Doc + Whiteboard ──────────────
+              try {
+                const wmaResult = await MeetingLifecycle.preMeeting(r.event);
+                setWmaExecution(wmaResult);
+
+                // If navigated from Ping with wma_link, back-link the message to this event
+                if (typeof window !== 'undefined') {
+                  const pendingLink = localStorage.getItem('wma_pending_ping_link');
+                  if (pendingLink) {
+                    try {
+                      const linkData = JSON.parse(pendingLink);
+                      await PingWMA.linkMessageToEvent(
+                        { _id: linkData.message_id },
+                        linkData.channel_id,
+                        r.event._id || r.event.id
+                      );
+                      localStorage.removeItem('wma_pending_ping_link');
+                    } catch (linkErr) {
+                      console.warn('[WMA] Failed to back-link Ping message:', linkErr);
+                    }
+                  }
+                }
+              } catch (wmaErr) {
+                console.warn('[WMA] preMeeting failed (non-fatal):', wmaErr);
+              }
+            }
           } catch (err) {
             notify(err.message || 'Error creating event', 'error');
             return;
           }
         }
-        notify('Event created', 'success');
+        notify('Event created + WMA assets generated', 'success');
       }
       setShowEventModal(false);
       setEditingEvent(null);
@@ -464,7 +505,11 @@ export default function CalendarPage() {
       {/* Modals */}
       <EventModal
         open={showEventModal}
-        onClose={() => { setShowEventModal(false); setEditingEvent(null); }}
+        onClose={() => { 
+          setShowEventModal(false); 
+          setEditingEvent(null);
+          setEventTitle(''); setEventDesc(''); setEventStart(''); setEventEnd(''); setEventLocation(''); setEventInvitees('');
+        }}
         calendars={calendars}
         teams={teams}
         departments={departments}
@@ -507,6 +552,16 @@ export default function CalendarPage() {
         onCancel={() => setConfirmDeleteId(null)}
       />
       <AISummaryCard summary={aiSummary} loading={aiLoading} />
+
+      {/* WMA Pre-Meeting Result Toast */}
+      {wmaExecution && (
+        <WMAResultToast
+          execution={wmaExecution}
+          payload={wmaPayload}
+          title="Pre-Meeting Assets Created"
+          onDismiss={() => setWmaExecution(null)}
+        />
+      )}
     </div>
   );
 }

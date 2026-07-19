@@ -73,7 +73,7 @@ export default function BookmarksPage() {
   };
 
   const handleDeleteBookmark = async (id) => {
-    if (!confirm('Are you sure you want to delete this bookmark?')) return;
+    if (!await window.confirmAsync('Are you sure you want to delete this bookmark?')) return;
     try {
       await api.deleteBookmark(id);
       loadBookmarks();

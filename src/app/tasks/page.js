@@ -90,7 +90,7 @@ export default function TasksPage() {
   };
 
   const handleDeleteTask = async (id) => {
-    if (!confirm('Delete this task?')) return;
+    if (!await window.confirmAsync('Delete this task?')) return;
     try {
       await api.deleteTask(id);
       loadTasks();

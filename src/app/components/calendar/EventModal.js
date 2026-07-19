@@ -99,15 +99,10 @@ export default function EventModal({
         setVideoProvider('none');
       }
     } else if (open) {
-      setEventTitle('');
-      setEventDesc('');
-      setEventStart('');
-      setEventEnd('');
-      setEventCalendarId(calendars[0]?.id || '');
-      setEventLocation('');
-      setEventInvitees('');
+      if (!eventCalendarId) {
+        setEventCalendarId(calendars[0]?.id || '');
+      }
       setVideoProvider('none');
-      setEventAllowGuests(true);
     }
   }, [editingEvent, open]);
 

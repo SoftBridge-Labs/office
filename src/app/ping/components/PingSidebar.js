@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { usePingContext } from '../context/PingContext';
-import AppSwitcher from '../../components/AppSwitcher';
 
 const Icon = ({ name, size = 20, className = '', style = {}, ...props }) => (
   <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, ...style }} {...props}>{name}</span>
@@ -79,7 +78,6 @@ export default function PingSidebar() {
             <div style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 500 }}>Workspace Chat</div>
           </div>
         </div>
-        <AppSwitcher />
       </div>
 
       {/* Search Channels */}

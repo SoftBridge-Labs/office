@@ -4,6 +4,20 @@ import GlobalLayoutHelper from "./components/GlobalLayoutHelper";
 export const metadata = {
   title: "SoftBridge Workspace — Productivity Suite",
   description: "Next-generation office suite: Calendar, Sheets, Docs and more — designed for modern teams.",
+  keywords: ["office suite", "productivity", "calendar", "sheets", "docs", "collaboration", "remote work", "SoftBridge"],
+  openGraph: {
+    title: "SoftBridge Workspace — Productivity Suite",
+    description: "Next-generation office suite for modern teams.",
+    url: "https://softbridgelabs.in",
+    siteName: "SoftBridge Workspace",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SoftBridge Workspace",
+    description: "Next-generation office suite for modern teams.",
+  },
+  robots: "index, follow",
 };
 
 import AuthGuard from "./components/AuthGuard";
