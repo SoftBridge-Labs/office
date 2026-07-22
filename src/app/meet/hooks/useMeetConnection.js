@@ -30,6 +30,7 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
   const [meetingTimer, setMeetingTimer] = useState(0);
   const [floatingReactions, setFloatingReactions] = useState([]);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [networkPing, setNetworkPing] = useState(0);
 
   // Chat
   const [chatMessages, setChatMessages] = useState([]);
@@ -493,10 +494,29 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
     } catch {}
   };
 
-  // Meeting timer
+  // Meeting timer & Ping
   useEffect(() => {
     const t = setInterval(() => setMeetingTimer(p => p + 1), 1000);
-    return () => clearInterval(t);
+    const pingTimer = setInterval(async () => {
+      let total = 0;
+      let count = 0;
+      for (const call of Object.values(activeCalls.current)) {
+        if (call.peerConnection) {
+          try {
+            const stats = await call.peerConnection.getStats();
+            stats.forEach(report => {
+              // Extract round trip time from the active candidate pair
+              if (report.type === 'candidate-pair' && report.state === 'succeeded' && report.currentRoundTripTime !== undefined) {
+                total += (report.currentRoundTripTime * 1000);
+                count++;
+              }
+            });
+          } catch (e) {}
+        }
+      }
+      if (count > 0) setNetworkPing(Math.round(total / count));
+    }, 3000);
+    return () => { clearInterval(t); clearInterval(pingTimer); };
   }, []);
 
   // AFK
@@ -544,8 +564,11 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
         notifyPeerStateChange({ isMuted: false });
         // Replace in active connections
         Object.values(activeCalls.current).forEach(call => {
-          const s = call.peerConnection?.getSenders().find(s => s.track?.kind === 'audio' || s.track === null);
-          if (s) s.replaceTrack(nat);
+          if (!call.peerConnection) return;
+          const transceiver = call.peerConnection.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === 'audio');
+          if (transceiver && transceiver.sender) {
+            transceiver.sender.replaceTrack(nat).catch(e => console.error("Audio replaceTrack error:", e));
+          }
         });
       } catch (err) {
         console.error("Failed to get real mic:", err);
@@ -572,8 +595,11 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
         setVideoActive(true); 
         notifyPeerStateChange({ isVideoOff: false });
         Object.values(activeCalls.current).forEach(call => {
-          const s = call.peerConnection?.getSenders().find(s => s.track?.kind === 'video' || s.track === null);
-          if (s) s.replaceTrack(nv);
+          if (!call.peerConnection) return;
+          const transceiver = call.peerConnection.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === 'video');
+          if (transceiver && transceiver.sender) {
+            transceiver.sender.replaceTrack(nv).catch(e => console.error("Video replaceTrack error:", e));
+          }
         });
       } catch (err) {
         console.error("Failed to get real camera:", err);
@@ -726,6 +752,6 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
     setShowPollModal, pollForm, setPollForm, toggleMic, toggleVideo,
     toggleScreenShare, toggleHandRaise, handleSendMessage, handleSendReaction,
     toggleBlockPeer, toggleGlobal, endCall, activeCalls, myPeerIdRef,
-    remotePeerIds: Object.keys(remoteStreams)
+    remotePeerIds: Object.keys(remoteStreams), networkPing
   };
 }

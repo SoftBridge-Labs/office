@@ -616,7 +616,7 @@ export default function PingMainChat() {
         }
       }
     `}</style>
-    <div className="ping-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', background: '#ffffff', position: 'relative' }}>
+    <div className="ping-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, background: '#ffffff', position: 'relative' }}>
       {/* Header */}
       <div className="ping-main-header" style={{ height: '60px', display: 'flex', alignItems: 'center', padding: '0 2rem', gap: '1rem', borderBottom: '1px solid #e5e7eb', flexShrink: 0, background: '#ffffff' }}>
         <button 
@@ -657,7 +657,7 @@ export default function PingMainChat() {
           </button>
 
           {activeChannelId && (
-            <button className="ping-settings-btn ping-header-btn" onClick={openSettings} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', color: '#374151', padding: '6px 12px', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+            <button className="ping-settings-btn ping-header-btn" onClick={() => setShowSettingsModal(true)} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', color: '#374151', padding: '6px 12px', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
               <Icon name="settings" size={18} /> <span className="ping-header-action-text">Settings</span>
             </button>
           )}

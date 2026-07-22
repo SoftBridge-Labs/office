@@ -36,7 +36,7 @@ export default function MeetPage() {
   }, [id]);
 
   const conn = useMeetConnection({ id, router, searchParams, encryptionKeyRef, activePanel, setActivePanel });
-  const { authorized, accessDenied, myStream, remoteStreams, micActive, videoActive, isScreenSharing, statusMsg, userProfile, meetLimits, isHandRaised, isHostUser, roomSettings, meetingTimer, floatingReactions, showReactionPicker, setShowReactionPicker, chatMessages, newMessage, setNewMessage, chatEndRef, unreadCount, polls, showPollModal, setShowPollModal, pollForm, setPollForm, toggleMic, toggleVideo, toggleScreenShare, toggleHandRaise, handleSendMessage, handleSendReaction, toggleBlockPeer, toggleGlobal, endCall, remotePeerIds } = conn;
+  const { authorized, accessDenied, myStream, remoteStreams, micActive, videoActive, isScreenSharing, statusMsg, userProfile, meetLimits, isHandRaised, isHostUser, roomSettings, meetingTimer, floatingReactions, showReactionPicker, setShowReactionPicker, chatMessages, newMessage, setNewMessage, chatEndRef, unreadCount, polls, showPollModal, setShowPollModal, pollForm, setPollForm, toggleMic, toggleVideo, toggleScreenShare, toggleHandRaise, handleSendMessage, handleSendReaction, toggleBlockPeer, toggleGlobal, endCall, remotePeerIds, networkPing } = conn;
 
   if (accessDenied) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: C.bg, color: C.text, gap: '1.25rem', textAlign: 'center', padding: '2rem' }}>
@@ -107,6 +107,18 @@ export default function MeetPage() {
             <span style={{ fontSize: '0.82rem', fontWeight: 700, color: C.success }}>{fmt(meetingTimer)}</span>
           </div>
           <span style={{ fontSize: '0.78rem', color: C.muted }}>{statusMsg}</span>
+
+          {/* Network Ping Indicator */}
+          {networkPing > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(255,255,255,0.05)', borderRadius: 20, padding: '2px 8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '1rem', color: networkPing < 100 ? C.success : networkPing < 250 ? '#f59e0b' : C.danger }}>
+                {networkPing < 100 ? 'wifi' : networkPing < 250 ? 'wifi_2_bar' : 'wifi_1_bar'}
+              </span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: networkPing < 100 ? C.success : networkPing < 250 ? '#f59e0b' : C.danger }}>
+                {networkPing}ms
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Right actions */}

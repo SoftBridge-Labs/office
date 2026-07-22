@@ -28,6 +28,117 @@ function AvatarPlaceholder({ name, avatar_url, size = 64, fontSize = '1.5rem' })
 }
 
 function VideoTile({ stream, name, avatar_url, isMuted, isVideoOff, isHandRaised, isScreenSharing, isLocal, isMini = false, isFeatured = false }) {
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  // Robustly handle dynamic track bindings and autoplay
+  const handleVideoRef = el => {
+    if (el && stream) {
+      if (el.srcObject !== stream) {
+        el.srcObject = stream;
+        el.play().catch(() => { });
+      }
+
+      // Force remote audio tracks enabled
+      if (!isLocal) {
+        stream.getAudioTracks().forEach(track => {
+          track.enabled = true;
+        });
+      }
+
+      stream.onaddtrack = () => {
+        el.srcObject = null;
+        el.srcObject = stream;
+        el.play().catch(() => {});
+      };
+      stream.onremovetrack = () => {
+        el.srcObject = null;
+        el.srcObject = stream;
+        el.play().catch(() => {});
+      };
+    }
+  };
+
+  // Speaks detection using AudioContext
+  useEffect(() => {
+    if (!stream || isMuted) {
+      setIsSpeaking(false);
+      return;
+    }
+
+    const audioTracks = stream.getAudioTracks();
+    if (audioTracks.length === 0) {
+      setIsSpeaking(false);
+      return;
+    }
+
+    let audioCtx;
+    let source;
+    let analyser;
+    let animationFrame;
+
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioContextClass();
+      
+      // Resume if suspended (browser security)
+      if (audioCtx.state === 'suspended') {
+        const resume = () => {
+          audioCtx.resume().catch(() => {});
+          window.removeEventListener('click', resume);
+          window.removeEventListener('keydown', resume);
+        };
+        window.addEventListener('click', resume);
+        window.addEventListener('keydown', resume);
+      }
+
+      source = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 64;
+      source.connect(analyser);
+      
+      // Route remote audio through AudioContext to bypass video autoplay restrictions
+      if (!isLocal) {
+        source.connect(audioCtx.destination);
+      }
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      let speakingCounter = 0;
+
+      const checkVolume = () => {
+        if (audioCtx.state === 'closed') return;
+        analyser.getByteTimeDomainData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          const deviation = Math.abs(dataArray[i] - 128);
+          sum += deviation;
+        }
+        const average = sum / bufferLength;
+
+        if (average > 1.5) { // sensitive speaking threshold
+          speakingCounter = Math.min(speakingCounter + 1, 8);
+        } else {
+          speakingCounter = Math.max(speakingCounter - 1, 0);
+        }
+
+        setIsSpeaking(speakingCounter > 2);
+        animationFrame = requestAnimationFrame(checkVolume);
+      };
+
+      checkVolume();
+    } catch (e) {
+      console.warn("Audio analysis context failed to start:", e);
+    }
+
+    return () => {
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      if (audioCtx && audioCtx.state !== 'closed') {
+        audioCtx.close().catch(() => {});
+      }
+    };
+  }, [stream, isMuted]);
+
   return (
     <div style={{
       position: 'relative',
@@ -42,15 +153,8 @@ function VideoTile({ stream, name, avatar_url, isMuted, isVideoOff, isHandRaised
       flexShrink: 0
     }}>
       <video
-        autoPlay playsInline muted={isLocal}
-        ref={el => {
-          if (el && stream) {
-            if (el.srcObject !== stream) {
-              el.srcObject = stream;
-              el.play().catch(() => { });
-            }
-          }
-        }}
+        autoPlay playsInline muted={true} // Always mute video tag; audio is routed via AudioContext for remotes
+        ref={handleVideoRef}
         style={{
           position: 'absolute', inset: 0,
           width: '100%', height: '100%',
@@ -119,8 +223,8 @@ function VideoTile({ stream, name, avatar_url, isMuted, isVideoOff, isHandRaised
         }}>SCREEN SHARE</div>
       )}
 
-      {/* Speaking indicator */}
-      {!isMuted && (
+      {/* Speaking indicator - only shown when actively speaking */}
+      {isSpeaking && (
         <div style={{
           position: 'absolute', bottom: '0.6rem', right: '0.65rem',
           display: 'flex', alignItems: 'center', gap: '2px'
@@ -224,7 +328,7 @@ export default function VideoGrid({
   useEffect(() => {
     const visibleIds = [featuredPeerId, ...visibleStrip].filter(Boolean);
     remotePeerIds.forEach(pId => {
-      const isVisible = visibleIds.includes(pId) || pId === activePresenter?.peerId;
+      const isVisible = visibleIds.includes(pId) || pId === remoteScreenSharePeerId;
       const stream = remoteStreams[pId]?.stream;
       if (stream) {
         stream.getVideoTracks().forEach(track => {
