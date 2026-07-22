@@ -51,6 +51,10 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
   const screenTrackRef = useRef(null);
   const hasJoinedRoomRef = useRef(false);
   const socketRef = useRef(null);
+  const micActiveRef = useRef(micActive);
+  const videoActiveRef = useRef(videoActive);
+  useEffect(() => { micActiveRef.current = micActive; }, [micActive]);
+  useEffect(() => { videoActiveRef.current = videoActive; }, [videoActive]);
 
   // Audio refs
   const joinAudioRef = useRef(null);
@@ -220,8 +224,26 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
       });
     });
 
-    socket.on('meet_state_changed', () => {
-      window.dispatchEvent(new CustomEvent('meet-sync-trigger'));
+    socket.on('meet_state_changed', (statePayload) => {
+      window.dispatchEvent(new CustomEvent('meet-sync-trigger', { detail: statePayload }));
+    });
+
+    socket.on('meet_chat_message', (data) => {
+      setChatMessages(prev => {
+        const exists = prev.some(m => (m.sender === data.sender && m.text === data.text && Math.abs(new Date(m.timestamp) - new Date(data.timestamp)) < 2000));
+        if (exists) return prev;
+        
+        let text = data.text;
+        if (data.isEncrypted && encryptionKeyRef.current) {
+          decryptPayload(text, encryptionKeyRef.current).then(dec => {
+            if (dec) {
+              setChatMessages(current => current.map(m => m.id === data.id ? { ...m, text: dec, decrypted: true } : m));
+            }
+          });
+          text = '[Encrypted]';
+        }
+        return [...prev, { ...data, id: data.id || `msg-${Date.now()}`, text, decrypted: !data.isEncrypted }];
+      });
     });
 
     return () => {
@@ -291,6 +313,20 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
     let triggerCleanup = null;
 
     const setupPeer = (peer) => {
+      const enforceBandwidth = (c) => {
+        if (!c.peerConnection) return;
+        c.peerConnection.getSenders().forEach(sender => {
+          if (sender.track && sender.track.kind === 'video') {
+            try {
+              const params = sender.getParameters();
+              if (!params.encodings) params.encodings = [{}];
+              params.encodings[0].maxBitrate = 150000; // 150 kbps limit
+              params.encodings[0].maxFramerate = 15;
+              sender.setParameters(params).catch(() => {});
+            } catch (e) {}
+          }
+        });
+      };
 
       const handleDisconnect = (pId) => {
         setRemoteStreams(prev => { const next = { ...prev }; delete next[pId]; return next; });
@@ -357,6 +393,7 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
         call.answer(myStream);
         activeCalls.current[call.peer] = call;
         call.on('stream', (s) => {
+          enforceBandwidth(call);
           api.syncMeetState(id).then(res => {
             const mp = res.peers?.find(p => p.peerId === call.peer);
             setRemoteStreams(prev => ({ ...prev, [call.peer]: { stream: s, name: mp?.name || 'Participant', avatar_url: mp?.avatar_url, isVideoOff: mp?.isVideoOff || false, isMuted: mp?.isMuted || false, isHandRaised: mp?.isHandRaised || false, isScreenSharing: mp?.isScreenSharing || false } }));
@@ -366,24 +403,37 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
         call.on('error', () => handleDisconnect(call.peer));
       });
 
-      const runSync = async () => {
+      const runSync = async (evt) => {
         if (!peerInstance.current || peerInstance.current.destroyed || !hasJoinedRoomRef.current) return;
         try {
-          const res = await api.syncMeetState(id);
+          let res;
+          if (evt && evt.detail) {
+            res = { success: true, ...evt.detail };
+          } else {
+            res = await api.syncMeetState(id);
+          }
           if (!res.success) return;
 
           if (res.peers) {
             const amIHere = res.peers.find(p => p.peerId === myPeerId);
             if (!amIHere) { router.push('/home'); return; }
 
+            const myHasMedia = micActiveRef.current || videoActiveRef.current;
+
             res.peers.forEach(other => {
               if (other.peerId !== myPeerId && !activeCalls.current[other.peerId] && myPeerId < other.peerId) {
-                const call = peerInstance.current.call(other.peerId, myStream);
-                if (call) {
-                  activeCalls.current[other.peerId] = call;
-                  call.on('stream', s => setRemoteStreams(prev => ({ ...prev, [other.peerId]: { stream: s, name: other.name || 'Participant', avatar_url: other.avatar_url, isVideoOff: other.isVideoOff || false, isMuted: other.isMuted || false, isHandRaised: other.isHandRaised || false, isScreenSharing: other.isScreenSharing || false } })));
-                  call.on('close', () => handleDisconnect(other.peerId));
-                  call.on('error', () => handleDisconnect(other.peerId));
+                const otherHasMedia = !other.isMuted || !other.isVideoOff;
+                if (myHasMedia || otherHasMedia) {
+                  const call = peerInstance.current.call(other.peerId, myStream);
+                  if (call) {
+                    activeCalls.current[other.peerId] = call;
+                    call.on('stream', s => {
+                      enforceBandwidth(call);
+                      setRemoteStreams(prev => ({ ...prev, [other.peerId]: { stream: s, name: other.name || 'Participant', avatar_url: other.avatar_url, isVideoOff: other.isVideoOff || false, isMuted: other.isMuted || false, isHandRaised: other.isHandRaised || false, isScreenSharing: other.isScreenSharing || false } }));
+                    });
+                    call.on('close', () => handleDisconnect(other.peerId));
+                    call.on('error', () => handleDisconnect(other.peerId));
+                  }
                 }
 
                 if (!dataConns.current[other.peerId]) {
@@ -398,8 +448,39 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
             setRemoteStreams(prev => {
               const updated = { ...prev };
               let changed = false;
-              Object.keys(updated).forEach(pId => { if (!activePeerIds.includes(pId)) { delete updated[pId]; if (activeCalls.current[pId]) { try { activeCalls.current[pId].close(); } catch {} delete activeCalls.current[pId]; } if (dataConns.current[pId]) { try { dataConns.current[pId].close(); } catch {} delete dataConns.current[pId]; } changed = true; } });
-              res.peers.forEach(p => { if (updated[p.peerId]) { updated[p.peerId] = { ...updated[p.peerId], name: p.name || 'Participant', avatar_url: p.avatar_url, isScreenSharing: p.isScreenSharing || false, isHandRaised: p.isHandRaised || false, isMuted: p.isMuted || false, isVideoOff: p.isVideoOff || false }; changed = true; } });
+              Object.keys(updated).forEach(pId => {
+                const other = res.peers.find(x => x.peerId === pId);
+                const otherHasMedia = other && (!other.isMuted || !other.isVideoOff);
+                const shouldStayConnected = activePeerIds.includes(pId) && (myHasMedia || otherHasMedia);
+
+                if (!shouldStayConnected) {
+                  delete updated[pId];
+                  if (activeCalls.current[pId]) {
+                    try { activeCalls.current[pId].close(); } catch {}
+                    delete activeCalls.current[pId];
+                  }
+                  if (dataConns.current[pId]) {
+                    try { dataConns.current[pId].close(); } catch {}
+                    delete dataConns.current[pId];
+                  }
+                  changed = true;
+                }
+              });
+
+              res.peers.forEach(p => {
+                if (updated[p.peerId]) {
+                  updated[p.peerId] = { 
+                    ...updated[p.peerId], 
+                    name: p.name || 'Participant', 
+                    avatar_url: p.avatar_url, 
+                    isScreenSharing: p.isScreenSharing || false, 
+                    isHandRaised: p.isHandRaised || false, 
+                    isMuted: p.isMuted || false, 
+                    isVideoOff: p.isVideoOff || false 
+                  };
+                  changed = true;
+                }
+              });
               return changed ? updated : prev;
             });
 
@@ -417,8 +498,6 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
             }
             setChatMessages(msgs);
           }
-
-          // Meet reactions are handled purely client-side/peer-to-peer, no backend sync.
 
           if (res.polls) {
             let pp = res.polls;
