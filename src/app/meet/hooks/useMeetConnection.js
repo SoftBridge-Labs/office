@@ -205,9 +205,16 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
       socket.emit('join_meet', id);
     });
 
+    // Deduplicate reactions seen via data channel vs socket
+    const seenReactionIds = new Set();
+
     socket.on('meet_reaction', (data) => {
+      const rid = data.id || `${data.sender}-${data.emoji}-${Date.now()}`;
+      if (seenReactionIds.has(rid)) return; // already shown via data channel
+      seenReactionIds.add(rid);
+      setTimeout(() => seenReactionIds.delete(rid), 5000); // cleanup after 5s
       setFloatingReactions(prev => {
-        const newE = { id: `${data.sender}-${Date.now()}-${Math.random()}`, emoji: data.emoji, sender: data.sender };
+        const newE = { id: rid, emoji: data.emoji, sender: data.sender };
         return [...prev, newE].slice(-10);
       });
     });
@@ -228,12 +235,12 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
       const canvas = document.createElement('canvas');
       canvas.width = 1; canvas.height = 1;
       const vTrack = canvas.captureStream().getVideoTracks()[0];
-      if (vTrack) vTrack.enabled = false;
+      if (vTrack) { vTrack.enabled = false; vTrack.isDummy = true; }
       
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       const dest = ctx.createMediaStreamDestination();
       const aTrack = dest.stream.getAudioTracks()[0];
-      if (aTrack) aTrack.enabled = false;
+      if (aTrack) { aTrack.enabled = false; aTrack.isDummy = true; }
       
       const tracks = [];
       if (aTrack) tracks.push(aTrack);
@@ -266,172 +273,214 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
     if (!peerLoaded || !myStream || !userProfile) return;
     const myPeerId = `sb-${id}-${userProfile.uid || 'guest'}-${Math.random().toString(36).substr(2, 5)}`;
     myPeerIdRef.current = myPeerId;
-    const peer = new window.Peer(myPeerId, { debug: 1, config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] } });
 
-    const handleDisconnect = (pId) => {
-      setRemoteStreams(prev => { const next = { ...prev }; delete next[pId]; return next; });
-      if (activeCalls.current[pId]) { try { activeCalls.current[pId].close(); } catch {} delete activeCalls.current[pId]; }
-    };
+    // Default ICE config — STUN only, used as fallback if TURN credential fetch fails
+    const defaultIceServers = [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+    ];
 
-    peer.on('open', async (rid) => {
-      peerInstance.current = peer;
-      try {
-        const joinRes = await api.joinMeetingRoom(id, { peerId: rid, uid: userProfile.uid, name: userProfile.name || 'Teammate', avatar_url: userProfile.avatar_url });
-        if (joinRes.success) {
-          hasJoinedRoomRef.current = true;
-          if (joinRes.limits) setMeetLimits(joinRes.limits);
-          setStatusMsg('Waiting for others...');
-          fetchChatAndReactions();
-          api.updateMeetPeer(id, { peerId: rid, isVideoOff: !videoActive, isMuted: !micActive, avatar_url: userProfile.avatar_url }).catch(() => {});
+    // Cleanup refs — must survive the async boundary
+    let syncInterval = null;
+    let destroyed = false;
+
+    const setupPeer = (peer) => {
+
+      const handleDisconnect = (pId) => {
+        setRemoteStreams(prev => { const next = { ...prev }; delete next[pId]; return next; });
+        if (activeCalls.current[pId]) { try { activeCalls.current[pId].close(); } catch {} delete activeCalls.current[pId]; }
+      };
+
+      peer.on('open', async (rid) => {
+        peerInstance.current = peer;
+        try {
+          const joinRes = await api.joinMeetingRoom(id, { peerId: rid, uid: userProfile.uid, name: userProfile.name || 'Teammate', avatar_url: userProfile.avatar_url });
+          if (joinRes.success) {
+            hasJoinedRoomRef.current = true;
+            if (joinRes.limits) setMeetLimits(joinRes.limits);
+            setStatusMsg('Waiting for others...');
+            fetchChatAndReactions();
+            api.updateMeetPeer(id, { peerId: rid, isVideoOff: !videoActive, isMuted: !micActive, avatar_url: userProfile.avatar_url }).catch(() => {});
+          }
+        } catch (err) {
+          if (err.message?.includes('limit')) { alert(err.message); router.push('/meet'); }
+          else if (err.message?.includes('Ended')) { router.push('/home'); }
+          else setAccessDenied(true);
         }
-      } catch (err) {
-        if (err.message?.includes('limit')) { alert(err.message); router.push('/meet'); }
-        else if (err.message?.includes('Ended')) { router.push('/home'); }
-        else setAccessDenied(true);
-      }
-    });
-
-    peer.on('error', () => {});
-
-    const handleIncomingData = async (data) => {
-      try {
-        if (typeof data === 'string') data = JSON.parse(data);
-      } catch (e) {}
-
-      if (data.type === 'reaction') {
-        setFloatingReactions(prev => {
-          const newE = { id: data.id || `${data.sender}-${Date.now()}`, emoji: data.emoji, sender: data.sender };
-          return [...prev, newE].slice(-10);
-        });
-      } else if (data.type === 'chat') {
-        let text = data.text;
-        if (data.isEncrypted && encryptionKeyRef.current) {
-          const dec = await decryptPayload(text, encryptionKeyRef.current);
-          text = dec || '[Encrypted]';
-        }
-        setChatMessages(prev => [...prev, {
-          id: data.id,
-          sender: data.sender,
-          text,
-          timestamp: data.timestamp,
-          decrypted: !!encryptionKeyRef.current
-        }]);
-      } else if (data.type === 'handRaise') {
-        setRemoteStreams(prev => {
-          if (!prev[data.peerId]) return prev;
-          return { ...prev, [data.peerId]: { ...prev[data.peerId], isHandRaised: data.isHandRaised } };
-        });
-      }
-    };
-
-    peer.on('connection', (conn) => {
-      conn.on('data', handleIncomingData);
-      dataConns.current[conn.peer] = conn;
-    });
-
-    peer.on('call', (call) => {
-      call.answer(myStream);
-      activeCalls.current[call.peer] = call;
-      call.on('stream', (s) => {
-        api.syncMeetState(id).then(res => {
-          const mp = res.peers?.find(p => p.peerId === call.peer);
-          setRemoteStreams(prev => ({ ...prev, [call.peer]: { stream: s, name: mp?.name || 'Participant', avatar_url: mp?.avatar_url, isVideoOff: mp?.isVideoOff || false, isMuted: mp?.isMuted || false, isHandRaised: mp?.isHandRaised || false, isScreenSharing: mp?.isScreenSharing || false } }));
-        }).catch(() => setRemoteStreams(prev => ({ ...prev, [call.peer]: { stream: s, name: 'Participant', isVideoOff: false, isMuted: false } })));
       });
-      call.on('close', () => handleDisconnect(call.peer));
-      call.on('error', () => handleDisconnect(call.peer));
-    });
 
-    const syncInterval = setInterval(async () => {
-      if (!peerInstance.current || peerInstance.current.destroyed || !hasJoinedRoomRef.current) return;
-      try {
-        const res = await api.syncMeetState(id);
-        if (!res.success) return;
+      peer.on('error', () => {});
 
-        if (res.peers) {
-          const amIHere = res.peers.find(p => p.peerId === myPeerId);
-          if (!amIHere) { router.push('/home'); return; }
+      const handleIncomingData = async (data) => {
+        try {
+          if (typeof data === 'string') data = JSON.parse(data);
+        } catch (e) {}
 
-          res.peers.forEach(other => {
-            if (other.peerId !== myPeerId && !activeCalls.current[other.peerId] && myPeerId < other.peerId) {
-              const call = peerInstance.current.call(other.peerId, myStream);
-              if (call) {
-                activeCalls.current[other.peerId] = call;
-                call.on('stream', s => setRemoteStreams(prev => ({ ...prev, [other.peerId]: { stream: s, name: other.name || 'Participant', avatar_url: other.avatar_url, isVideoOff: other.isVideoOff || false, isMuted: other.isMuted || false, isHandRaised: other.isHandRaised || false, isScreenSharing: other.isScreenSharing || false } })));
-                call.on('close', () => handleDisconnect(other.peerId));
-                call.on('error', () => handleDisconnect(other.peerId));
-              }
-              
-              if (!dataConns.current[other.peerId]) {
-                const conn = peerInstance.current.connect(other.peerId);
-                conn.on('data', handleIncomingData);
-                dataConns.current[other.peerId] = conn;
-              }
-            }
+        if (data.type === 'reaction') {
+          setFloatingReactions(prev => {
+            const newE = { id: data.id || `${data.sender}-${Date.now()}`, emoji: data.emoji, sender: data.sender };
+            return [...prev, newE].slice(-10);
           });
-
-          const activePeerIds = res.peers.map(p => p.peerId);
+        } else if (data.type === 'chat') {
+          let text = data.text;
+          if (data.isEncrypted && encryptionKeyRef.current) {
+            const dec = await decryptPayload(text, encryptionKeyRef.current);
+            text = dec || '[Encrypted]';
+          }
+          setChatMessages(prev => [...prev, {
+            id: data.id,
+            sender: data.sender,
+            text,
+            timestamp: data.timestamp,
+            decrypted: !!encryptionKeyRef.current
+          }]);
+        } else if (data.type === 'handRaise') {
           setRemoteStreams(prev => {
-            const updated = { ...prev };
-            let changed = false;
-            Object.keys(updated).forEach(pId => { if (!activePeerIds.includes(pId)) { delete updated[pId]; if (activeCalls.current[pId]) { try { activeCalls.current[pId].close(); } catch {} delete activeCalls.current[pId]; } if (dataConns.current[pId]) { try { dataConns.current[pId].close(); } catch {} delete dataConns.current[pId]; } changed = true; } });
-            res.peers.forEach(p => { if (updated[p.peerId]) { updated[p.peerId] = { ...updated[p.peerId], name: p.name || 'Participant', avatar_url: p.avatar_url, isScreenSharing: p.isScreenSharing || false, isHandRaised: p.isHandRaised || false, isMuted: p.isMuted || false, isVideoOff: p.isVideoOff || false }; changed = true; } });
-            return changed ? updated : prev;
+            if (!prev[data.peerId]) return prev;
+            return { ...prev, [data.peerId]: { ...prev[data.peerId], isHandRaised: data.isHandRaised } };
           });
-
-          const others = res.peers.filter(p => p.peerId !== myPeerId).length;
-          setStatusMsg(others === 0 ? 'Waiting for others...' : `${others + 1} in call`);
         }
+      };
 
-        if (res.messages) {
-          let msgs = res.messages;
-          if (encryptionKeyRef.current) {
-            msgs = await Promise.all(msgs.map(async m => {
-              if (m.isEncrypted && !m.decrypted) { const pt = await decryptPayload(m.text, encryptionKeyRef.current); return { ...m, text: pt || '[Encrypted]', decrypted: !!pt }; }
-              return m;
-            }));
-          }
-          setChatMessages(msgs);
-        }
+      peer.on('connection', (conn) => {
+        conn.on('data', handleIncomingData);
+        dataConns.current[conn.peer] = conn;
+      });
 
-        // Meet reactions are handled purely client-side/peer-to-peer, no backend sync.
+      peer.on('call', (call) => {
+        call.answer(myStream);
+        activeCalls.current[call.peer] = call;
+        call.on('stream', (s) => {
+          api.syncMeetState(id).then(res => {
+            const mp = res.peers?.find(p => p.peerId === call.peer);
+            setRemoteStreams(prev => ({ ...prev, [call.peer]: { stream: s, name: mp?.name || 'Participant', avatar_url: mp?.avatar_url, isVideoOff: mp?.isVideoOff || false, isMuted: mp?.isMuted || false, isHandRaised: mp?.isHandRaised || false, isScreenSharing: mp?.isScreenSharing || false } }));
+          }).catch(() => setRemoteStreams(prev => ({ ...prev, [call.peer]: { stream: s, name: 'Participant', isVideoOff: false, isMuted: false } })));
+        });
+        call.on('close', () => handleDisconnect(call.peer));
+        call.on('error', () => handleDisconnect(call.peer));
+      });
 
-        if (res.polls) {
-          let pp = res.polls;
-          if (encryptionKeyRef.current) {
-            pp = await Promise.all(pp.map(async poll => {
-              if (poll.isEncrypted && !poll.decrypted) {
-                const pq = await decryptPayload(poll.question, encryptionKeyRef.current);
-                const po = await Promise.all(poll.options.map(async opt => { const pt = await decryptPayload(opt.text, encryptionKeyRef.current); return { ...opt, text: pt || '[Encrypted]' }; }));
-                return { ...poll, question: pq || '[Encrypted]', options: po, decrypted: true };
+      syncInterval = setInterval(async () => {
+        if (!peerInstance.current || peerInstance.current.destroyed || !hasJoinedRoomRef.current) return;
+        try {
+          const res = await api.syncMeetState(id);
+          if (!res.success) return;
+
+          if (res.peers) {
+            const amIHere = res.peers.find(p => p.peerId === myPeerId);
+            if (!amIHere) { router.push('/home'); return; }
+
+            res.peers.forEach(other => {
+              if (other.peerId !== myPeerId && !activeCalls.current[other.peerId] && myPeerId < other.peerId) {
+                const call = peerInstance.current.call(other.peerId, myStream);
+                if (call) {
+                  activeCalls.current[other.peerId] = call;
+                  call.on('stream', s => setRemoteStreams(prev => ({ ...prev, [other.peerId]: { stream: s, name: other.name || 'Participant', avatar_url: other.avatar_url, isVideoOff: other.isVideoOff || false, isMuted: other.isMuted || false, isHandRaised: other.isHandRaised || false, isScreenSharing: other.isScreenSharing || false } })));
+                  call.on('close', () => handleDisconnect(other.peerId));
+                  call.on('error', () => handleDisconnect(other.peerId));
+                }
+
+                if (!dataConns.current[other.peerId]) {
+                  const conn = peerInstance.current.connect(other.peerId);
+                  conn.on('data', handleIncomingData);
+                  dataConns.current[other.peerId] = conn;
+                }
               }
-              return poll;
-            }));
-          }
-          setPolls(prev => {
-            const hasNew = pp.some(p => p.active && !prev.find(x => x.id === p.id));
-            if (hasNew) { pollAudioRef.current?.play().catch(() => {}); setActivePanel('polls'); }
-            return pp;
-          });
-        }
+            });
 
-        if (res.settings) {
-          setRoomSettings(res.settings);
-          const bs = res.settings.blockedPeers?.[myPeerId] || {};
-          if (res.settings.blockMic || bs.mic) {
-            const at = myStream?.getAudioTracks()[0];
-            if (at?.enabled) { at.enabled = false; setMicActive(false); api.updateMeetPeer(id, { peerId: myPeerId, isMuted: true }).catch(() => {}); }
+            const activePeerIds = res.peers.map(p => p.peerId);
+            setRemoteStreams(prev => {
+              const updated = { ...prev };
+              let changed = false;
+              Object.keys(updated).forEach(pId => { if (!activePeerIds.includes(pId)) { delete updated[pId]; if (activeCalls.current[pId]) { try { activeCalls.current[pId].close(); } catch {} delete activeCalls.current[pId]; } if (dataConns.current[pId]) { try { dataConns.current[pId].close(); } catch {} delete dataConns.current[pId]; } changed = true; } });
+              res.peers.forEach(p => { if (updated[p.peerId]) { updated[p.peerId] = { ...updated[p.peerId], name: p.name || 'Participant', avatar_url: p.avatar_url, isScreenSharing: p.isScreenSharing || false, isHandRaised: p.isHandRaised || false, isMuted: p.isMuted || false, isVideoOff: p.isVideoOff || false }; changed = true; } });
+              return changed ? updated : prev;
+            });
+
+            const others = res.peers.filter(p => p.peerId !== myPeerId).length;
+            setStatusMsg(others === 0 ? 'Waiting for others...' : `${others + 1} in call`);
           }
-          if (res.settings.blockCam || bs.cam) {
-            const vt = myStream?.getVideoTracks()[0];
-            if (vt?.enabled) { vt.enabled = false; setVideoActive(false); api.updateMeetPeer(id, { peerId: myPeerId, isVideoOff: true }).catch(() => {}); }
+
+          if (res.messages) {
+            let msgs = res.messages;
+            if (encryptionKeyRef.current) {
+              msgs = await Promise.all(msgs.map(async m => {
+                if (m.isEncrypted && !m.decrypted) { const pt = await decryptPayload(m.text, encryptionKeyRef.current); return { ...m, text: pt || '[Encrypted]', decrypted: !!pt }; }
+                return m;
+              }));
+            }
+            setChatMessages(msgs);
           }
+
+          // Meet reactions are handled purely client-side/peer-to-peer, no backend sync.
+
+          if (res.polls) {
+            let pp = res.polls;
+            if (encryptionKeyRef.current) {
+              pp = await Promise.all(pp.map(async poll => {
+                if (poll.isEncrypted && !poll.decrypted) {
+                  const pq = await decryptPayload(poll.question, encryptionKeyRef.current);
+                  const po = await Promise.all(poll.options.map(async opt => { const pt = await decryptPayload(opt.text, encryptionKeyRef.current); return { ...opt, text: pt || '[Encrypted]' }; }));
+                  return { ...poll, question: pq || '[Encrypted]', options: po, decrypted: true };
+                }
+                return poll;
+              }));
+            }
+            setPolls(prev => {
+              const hasNew = pp.some(p => p.active && !prev.find(x => x.id === p.id));
+              if (hasNew) { pollAudioRef.current?.play().catch(() => {}); setActivePanel('polls'); }
+              return pp;
+            });
+          }
+
+          if (res.settings) {
+            setRoomSettings(res.settings);
+            const bs = res.settings.blockedPeers?.[myPeerId] || {};
+            if (res.settings.blockMic || bs.mic) {
+              const at = myStream?.getAudioTracks()[0];
+              if (at?.enabled) { at.enabled = false; setMicActive(false); api.updateMeetPeer(id, { peerId: myPeerId, isMuted: true }).catch(() => {}); }
+            }
+            if (res.settings.blockCam || bs.cam) {
+              const vt = myStream?.getVideoTracks()[0];
+              if (vt?.enabled) { vt.enabled = false; setVideoActive(false); api.updateMeetPeer(id, { peerId: myPeerId, isVideoOff: true }).catch(() => {}); }
+            }
+          }
+        } catch {}
+      }, 1500);
+    };
+
+    const startPeer = (iceServers) => {
+      if (destroyed) return;
+      const peer = new window.Peer(myPeerId, {
+        debug: 1,
+        config: {
+          iceServers,
+          iceCandidatePoolSize: 10,
         }
-      } catch {}
-    }, 1500);
+      });
+      peerInstance.current = peer;
+      setupPeer(peer);
+    };
+
+    // Fetch temporary TURN credentials from Cloudflare via our Next.js API route
+    fetch('/api/turn')
+      .then(r => r.json())
+      .then(res => {
+        if (res.success && res.iceServers) {
+          startPeer(res.iceServers);
+        } else {
+          console.warn('[Meet] TURN credentials unavailable, falling back to STUN only');
+          startPeer(defaultIceServers);
+        }
+      })
+      .catch(() => {
+        console.warn('[Meet] Could not reach TURN credential endpoint, falling back to STUN only');
+        startPeer(defaultIceServers);
+      });
 
     return () => {
-      clearInterval(syncInterval);
+      destroyed = true;
+      if (syncInterval) clearInterval(syncInterval);
       peerInstance.current?.destroy();
       if (myPeerIdRef.current) api.leaveMeetingRoom(id, { peerId: myPeerIdRef.current }).catch(() => {});
     };
@@ -479,30 +528,60 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
   const fmt = (sec) => `${Math.floor(sec / 60).toString().padStart(2, '0')}:${(sec % 60).toString().padStart(2, '0')}`;
 
   // Controls
-  const toggleMic = () => {
+  const toggleMic = async () => {
     const bs = roomSettings.blockedPeers?.[myPeerIdRef.current] || {};
     if (roomSettings.blockMic || bs.mic) return;
     const at = myStream?.getAudioTracks()[0];
-    if (at) { at.enabled = !at.enabled; setMicActive(at.enabled); notifyPeerStateChange({ isMuted: !at.enabled }); }
+    
+    // If we have a dummy track (or no track), request real mic access
+    if (myStream && (!at || at.isDummy)) {
+      try {
+        const ts = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const nat = ts.getAudioTracks()[0];
+        if (at) myStream.removeTrack(at); // remove dummy
+        myStream.addTrack(nat);
+        setMicActive(true);
+        notifyPeerStateChange({ isMuted: false });
+        // Replace in active connections
+        Object.values(activeCalls.current).forEach(call => {
+          const s = call.peerConnection?.getSenders().find(s => s.track?.kind === 'audio' || s.track === null);
+          if (s) s.replaceTrack(nat);
+        });
+      } catch (err) {
+        console.error("Failed to get real mic:", err);
+      }
+    } else if (at) {
+      at.enabled = !at.enabled; 
+      setMicActive(at.enabled); 
+      notifyPeerStateChange({ isMuted: !at.enabled }); 
+    }
   };
 
   const toggleVideo = async () => {
     const bs = roomSettings.blockedPeers?.[myPeerIdRef.current] || {};
     if (roomSettings.blockCam || bs.cam) return;
     const vt = myStream?.getVideoTracks()[0];
-    if (vt) { vt.enabled = !vt.enabled; setVideoActive(vt.enabled); notifyPeerStateChange({ isVideoOff: !vt.enabled }); }
-    else if (myStream) {
+    
+    // If we have a dummy track (or no track), request real camera access
+    if (myStream && (!vt || vt.isDummy)) {
       try {
         const ts = await navigator.mediaDevices.getUserMedia({ video: optimalVideo });
         const nv = ts.getVideoTracks()[0];
-        if (nv) {
-          myStream.addTrack(nv); setVideoActive(true); notifyPeerStateChange({ isVideoOff: false });
-          Object.values(activeCalls.current).forEach(call => {
-            const s = call.peerConnection.getSenders().find(s => s.track?.kind === 'video' || s.track === null);
-            if (s) s.replaceTrack(nv);
-          });
-        }
-      } catch {}
+        if (vt) myStream.removeTrack(vt); // remove dummy
+        myStream.addTrack(nv); 
+        setVideoActive(true); 
+        notifyPeerStateChange({ isVideoOff: false });
+        Object.values(activeCalls.current).forEach(call => {
+          const s = call.peerConnection?.getSenders().find(s => s.track?.kind === 'video' || s.track === null);
+          if (s) s.replaceTrack(nv);
+        });
+      } catch (err) {
+        console.error("Failed to get real camera:", err);
+      }
+    } else if (vt) {
+      vt.enabled = !vt.enabled; 
+      setVideoActive(vt.enabled); 
+      notifyPeerStateChange({ isVideoOff: !vt.enabled }); 
     }
   };
 
@@ -573,21 +652,25 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
     api.sendMeetMessage(id, { sender: userProfile?.name || 'Teammate', text: ct, isEncrypted: !!encryptionKeyRef.current }).catch(() => {});
   };
 
-  const handleSendReaction = async (emoji) => {
+  const handleSendReaction = (emoji) => {
     setShowReactionPicker(false);
-    const reactionId = `local-${Date.now()}`;
+    const reactionId = `${userProfile?.uid || 'guest'}-${Date.now()}`;
     const sender = userProfile?.name || 'You';
-    
-    // Broadcast via Socket.io instantly (fallback to WebRTC data channels)
-    if (socketRef.current && socketRef.current.connected) {
-      socketRef.current.emit('meet_reaction', { roomId: id, emoji, sender });
-    } else {
-      Object.values(dataConns.current).forEach(conn => {
-        if (conn.open) conn.send(JSON.stringify({ type: 'reaction', id: reactionId, emoji, sender }));
-      });
+    const payload = JSON.stringify({ type: 'reaction', id: reactionId, emoji, sender });
+
+    // ── Always broadcast via PeerJS data channels (pure P2P, instant, no backend) ──
+    let sentViaPeer = false;
+    Object.values(dataConns.current).forEach(conn => {
+      if (conn.open) { conn.send(payload); sentViaPeer = true; }
+    });
+
+    // ── Also broadcast via Socket.io if connected (reaches peers who joined later) ──
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('meet_reaction', { roomId: id, emoji, sender, id: reactionId });
     }
-    // Update local UI
-    setFloatingReactions(prev => [...prev, { id: reactionId, emoji, sender }]);
+
+    // Show locally immediately
+    setFloatingReactions(prev => [...prev, { id: reactionId, emoji, sender }].slice(-10));
   };
 
   const toggleBlockPeer = async (pId, device) => {

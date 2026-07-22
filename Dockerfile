@@ -46,7 +46,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 
-# Cloud Run defaults to port 8080 (which can be overridden by the PORT environment variable)
 EXPOSE 8080
 ENV PORT=8080
 ENV HOSTNAME="0.0.0.0"
