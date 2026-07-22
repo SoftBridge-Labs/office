@@ -220,12 +220,16 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
       });
     });
 
+    socket.on('meet_state_changed', () => {
+      window.dispatchEvent(new CustomEvent('meet-sync-trigger'));
+    });
+
     return () => {
       socket.disconnect();
     };
   }, [authorized, userProfile, id]);
 
-  const optimalVideo = { width: { ideal: 640, max: 1280 }, height: { ideal: 480, max: 720 }, frameRate: { ideal: 30, max: 60 } };
+  const optimalVideo = { width: { ideal: 480, max: 640 }, height: { ideal: 360, max: 480 }, frameRate: { ideal: 15, max: 20 } };
 
   // 3. Media
   useEffect(() => {
@@ -284,6 +288,7 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
     // Cleanup refs — must survive the async boundary
     let syncInterval = null;
     let destroyed = false;
+    let triggerCleanup = null;
 
     const setupPeer = (peer) => {
 
@@ -361,7 +366,7 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
         call.on('error', () => handleDisconnect(call.peer));
       });
 
-      syncInterval = setInterval(async () => {
+      const runSync = async () => {
         if (!peerInstance.current || peerInstance.current.destroyed || !hasJoinedRoomRef.current) return;
         try {
           const res = await api.syncMeetState(id);
@@ -447,7 +452,12 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
             }
           }
         } catch {}
-      }, 1500);
+      };
+
+      // Hybrid sync: poll every 10 seconds as a fallback, trigger instantly on websocket notification
+      syncInterval = setInterval(runSync, 10000);
+      window.addEventListener('meet-sync-trigger', runSync);
+      triggerCleanup = () => window.removeEventListener('meet-sync-trigger', runSync);
     };
 
     const startPeer = (iceServers) => {
@@ -482,6 +492,7 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
     return () => {
       destroyed = true;
       if (syncInterval) clearInterval(syncInterval);
+      if (triggerCleanup) triggerCleanup();
       peerInstance.current?.destroy();
       if (myPeerIdRef.current) api.leaveMeetingRoom(id, { peerId: myPeerIdRef.current }).catch(() => {});
     };
