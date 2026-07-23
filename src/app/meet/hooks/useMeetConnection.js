@@ -595,8 +595,8 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
           try {
             const stats = await call.peerConnection.getStats();
             stats.forEach(report => {
-              // Extract round trip time from the active candidate pair
-              if (report.type === 'candidate-pair' && report.state === 'succeeded' && report.currentRoundTripTime !== undefined) {
+              // Extract round trip time ONLY from the active/nominated candidate pair to prevent skew from stale/inactive pairs
+              if (report.type === 'candidate-pair' && (report.active === true || report.nominated === true) && report.currentRoundTripTime !== undefined) {
                 total += (report.currentRoundTripTime * 1000);
                 count++;
               }
@@ -811,23 +811,20 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
       if (token) headers['Authorization'] = `Bearer ${token}`;
       headers['x-workspace-id'] = localStorage.getItem('sb_workspace_id') || 'default';
 
-      if (isHostUser) {
-        fetch(`/api-proxy/calendar/meet/${id}/end`, { method: 'POST', headers, keepalive: true, body: JSON.stringify({}) }).catch(()=>{});
-      } else if (myPeerIdRef.current) {
+      if (myPeerIdRef.current) {
         fetch(`/api-proxy/calendar/meet/${id}/leave`, { method: 'POST', headers, keepalive: true, body: JSON.stringify({ peerId: myPeerIdRef.current }) }).catch(()=>{});
       }
     };
     window.addEventListener('beforeunload', handleUnload);
     return () => window.removeEventListener('beforeunload', handleUnload);
-  }, [id, isHostUser]);
+  }, [id]);
 
 
   const endCall = async () => {
     endCallAudioRef.current?.play().catch(() => {});
     peerInstance.current?.destroy();
     try {
-      if (isHostUser) await api.endMeetingRoom(id);
-      else if (myPeerIdRef.current) await api.leaveMeetingRoom(id, { peerId: myPeerIdRef.current });
+      if (myPeerIdRef.current) await api.leaveMeetingRoom(id, { peerId: myPeerIdRef.current });
     } catch(e) {}
     router.push('/home');
   };

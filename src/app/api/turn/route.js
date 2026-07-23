@@ -54,22 +54,9 @@ async function refreshCredentials() {
 
   const data = await res.json();
 
-  // Cloudflare returns iceServers as an array. We need to filter out TCP candidates
-  // because TCP introduces massive head-of-line blocking which causes the exact
-  // high latency/lag the user is experiencing. UDP is required for real-time media.
-  const filteredIceServers = data.iceServers.map(server => {
-    if (server.urls && Array.isArray(server.urls)) {
-      // Keep STUN, and ONLY keep TURN urls that specify transport=udp
-      const udpUrls = server.urls.filter(url => 
-        url.startsWith('stun:') || url.includes('transport=udp')
-      );
-      return { ...server, urls: udpUrls };
-    }
-    return server;
-  });
-
-  // We prepend Google STUN for faster direct P2P, then append Cloudflare's UDP servers.
-  cache.iceServers  = [...STUN_SERVERS, ...filteredIceServers];
+  // We prepend Google STUN for faster direct P2P, then append Cloudflare's TURN servers (UDP + TCP/TLS candidates).
+  // Restoring TCP candidates allows the browser to fallback to secure TLS/TCP on port 443 if the ISP blocks/throttles UDP port 3478.
+  cache.iceServers  = [...STUN_SERVERS, ...data.iceServers];
   cache.expiresAt   = Math.floor(Date.now() / 1000) + TTL_SECONDS;
 
   console.log(`[TURN] Cloudflare credentials refreshed — valid until ${new Date(cache.expiresAt * 1000).toISOString()}`);

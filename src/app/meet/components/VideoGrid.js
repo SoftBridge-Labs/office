@@ -27,6 +27,27 @@ function AvatarPlaceholder({ name, avatar_url, size = 64, fontSize = '1.5rem' })
   );
 }
 
+let sharedAudioCtx = null;
+const getSharedAudioContext = () => {
+  if (typeof window === 'undefined') return null;
+  if (!sharedAudioCtx) {
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      sharedAudioCtx = new AudioContextClass();
+      if (sharedAudioCtx.state === 'suspended') {
+        const resume = () => {
+          sharedAudioCtx.resume().catch(() => {});
+          window.removeEventListener('click', resume);
+          window.removeEventListener('keydown', resume);
+        };
+        window.addEventListener('click', resume);
+        window.addEventListener('keydown', resume);
+      }
+    } catch (e) {}
+  }
+  return sharedAudioCtx;
+};
+
 function VideoTile({ stream, name, avatar_url, isMuted, isVideoOff, isHandRaised, isScreenSharing, isLocal, isMini = false, isFeatured = false }) {
   const [isSpeaking, setIsSpeaking] = useState(false);
 
@@ -71,35 +92,19 @@ function VideoTile({ stream, name, avatar_url, isMuted, isVideoOff, isHandRaised
       return;
     }
 
-    let audioCtx;
+    let audioCtx = getSharedAudioContext();
+    if (!audioCtx) return;
+    
     let source;
     let analyser;
     let animationFrame;
 
     try {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      audioCtx = new AudioContextClass();
-      
-      // Resume if suspended (browser security)
-      if (audioCtx.state === 'suspended') {
-        const resume = () => {
-          audioCtx.resume().catch(() => {});
-          window.removeEventListener('click', resume);
-          window.removeEventListener('keydown', resume);
-        };
-        window.addEventListener('click', resume);
-        window.addEventListener('keydown', resume);
-      }
-
       source = audioCtx.createMediaStreamSource(stream);
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 64;
       source.connect(analyser);
-      
-      // Route remote audio through AudioContext to bypass video autoplay restrictions
-      if (!isLocal) {
-        source.connect(audioCtx.destination);
-      }
+
 
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
@@ -133,9 +138,10 @@ function VideoTile({ stream, name, avatar_url, isMuted, isVideoOff, isHandRaised
 
     return () => {
       if (animationFrame) cancelAnimationFrame(animationFrame);
-      if (audioCtx && audioCtx.state !== 'closed') {
-        audioCtx.close().catch(() => {});
-      }
+      try {
+        if (source) source.disconnect();
+        if (analyser) analyser.disconnect();
+      } catch (e) {}
     };
   }, [stream, isMuted]);
 
@@ -153,7 +159,7 @@ function VideoTile({ stream, name, avatar_url, isMuted, isVideoOff, isHandRaised
       flexShrink: 0
     }}>
       <video
-        autoPlay playsInline muted={true} // Always mute video tag; audio is routed via AudioContext for remotes
+        autoPlay playsInline muted={isLocal}
         ref={handleVideoRef}
         style={{
           position: 'absolute', inset: 0,
