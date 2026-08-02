@@ -115,6 +115,8 @@ export default function PingMainChat() {
   const remoteVideoRef = useRef(null);
   const peerConnection = useRef(null);
   const localStream = useRef(null);
+  const remoteCandidatesQueue = useRef([]);
+  const isRemoteDescriptionSet = useRef(false);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(false);
 
@@ -174,6 +176,8 @@ export default function PingMainChat() {
     if (callTarget && socket) {
       socket.emit('webrtc_signal', { targetUid: callTarget.uid, type: 'call_end' });
     }
+    remoteCandidatesQueue.current = [];
+    isRemoteDescriptionSet.current = false;
     setCallState('idle');
     setCallTarget(null);
     setIsMicMuted(false);
@@ -184,6 +188,7 @@ export default function PingMainChat() {
     if (!socket) return;
     
     const handleSignal = async ({ senderUid, type, payload }) => {
+      console.log(`[WebRTC] Received signal '${type}' from ${senderUid}`);
       const sender = workspaceUsers.find(u => u.uid === senderUid) || { uid: senderUid, name: 'Someone' };
 
       if (type === 'call_init') {
@@ -247,6 +252,11 @@ export default function PingMainChat() {
         }
 
         await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload));
+        isRemoteDescriptionSet.current = true;
+        for (const candidate of remoteCandidatesQueue.current) {
+          await peerConnection.current.addIceCandidate(candidate).catch(e => console.error('[WebRTC] Error adding queued ICE candidate', e));
+        }
+        remoteCandidatesQueue.current = [];
         const answer = await peerConnection.current.createAnswer();
         await peerConnection.current.setLocalDescription(answer);
         socket.emit('webrtc_signal', { targetUid: senderUid, type: 'answer', payload: answer });
@@ -254,15 +264,24 @@ export default function PingMainChat() {
 
       if (type === 'answer') {
         await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload));
+        isRemoteDescriptionSet.current = true;
+        for (const candidate of remoteCandidatesQueue.current) {
+          await peerConnection.current.addIceCandidate(candidate).catch(e => console.error('[WebRTC] Error adding queued ICE candidate', e));
+        }
+        remoteCandidatesQueue.current = [];
       }
 
       if (type === 'ice_candidate') {
         try {
-          if (peerConnection.current) {
-            await peerConnection.current.addIceCandidate(new RTCIceCandidate(payload));
+          const candidate = new RTCIceCandidate(payload);
+          if (isRemoteDescriptionSet.current && peerConnection.current) {
+            await peerConnection.current.addIceCandidate(candidate);
+          } else {
+            remoteCandidatesQueue.current.push(candidate);
+            console.log('[WebRTC] Queued incoming ICE candidate');
           }
         } catch (e) {
-          console.error('Error adding ICE candidate', e);
+          console.error('[WebRTC] Error adding ICE candidate', e);
         }
       }
     };
