@@ -82,7 +82,12 @@ async function getIceServers() {
 
 // ── Route Handler ────────────────────────────────────────────────────────────
 
-export async function GET() {
+export async function GET(request) {
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
   // Cloudflare not configured — return STUN only (same-network calls still work)
   if (!CF_KEY_ID || !CF_API_TOKEN) {
     console.warn('[TURN] CLOUDFLARE_TURN_KEY_ID / CLOUDFLARE_API_TOKEN not set — STUN only');

@@ -110,12 +110,26 @@ export default function PingMainChat() {
   // WebRTC State
   const [callState, setCallState] = useState('idle'); // idle, ringing, incoming, connected
   const [callTarget, setCallTarget] = useState(null); // { uid, name }
+  const [iceServers, setIceServers] = useState([{ urls: 'stun:stun.l.google.com:19302' }]);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const peerConnection = useRef(null);
   const localStream = useRef(null);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('sb_id_token');
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    fetch('/api/turn', { headers })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.iceServers) {
+          setIceServers(data.iceServers);
+        }
+      })
+      .catch(err => console.error('[TURN] Failed to fetch ice servers:', err));
+  }, []);
 
   const toggleMic = () => {
     if (localStream.current) {
@@ -192,7 +206,7 @@ export default function PingMainChat() {
       if (type === 'call_accept') {
         stopRingtone();
         setCallState('connected');
-        peerConnection.current = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        peerConnection.current = new RTCPeerConnection({ iceServers });
         
         peerConnection.current.onicecandidate = (event) => {
           if (event.candidate) {
@@ -216,7 +230,7 @@ export default function PingMainChat() {
       if (type === 'offer') {
         stopRingtone();
         setCallState('connected');
-        peerConnection.current = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        peerConnection.current = new RTCPeerConnection({ iceServers });
         
         peerConnection.current.onicecandidate = (event) => {
           if (event.candidate) {
@@ -255,7 +269,7 @@ export default function PingMainChat() {
 
     socket.on('webrtc_signal', handleSignal);
     return () => socket.off('webrtc_signal', handleSignal);
-  }, [socket, callState, workspaceUsers]);
+  }, [socket, callState, workspaceUsers, iceServers]);
 
   const initiateCall = async () => {
     if (activeChannel?.type !== 'direct') return;
