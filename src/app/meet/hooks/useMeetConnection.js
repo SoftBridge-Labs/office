@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { encryptPayload, decryptPayload } from '@/lib/crypto';
 import { io } from 'socket.io-client';
@@ -7,6 +7,18 @@ const getApiUrl = () => {
   if (typeof window !== 'undefined' && window.__ENV__ && window.__ENV__.NEXT_PUBLIC_API_URL) return window.__ENV__.NEXT_PUBLIC_API_URL;
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 };
+
+// ── Adaptive bitrate targets keyed by ping bucket (ms) ───────────────────────
+const QUALITY_PROFILES = [
+  { label: 'good', maxPing: 150,  videoBitrate: 900_000, frameRate: 24, scaleDown: 1   },
+  { label: 'fair', maxPing: 300,  videoBitrate: 500_000, frameRate: 20, scaleDown: 1.5 },
+  { label: 'poor', maxPing: 600,  videoBitrate: 250_000, frameRate: 15, scaleDown: 2   },
+  { label: 'bad',  maxPing: Infinity, videoBitrate: 100_000, frameRate: 10, scaleDown: 4 },
+];
+
+function getQualityProfile(ping) {
+  return QUALITY_PROFILES.find(p => ping <= p.maxPing) ?? QUALITY_PROFILES[QUALITY_PROFILES.length - 1];
+}
 
 export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, activePanel, setActivePanel }) {
   const initMic = searchParams.get('mic') !== 'false';
@@ -31,6 +43,7 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
   const [floatingReactions, setFloatingReactions] = useState([]);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [networkPing, setNetworkPing] = useState(0);
+  const [connectionQuality, setConnectionQuality] = useState('good'); // 'good'|'fair'|'poor'|'bad'
 
   // Chat
   const [chatMessages, setChatMessages] = useState([]);
@@ -53,8 +66,13 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
   const socketRef = useRef(null);
   const micActiveRef = useRef(micActive);
   const videoActiveRef = useRef(videoActive);
+  const myStreamRef = useRef(null);          // Always-current ref — avoids stale closures
+  const iceServersRef = useRef(null);        // Cached for ICE restart
+  const lastQualityProfile = useRef(QUALITY_PROFILES[0]);
+  const connectingPeers = useRef(new Set()); // Prevents both peers calling simultaneously
   useEffect(() => { micActiveRef.current = micActive; }, [micActive]);
   useEffect(() => { videoActiveRef.current = videoActive; }, [videoActive]);
+  useEffect(() => { myStreamRef.current = myStream; }, [myStream]);
 
   // Audio refs
   const joinAudioRef = useRef(null);
@@ -183,12 +201,14 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
     }
   };
 
-  // 2. Load PeerJS
+  // 2. Load PeerJS (guard against React StrictMode double-mount)
   useEffect(() => {
     if (!authorized) return;
+    if (document.querySelector('script[data-peerjs]')) { setPeerLoaded(true); return; }
     const s = document.createElement('script');
     s.src = 'https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js';
     s.async = true;
+    s.setAttribute('data-peerjs', '1');
     s.onload = () => setPeerLoaded(true);
     document.body.appendChild(s);
     return () => { try { document.body.removeChild(s); } catch {} };
@@ -201,7 +221,9 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
     const url = getApiUrl();
     const socket = io(`${url}/workspace/ping`, {
       auth: { token: userProfile.uid || 'guest' },
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
     });
 
     socketRef.current = socket;
@@ -250,6 +272,66 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
       socket.disconnect();
     };
   }, [authorized, userProfile, id]);
+
+  // ── Adaptive bitrate: apply a quality profile to one RTCPeerConnection ──────
+  const applyBandwidthToCall = useCallback((call, profile) => {
+    if (!call?.peerConnection) return;
+    call.peerConnection.getSenders().forEach(sender => {
+      if (sender.track?.kind === 'video') {
+        try {
+          const params = sender.getParameters();
+          if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
+          params.encodings[0].maxBitrate = profile.videoBitrate;
+          params.encodings[0].maxFramerate = profile.frameRate;
+          params.encodings[0].scaleResolutionDownBy = profile.scaleDown ?? 1;
+          sender.setParameters(params).catch(() => {});
+        } catch {}
+      }
+    });
+  }, []);
+
+  const applyBandwidthToAll = useCallback((profile) => {
+    Object.values(activeCalls.current).forEach(call => applyBandwidthToCall(call, profile));
+  }, [applyBandwidthToCall]);
+
+  // ── ICE restart: trigger re-negotiation on a degraded connection ─────────────
+  const attemptIceRestart = useCallback((call) => {
+    if (!call?.peerConnection) return;
+    const pc = call.peerConnection;
+    if (pc.signalingState === 'closed') return;
+    try {
+      pc.restartIce();
+      console.log('[Meet] ICE restart triggered for peer', call.peer);
+    } catch (e) {
+      console.warn('[Meet] ICE restart error:', e);
+    }
+  }, []);
+
+  // ── Per-call connection state monitor ────────────────────────────────────────
+  const monitorCallConnection = useCallback((call, peerId) => {
+    if (!call?.peerConnection) return () => {};
+    const pc = call.peerConnection;
+    let restartTimeout = null;
+
+    const handleStateChange = () => {
+      const state = pc.connectionState || pc.iceConnectionState;
+      if (state === 'failed' || state === 'disconnected') {
+        clearTimeout(restartTimeout);
+        restartTimeout = setTimeout(() => attemptIceRestart(call), 1500);
+      } else if (state === 'connected' || state === 'completed') {
+        clearTimeout(restartTimeout);
+      }
+    };
+
+    pc.addEventListener('connectionstatechange', handleStateChange);
+    pc.addEventListener('iceconnectionstatechange', handleStateChange);
+
+    return () => {
+      clearTimeout(restartTimeout);
+      pc.removeEventListener('connectionstatechange', handleStateChange);
+      pc.removeEventListener('iceconnectionstatechange', handleStateChange);
+    };
+  }, [attemptIceRestart]);
 
   const optimalVideo = { width: { ideal: 960, max: 1280 }, height: { ideal: 540, max: 720 }, frameRate: { ideal: 24, max: 30 } };
 
@@ -313,24 +395,12 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
     let triggerCleanup = null;
 
     const setupPeer = (peer) => {
-      const enforceBandwidth = (c) => {
-        if (!c.peerConnection) return;
-        c.peerConnection.getSenders().forEach(sender => {
-          if (sender.track && sender.track.kind === 'video') {
-            try {
-              const params = sender.getParameters();
-              if (!params.encodings) params.encodings = [{}];
-              params.encodings[0].maxBitrate = 900000; // 900 kbps limit
-              params.encodings[0].maxFramerate = 24;
-              sender.setParameters(params).catch(() => {});
-            } catch (e) {}
-          }
-        });
-      };
+
 
       const handleDisconnect = (pId) => {
         setRemoteStreams(prev => { const next = { ...prev }; delete next[pId]; return next; });
         if (activeCalls.current[pId]) { try { activeCalls.current[pId].close(); } catch {} delete activeCalls.current[pId]; }
+        connectingPeers.current.delete(pId);
       };
 
       peer.on('open', async (rid) => {
@@ -386,21 +456,29 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
 
       peer.on('connection', (conn) => {
         conn.on('data', handleIncomingData);
+        // Always keep the most recent connection for a peer
         dataConns.current[conn.peer] = conn;
       });
 
       peer.on('call', (call) => {
-        call.answer(myStream);
+        // Reject duplicate inbound calls — the other side already has a channel open
+        if (activeCalls.current[call.peer]) { try { call.close(); } catch {} return; }
+
+        call.answer(myStreamRef.current);
         activeCalls.current[call.peer] = call;
+        const cleanupMonitor = monitorCallConnection(call, call.peer);
+
         call.on('stream', (s) => {
-          enforceBandwidth(call);
+          applyBandwidthToCall(call, lastQualityProfile.current);
           api.syncMeetState(id).then(res => {
             const mp = res.peers?.find(p => p.peerId === call.peer);
             setRemoteStreams(prev => ({ ...prev, [call.peer]: { stream: s, name: mp?.name || 'Participant', avatar_url: mp?.avatar_url, isVideoOff: mp?.isVideoOff || false, isMuted: mp?.isMuted || false, isHandRaised: mp?.isHandRaised || false, isScreenSharing: mp?.isScreenSharing || false } }));
           }).catch(() => setRemoteStreams(prev => ({ ...prev, [call.peer]: { stream: s, name: 'Participant', isVideoOff: false, isMuted: false } })));
         });
-        call.on('close', () => handleDisconnect(call.peer));
-        call.on('error', () => handleDisconnect(call.peer));
+
+        const onClose = () => { cleanupMonitor(); handleDisconnect(call.peer); };
+        call.on('close', onClose);
+        call.on('error', onClose);
       });
 
       const runSync = async (evt) => {
@@ -421,51 +499,59 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
             const myHasMedia = micActiveRef.current || videoActiveRef.current;
 
             res.peers.forEach(other => {
-              if (other.peerId !== myPeerId && !activeCalls.current[other.peerId] && myPeerId < other.peerId) {
-                const otherHasMedia = !other.isMuted || !other.isVideoOff;
-                if (myHasMedia || otherHasMedia) {
-                  const call = peerInstance.current.call(other.peerId, myStream);
-                  if (call) {
-                    activeCalls.current[other.peerId] = call;
-                    call.on('stream', s => {
-                      enforceBandwidth(call);
-                      setRemoteStreams(prev => ({ ...prev, [other.peerId]: { stream: s, name: other.name || 'Participant', avatar_url: other.avatar_url, isVideoOff: other.isVideoOff || false, isMuted: other.isMuted || false, isHandRaised: other.isHandRaised || false, isScreenSharing: other.isScreenSharing || false } }));
-                    });
-                    call.on('close', () => handleDisconnect(other.peerId));
-                    call.on('error', () => handleDisconnect(other.peerId));
-                  }
-                }
+              if (other.peerId === myPeerId) return;
 
-                if (!dataConns.current[other.peerId]) {
-                  const conn = peerInstance.current.connect(other.peerId);
+              // Guard: skip if we already have an active call or are currently connecting
+              if (activeCalls.current[other.peerId] || connectingPeers.current.has(other.peerId)) return;
+
+              // Tiebreak: only the lower peer ID initiates to prevent both sides calling each other
+              if (myPeerId >= other.peerId) return;
+
+              const otherHasMedia = !other.isMuted || !other.isVideoOff;
+              if (!myHasMedia && !otherHasMedia) return;
+
+              connectingPeers.current.add(other.peerId);
+              const call = peerInstance.current.call(other.peerId, myStreamRef.current);
+              if (call) {
+                activeCalls.current[other.peerId] = call;
+                const cleanupMonitor = monitorCallConnection(call, other.peerId);
+
+                call.on('stream', s => {
+                  applyBandwidthToCall(call, lastQualityProfile.current);
+                  connectingPeers.current.delete(other.peerId);
+                  setRemoteStreams(prev => ({ ...prev, [other.peerId]: { stream: s, name: other.name || 'Participant', avatar_url: other.avatar_url, isVideoOff: other.isVideoOff || false, isMuted: other.isMuted || false, isHandRaised: other.isHandRaised || false, isScreenSharing: other.isScreenSharing || false } }));
+                });
+
+                const onClose = () => { cleanupMonitor(); handleDisconnect(other.peerId); };
+                call.on('close', onClose);
+                call.on('error', () => { connectingPeers.current.delete(other.peerId); onClose(); });
+              } else {
+                connectingPeers.current.delete(other.peerId);
+              }
+
+              if (!dataConns.current[other.peerId]) {
+                try {
+                  const conn = peerInstance.current.connect(other.peerId, { reliable: true });
                   conn.on('data', handleIncomingData);
                   dataConns.current[other.peerId] = conn;
-                }
+                } catch {}
               }
             });
 
-            const activePeerIds = res.peers.map(p => p.peerId);
+            const activePeerIds = new Set(res.peers.map(p => p.peerId));
             setRemoteStreams(prev => {
               const updated = { ...prev };
               let changed = false;
               Object.keys(updated).forEach(pId => {
-                const other = res.peers.find(x => x.peerId === pId);
-                const otherHasMedia = other && (!other.isMuted || !other.isVideoOff);
-                const shouldStayConnected = activePeerIds.includes(pId) && (myHasMedia || otherHasMedia);
-
-                if (!shouldStayConnected) {
-                  delete updated[pId];
-                  if (activeCalls.current[pId]) {
-                    try { activeCalls.current[pId].close(); } catch {}
-                    delete activeCalls.current[pId];
-                  }
-                  if (dataConns.current[pId]) {
-                    try { dataConns.current[pId].close(); } catch {}
-                    delete dataConns.current[pId];
-                  }
-                  changed = true;
-                }
-              });
+                // A peer that left — close all their channels
+              if (!activePeerIds.has(pId)) {
+                delete updated[pId];
+                if (activeCalls.current[pId]) { try { activeCalls.current[pId].close(); } catch {} delete activeCalls.current[pId]; }
+                if (dataConns.current[pId]) { try { dataConns.current[pId].close(); } catch {} delete dataConns.current[pId]; }
+                connectingPeers.current.delete(pId);
+                changed = true;
+              }
+            });
 
               res.peers.forEach(p => {
                 if (updated[p.peerId]) {
@@ -521,31 +607,39 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
           if (res.settings) {
             setRoomSettings(res.settings);
             const bs = res.settings.blockedPeers?.[myPeerId] || {};
+            const stream = myStreamRef.current;
             if (res.settings.blockMic || bs.mic) {
-              const at = myStream?.getAudioTracks()[0];
+              const at = stream?.getAudioTracks()[0];
               if (at?.enabled) { at.enabled = false; setMicActive(false); api.updateMeetPeer(id, { peerId: myPeerId, isMuted: true }).catch(() => {}); }
             }
             if (res.settings.blockCam || bs.cam) {
-              const vt = myStream?.getVideoTracks()[0];
+              const vt = stream?.getVideoTracks()[0];
               if (vt?.enabled) { vt.enabled = false; setVideoActive(false); api.updateMeetPeer(id, { peerId: myPeerId, isVideoOff: true }).catch(() => {}); }
             }
           }
         } catch {}
       };
 
-      // Hybrid sync: poll every 10 seconds as a fallback, trigger instantly on websocket notification
-      syncInterval = setInterval(runSync, 10000);
+      // Hybrid sync: poll every 8 seconds as a fallback; instant trigger on websocket notification
+      syncInterval = setInterval(runSync, 8000);
       window.addEventListener('meet-sync-trigger', runSync);
       triggerCleanup = () => window.removeEventListener('meet-sync-trigger', runSync);
+
+      // Immediate sync shortly after peer opens
+      peer.once('open', () => setTimeout(runSync, 500));
     };
 
     const startPeer = (iceServers) => {
       if (destroyed) return;
+      iceServersRef.current = iceServers; // Cache for ICE restart
       const peer = new window.Peer(myPeerId, {
         debug: 1,
         config: {
           iceServers,
           iceCandidatePoolSize: 10,
+          // Bundle all media in one transport — fewer ICE rounds, faster cross-ISP negotiation
+          bundlePolicy: 'max-bundle',
+          rtcpMuxPolicy: 'require',
         }
       });
       peerInstance.current = peer;
@@ -576,6 +670,7 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
       destroyed = true;
       if (syncInterval) clearInterval(syncInterval);
       if (triggerCleanup) triggerCleanup();
+      connectingPeers.current.clear();
       peerInstance.current?.destroy();
       if (myPeerIdRef.current) api.leaveMeetingRoom(id, { peerId: myPeerIdRef.current }).catch(() => {});
     };
@@ -588,48 +683,76 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
     } catch {}
   };
 
-  // Meeting timer & Ping
+  // Meeting timer, Ping & Adaptive Quality
   useEffect(() => {
     const t = setInterval(() => setMeetingTimer(p => p + 1), 1000);
+
     const pingTimer = setInterval(async () => {
       let total = 0;
       let count = 0;
+
       for (const call of Object.values(activeCalls.current)) {
-        if (call.peerConnection) {
-          try {
-            const stats = await call.peerConnection.getStats();
-            stats.forEach(report => {
-              // Extract round trip time ONLY from the active/nominated candidate pair to prevent skew from stale/inactive pairs
-              if (report.type === 'candidate-pair' && (report.active === true || report.nominated === true) && report.currentRoundTripTime !== undefined) {
-                total += (report.currentRoundTripTime * 1000);
-                count++;
-              }
-            });
-          } catch (e) {}
+        if (!call.peerConnection) continue;
+        try {
+          const stats = await call.peerConnection.getStats();
+          let peerRtt = 0, peerCount = 0;
+          stats.forEach(report => {
+            // Only use the nominated candidate pair — ignore stale/inactive ones
+            if (
+              report.type === 'candidate-pair' &&
+              (report.nominated === true || report.active === true) &&
+              report.currentRoundTripTime !== undefined
+            ) {
+              peerRtt += report.currentRoundTripTime * 1000;
+              peerCount++;
+            }
+          });
+          if (peerCount > 0) { total += peerRtt / peerCount; count++; }
+        } catch {}
+      }
+
+      if (count > 0) {
+        const avgPing = Math.round(total / count);
+        setNetworkPing(avgPing);
+
+        // Derive quality label for UI
+        let quality = 'good';
+        if (avgPing > 600) quality = 'bad';
+        else if (avgPing > 300) quality = 'poor';
+        else if (avgPing > 150) quality = 'fair';
+        setConnectionQuality(quality);
+
+        // Adaptive bitrate: update all senders only when the profile bucket changes
+        const newProfile = getQualityProfile(avgPing);
+        if (newProfile !== lastQualityProfile.current) {
+          lastQualityProfile.current = newProfile;
+          applyBandwidthToAll(newProfile);
+          console.log(`[Meet] Quality → ${quality} (${avgPing}ms) — video ${newProfile.videoBitrate / 1000}kbps @ ${newProfile.frameRate}fps`);
         }
       }
-      if (count > 0) setNetworkPing(Math.round(total / count));
     }, 3000);
-    return () => { clearInterval(t); clearInterval(pingTimer); };
-  }, []);
 
-  // AFK
+    return () => { clearInterval(t); clearInterval(pingTimer); };
+  }, [applyBandwidthToAll]);
+
+  // AFK — use myStreamRef to avoid stale closure; no auto-hide of remote streams
   useEffect(() => {
     let afkTimer;
     const LIMIT = 300000;
     const reset = () => { clearTimeout(afkTimer); afkTimer = setTimeout(afk, LIMIT); };
     const afk = () => {
-      if (myStream) {
+      const stream = myStreamRef.current;
+      if (stream) {
         let ch = false;
-        const vt = myStream.getVideoTracks()[0]; if (vt?.enabled) { vt.enabled = false; setVideoActive(false); ch = true; }
-        const at = myStream.getAudioTracks()[0]; if (at?.enabled) { at.enabled = false; setMicActive(false); ch = true; }
+        const vt = stream.getVideoTracks()[0]; if (vt?.enabled) { vt.enabled = false; setVideoActive(false); ch = true; }
+        const at = stream.getAudioTracks()[0]; if (at?.enabled) { at.enabled = false; setMicActive(false); ch = true; }
         if (ch) { notifyPeerStateChange({ isVideoOff: true, isMuted: true }); }
       }
     };
-    ['mousemove', 'keydown', 'click'].forEach(ev => window.addEventListener(ev, reset));
+    ['mousemove', 'keydown', 'click', 'touchstart'].forEach(ev => window.addEventListener(ev, reset, { passive: true }));
     afkTimer = setTimeout(afk, LIMIT);
-    return () => { ['mousemove', 'keydown', 'click'].forEach(ev => window.removeEventListener(ev, reset)); clearTimeout(afkTimer); };
-  }, [myStream]);
+    return () => { ['mousemove', 'keydown', 'click', 'touchstart'].forEach(ev => window.removeEventListener(ev, reset)); clearTimeout(afkTimer); };
+  }, []);
 
   // Floating reactions cleanup
   useEffect(() => {
@@ -645,79 +768,78 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
   const toggleMic = async () => {
     const bs = roomSettings.blockedPeers?.[myPeerIdRef.current] || {};
     if (roomSettings.blockMic || bs.mic) return;
-    const at = myStream?.getAudioTracks()[0];
-    
-    // If we have a dummy track (or no track), request real mic access
-    if (myStream && (!at || at.isDummy)) {
+    const stream = myStreamRef.current;
+    const at = stream?.getAudioTracks()[0];
+
+    if (stream && (!at || at.isDummy)) {
       try {
         const ts = await navigator.mediaDevices.getUserMedia({ audio: true });
         const nat = ts.getAudioTracks()[0];
-        if (at) myStream.removeTrack(at); // remove dummy
-        myStream.addTrack(nat);
+        if (at) stream.removeTrack(at);
+        stream.addTrack(nat);
         setMicActive(true);
         notifyPeerStateChange({ isMuted: false });
-        // Replace in active connections
         Object.values(activeCalls.current).forEach(call => {
           if (!call.peerConnection) return;
-          const transceiver = call.peerConnection.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === 'audio');
-          if (transceiver && transceiver.sender) {
-            transceiver.sender.replaceTrack(nat).catch(e => console.error("Audio replaceTrack error:", e));
-          }
+          const sender = call.peerConnection.getSenders().find(s => s.track?.kind === 'audio');
+          if (sender) sender.replaceTrack(nat).catch(() => {});
         });
-      } catch (err) {
-        console.error("Failed to get real mic:", err);
-      }
+      } catch (err) { console.error('Failed to get real mic:', err); }
     } else if (at) {
-      at.enabled = !at.enabled; 
-      setMicActive(at.enabled); 
-      notifyPeerStateChange({ isMuted: !at.enabled }); 
+      at.enabled = !at.enabled;
+      setMicActive(at.enabled);
+      notifyPeerStateChange({ isMuted: !at.enabled });
     }
   };
 
   const toggleVideo = async () => {
     const bs = roomSettings.blockedPeers?.[myPeerIdRef.current] || {};
     if (roomSettings.blockCam || bs.cam) return;
-    const vt = myStream?.getVideoTracks()[0];
-    
-    // If we have a dummy track (or no track), request real camera access
-    if (myStream && (!vt || vt.isDummy)) {
+    const stream = myStreamRef.current;
+    const vt = stream?.getVideoTracks()[0];
+
+    if (stream && (!vt || vt.isDummy)) {
       try {
         const ts = await navigator.mediaDevices.getUserMedia({ video: optimalVideo });
         const nv = ts.getVideoTracks()[0];
-        if (vt) myStream.removeTrack(vt); // remove dummy
-        myStream.addTrack(nv); 
-        setVideoActive(true); 
+        if (vt) stream.removeTrack(vt);
+        stream.addTrack(nv);
+        setVideoActive(true);
         notifyPeerStateChange({ isVideoOff: false });
         Object.values(activeCalls.current).forEach(call => {
           if (!call.peerConnection) return;
-          const transceiver = call.peerConnection.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === 'video');
-          if (transceiver && transceiver.sender) {
-            transceiver.sender.replaceTrack(nv).catch(e => console.error("Video replaceTrack error:", e));
-          }
+          const sender = call.peerConnection.getSenders().find(s => s.track?.kind === 'video');
+          if (sender) sender.replaceTrack(nv).catch(() => {});
         });
-      } catch (err) {
-        console.error("Failed to get real camera:", err);
-      }
+      } catch (err) { console.error('Failed to get real camera:', err); }
     } else if (vt) {
-      vt.enabled = !vt.enabled; 
-      setVideoActive(vt.enabled); 
-      notifyPeerStateChange({ isVideoOff: !vt.enabled }); 
+      vt.enabled = !vt.enabled;
+      setVideoActive(vt.enabled);
+      notifyPeerStateChange({ isVideoOff: !vt.enabled });
     }
   };
 
   const toggleScreenShare = async () => {
     if (!isScreenSharing) {
       try {
-        const ss = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        const ss = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false });
         const st = ss.getVideoTracks()[0];
         screenTrackRef.current = st;
-        if (myStream) { const ov = myStream.getVideoTracks()[0]; if (ov) { myStream.removeTrack(ov); ov.stop(); } myStream.addTrack(st); }
+        const stream = myStreamRef.current;
+        if (stream) {
+          const ov = stream.getVideoTracks()[0];
+          if (ov) { stream.removeTrack(ov); ov.stop(); }
+          stream.addTrack(st);
+        }
         Object.values(activeCalls.current).forEach(call => {
+          if (!call?.peerConnection) return;
           const sender = call.peerConnection.getSenders().find(s => s.track?.kind === 'video' || s.track === null);
-          if (sender) sender.replaceTrack(st);
+          if (sender) sender.replaceTrack(st).catch(() => {});
         });
         st.onended = () => stopScreenSharing();
-        setIsScreenSharing(true); ssStartAudioRef.current?.play().catch(() => {}); notifyPeerStateChange({ isScreenSharing: true });
+        setIsScreenSharing(true);
+        ssStartAudioRef.current?.play().catch(() => {});
+        notifyPeerStateChange({ isScreenSharing: true });
       } catch { errorAudioRef.current?.play().catch(() => {}); }
     } else stopScreenSharing();
   };
@@ -725,14 +847,22 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
   const stopScreenSharing = async () => {
     screenTrackRef.current?.stop(); screenTrackRef.current = null;
     try {
-      const cs = await navigator.mediaDevices.getUserMedia({ video: videoActive ? optimalVideo : false, audio: true });
+      const cs = await navigator.mediaDevices.getUserMedia({ video: videoActiveRef.current ? optimalVideo : false, audio: true });
       const nv = cs.getVideoTracks()[0];
-      if (myStream) { const ot = myStream.getVideoTracks()[0]; if (ot) { myStream.removeTrack(ot); ot.stop(); } if (nv) myStream.addTrack(nv); }
+      const stream = myStreamRef.current;
+      if (stream) {
+        const ot = stream.getVideoTracks()[0];
+        if (ot) { stream.removeTrack(ot); ot.stop(); }
+        if (nv) stream.addTrack(nv);
+      }
       Object.values(activeCalls.current).forEach(call => {
+        if (!call?.peerConnection) return;
         const sender = call.peerConnection.getSenders().find(s => s.track?.kind === 'video' || s.track === null);
-        if (sender && nv) sender.replaceTrack(nv);
+        if (sender && nv) sender.replaceTrack(nv).catch(() => {});
       });
-      setIsScreenSharing(false); ssStopAudioRef.current?.play().catch(() => {}); notifyPeerStateChange({ isScreenSharing: false });
+      setIsScreenSharing(false);
+      ssStopAudioRef.current?.play().catch(() => {});
+      notifyPeerStateChange({ isScreenSharing: false });
     } catch { errorAudioRef.current?.play().catch(() => {}); }
   };
 
@@ -843,6 +973,6 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
     setShowPollModal, pollForm, setPollForm, toggleMic, toggleVideo,
     toggleScreenShare, toggleHandRaise, handleSendMessage, handleSendReaction,
     toggleBlockPeer, toggleGlobal, endCall, activeCalls, myPeerIdRef,
-    remotePeerIds: Object.keys(remoteStreams), networkPing
+    remotePeerIds: Object.keys(remoteStreams), networkPing, connectionQuality, fmt
   };
 }

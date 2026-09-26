@@ -265,15 +265,15 @@ export default function VideoGrid({
   const remoteScreenSharePeerId = remotePeerIds.find(pId => remoteStreams[pId]?.isScreenSharing);
   const hasPresenter = isLocalScreenSharing || !!remoteScreenSharePeerId;
 
-  // Active speaker detection
+  // Active speaker detection — reuse shared AudioContext, clear after silence
   useEffect(() => {
     if (remotePeerIds.length === 0) return;
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
 
     let audioCtx;
-    try { audioCtx = new AudioContext(); } catch (e) { return; }
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
 
+    const sources = {};
     const analysers = {};
     const dataArrays = {};
 
@@ -285,11 +285,14 @@ export default function VideoGrid({
           const analyser = audioCtx.createAnalyser();
           analyser.fftSize = 256;
           source.connect(analyser);
+          sources[pId] = source;
           analysers[pId] = analyser;
           dataArrays[pId] = new Uint8Array(analyser.frequencyBinCount);
-        } catch (e) { }
+        } catch (e) {}
       }
     });
+
+    let silenceFrames = 0;
 
     const interval = setInterval(() => {
       let maxVol = 0;
@@ -297,23 +300,26 @@ export default function VideoGrid({
       for (const pId in analysers) {
         analysers[pId].getByteFrequencyData(dataArrays[pId]);
         let sum = 0;
-        for (let i = 0; i < dataArrays[pId].length; i++) {
-          sum += dataArrays[pId][i];
-        }
+        for (let i = 0; i < dataArrays[pId].length; i++) sum += dataArrays[pId][i];
         const vol = sum / dataArrays[pId].length;
-        if (vol > maxVol && vol > 15) { // threshold
-          maxVol = vol;
-          speaker = pId;
-        }
+        if (vol > maxVol && vol > 15) { maxVol = vol; speaker = pId; }
       }
-      if (speaker) setActiveSpeakerId(speaker);
-    }, 1000);
+      if (speaker) {
+        silenceFrames = 0;
+        setActiveSpeakerId(speaker);
+      } else {
+        silenceFrames++;
+        // Clear active speaker after ~3 seconds of silence so layout doesn't stay locked
+        if (silenceFrames > 6) setActiveSpeakerId(null);
+      }
+    }, 500);
 
     return () => {
       clearInterval(interval);
-      audioCtx.close().catch(() => { });
+      Object.values(sources).forEach(s => { try { s.disconnect(); } catch {} });
+      audioCtx.close().catch(() => {});
     };
-  }, [remotePeerIds, remoteStreams]);
+  }, [remotePeerIds.join(',')]);
 
   // Reset page on participant change
   useEffect(() => {
@@ -330,19 +336,20 @@ export default function VideoGrid({
   const pageCount = Math.ceil(Math.max(0, stripPeerIds.length - 0) / MAX_MINI);
   const visibleStrip = stripPeerIds.slice(currentPage * MAX_MINI, (currentPage + 1) * MAX_MINI);
 
-  // Disable remote streams that are not on the current page to save CPU
+  // Disable VIDEO tracks for off-screen peers to save CPU/decoder
+  // IMPORTANT: Never disable audio tracks — that causes perceived mute on the remote end
   useEffect(() => {
-    const visibleIds = [featuredPeerId, ...visibleStrip].filter(Boolean);
+    const visibleIds = new Set([featuredPeerId, ...visibleStrip].filter(Boolean));
+    if (remoteScreenSharePeerId) visibleIds.add(remoteScreenSharePeerId);
     remotePeerIds.forEach(pId => {
-      const isVisible = visibleIds.includes(pId) || pId === remoteScreenSharePeerId;
       const stream = remoteStreams[pId]?.stream;
       if (stream) {
-        stream.getVideoTracks().forEach(track => {
-          track.enabled = isVisible; // Stop decoder for non-visible tracks
-        });
+        const shouldShow = visibleIds.has(pId);
+        stream.getVideoTracks().forEach(track => { track.enabled = shouldShow; });
+        // Never touch audio tracks here
       }
     });
-  }, [visibleStrip, featuredPeerId, remoteStreams, remotePeerIds, remoteScreenSharePeerId]);
+  }, [visibleStrip.join(','), featuredPeerId, remotePeerIds.join(',')]);
 
   // === Screen share layout ===
   if (hasPresenter) {

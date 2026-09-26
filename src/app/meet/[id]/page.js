@@ -21,7 +21,6 @@ export default function MeetPage() {
   const encryptionKeyRef = useRef(null);
   const [activePanel, setActivePanel] = useState(null);
 
-  const fmt = (s) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
   const togglePanel = (panel) => setActivePanel(p => p === panel ? null : panel);
 
   useEffect(() => {
@@ -36,7 +35,7 @@ export default function MeetPage() {
   }, [id]);
 
   const conn = useMeetConnection({ id, router, searchParams, encryptionKeyRef, activePanel, setActivePanel });
-  const { authorized, accessDenied, myStream, remoteStreams, micActive, videoActive, isScreenSharing, statusMsg, userProfile, meetLimits, isHandRaised, isHostUser, roomSettings, meetingTimer, floatingReactions, showReactionPicker, setShowReactionPicker, chatMessages, newMessage, setNewMessage, chatEndRef, unreadCount, polls, showPollModal, setShowPollModal, pollForm, setPollForm, toggleMic, toggleVideo, toggleScreenShare, toggleHandRaise, handleSendMessage, handleSendReaction, toggleBlockPeer, toggleGlobal, endCall, remotePeerIds, networkPing } = conn;
+  const { authorized, accessDenied, myStream, remoteStreams, micActive, videoActive, isScreenSharing, statusMsg, userProfile, meetLimits, isHandRaised, isHostUser, roomSettings, meetingTimer, floatingReactions, showReactionPicker, setShowReactionPicker, chatMessages, newMessage, setNewMessage, chatEndRef, unreadCount, polls, showPollModal, setShowPollModal, pollForm, setPollForm, toggleMic, toggleVideo, toggleScreenShare, toggleHandRaise, handleSendMessage, handleSendReaction, toggleBlockPeer, toggleGlobal, endCall, remotePeerIds, networkPing, connectionQuality, fmt } = conn;
 
   if (accessDenied) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: C.bg, color: C.text, gap: '1.25rem', textAlign: 'center', padding: '2rem' }}>
@@ -108,15 +107,20 @@ export default function MeetPage() {
           </div>
           <span style={{ fontSize: '0.78rem', color: C.muted }}>{statusMsg}</span>
 
-          {/* Network Ping Indicator */}
+          {/* Network quality indicator */}
           {networkPing > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(255,255,255,0.05)', borderRadius: 20, padding: '2px 8px', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '1rem', color: networkPing < 100 ? C.success : networkPing < 250 ? '#f59e0b' : C.danger }}>
-                {networkPing < 100 ? 'wifi' : networkPing < 250 ? 'wifi_2_bar' : 'wifi_1_bar'}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(255,255,255,0.05)', borderRadius: 20, padding: '2px 10px', border: `1px solid ${connectionQuality === 'bad' ? 'rgba(239,68,68,0.35)' : connectionQuality === 'poor' ? 'rgba(245,158,11,0.3)' : 'rgba(255,255,255,0.08)'}` }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '1rem', color: connectionQuality === 'good' ? '#10b981' : connectionQuality === 'fair' ? '#f59e0b' : connectionQuality === 'poor' ? '#fb923c' : '#ef4444' }}>
+                {connectionQuality === 'good' ? 'wifi' : connectionQuality === 'fair' ? 'wifi_2_bar' : 'wifi_1_bar'}
               </span>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: networkPing < 100 ? C.success : networkPing < 250 ? '#f59e0b' : C.danger }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: connectionQuality === 'good' ? '#10b981' : connectionQuality === 'fair' ? '#f59e0b' : connectionQuality === 'poor' ? '#fb923c' : '#ef4444' }}>
                 {networkPing}ms
               </span>
+              {connectionQuality !== 'good' && (
+                <span style={{ fontSize: '0.68rem', color: connectionQuality === 'bad' ? '#ef4444' : '#f59e0b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  {connectionQuality}
+                </span>
+              )}
             </div>
           )}
         </div>
