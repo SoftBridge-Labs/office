@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import styles from './login.module.css';
 import OneTapLogin from '@/app/components/OneTapLogin';
+import { storeAuthTokens } from '@/lib/auth';
 
 export default function Login() {
   const router = useRouter();
@@ -39,7 +40,7 @@ export default function Login() {
       }
 
       // Save credentials and redirect to dashboard
-      localStorage.setItem('sb_id_token', data.idToken);
+      storeAuthTokens(data);
       localStorage.setItem('sb_uid', data.uid);
       if (data.user) {
         localStorage.setItem('sb_user', JSON.stringify(data.user));
@@ -122,7 +123,7 @@ export default function Login() {
         </form>
 
         <div className={styles.footerText}>
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <a href="https://account.softbridgelabs.in/" target="_blank" rel="noopener noreferrer" className={styles.signupLink}>
             Sign up here
           </a>

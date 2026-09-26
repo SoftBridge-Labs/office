@@ -1,4 +1,5 @@
 // API Client for SoftBridge Office Suite (Production Integration)
+import { clearAuthTokens, getAccessToken, isTokenExpiringSoon, refreshAuthToken } from './auth';
 
 const getApiUrl = () => {
   if (typeof window !== 'undefined' && window.__ENV__ && window.__ENV__.NEXT_PUBLIC_API_URL) return window.__ENV__.NEXT_PUBLIC_API_URL;
@@ -41,7 +42,7 @@ function deleteLocalItem(key, id) {
   return { success: true };
 }
 
-async function request(endpoint, options = {}) {
+async function request(endpoint, options = {}, hasRetried = false) {
   const url = `${API_BASE}${endpoint}`;
   const headers = {
     'Content-Type': 'application/json',
@@ -49,7 +50,8 @@ async function request(endpoint, options = {}) {
   };
   
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('sb_id_token');
+    if (!hasRetried && isTokenExpiringSoon()) await refreshAuthToken();
+    const token = getAccessToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
@@ -64,6 +66,13 @@ async function request(endpoint, options = {}) {
   });
 
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && !hasRetried && await refreshAuthToken()) {
+    return request(endpoint, options, true);
+  }
+  if (res.status === 401 && typeof window !== 'undefined') {
+    clearAuthTokens();
+    if (!window.location.pathname.startsWith('/login')) window.location.replace('/login');
+  }
   if (!res.ok) {
     const err = new Error(data.error || data.message || `Request failed with status ${res.status}`);
     err.status = res.status;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { storeAuthTokens } from '@/lib/auth';
 
 const getEnv = (key, defaultVal) => {
   if (typeof window !== 'undefined' && window.__ENV__ && window.__ENV__[key]) return window.__ENV__[key];
@@ -44,7 +45,7 @@ export default function OneTapLogin({ onSuccess, buttonText = "Sign in with Soft
       if (authData && authData.success) {
         
         // Save credentials
-        localStorage.setItem('sb_id_token', authData.idToken);
+        storeAuthTokens(authData);
         if (authData.user && authData.user.uid) {
             localStorage.setItem('sb_uid', authData.user.uid);
         }

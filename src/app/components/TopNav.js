@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import OneTapLogin from '@/app/components/OneTapLogin';
 import { api } from '@/lib/api';
+import styles from './workspace.module.css';
 
 export default function TopNav({ userProfile, isLoggedOut }) {
   const router = useRouter();
@@ -72,7 +73,7 @@ export default function TopNav({ userProfile, isLoggedOut }) {
   };
 
   return (
-    <header style={{
+    <header className={styles.topbar} style={{
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',

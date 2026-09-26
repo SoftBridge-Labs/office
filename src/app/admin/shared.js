@@ -1,7 +1,7 @@
 export const inputStyle = {
   padding: '0.6rem 0.85rem',
-  border: '1px solid #e2e8f0',
-  borderRadius: '8px',
+  border: '1px solid #d8e2de',
+  borderRadius: '7px',
   fontSize: '0.9rem',
   width: '100%',
   boxSizing: 'border-box',
@@ -11,37 +11,37 @@ export const inputStyle = {
 
 export const btnPrimary = {
   padding: '0.6rem 1.25rem',
-  backgroundColor: '#2563eb',
+  backgroundColor: '#287c68',
   color: '#fff',
   border: 'none',
   borderRadius: '8px',
   cursor: 'pointer',
   fontWeight: 600,
   fontSize: '0.9rem',
-  boxShadow: '0 2px 4px rgba(37, 99, 235, 0.15)',
+  boxShadow: '0 2px 4px rgba(40, 124, 104, 0.15)',
   transition: 'transform 0.1s, box-shadow 0.1s',
 };
 
 export const btnDanger = {
   ...btnPrimary,
-  backgroundColor: '#ef4444',
+  backgroundColor: '#bd5d52',
   boxShadow: '0 2px 4px rgba(239, 68, 68, 0.15)',
 };
 
 export const btnGhost = {
   ...btnPrimary,
-  background: '#f8fafc',
-  color: '#334155',
-  border: '1px solid #e2e8f0',
+  background: '#f8fbf9',
+  color: '#52635d',
+  border: '1px solid #d8e2de',
   boxShadow: 'none',
 };
 
 export const card = {
   padding: '1.75rem',
-  border: '1px solid #f1f5f9',
-  borderRadius: '16px',
+  border: '1px solid #d8e2de',
+  borderRadius: '8px',
   backgroundColor: '#ffffff',
-  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.03)',
+  boxShadow: '0 6px 18px rgba(23, 33, 31, 0.04)',
   marginBottom: '1.5rem',
   transition: 'box-shadow 0.2s ease-in-out',
 };

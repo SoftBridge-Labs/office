@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import TopNav from '@/app/components/TopNav';
 import { api } from '@/lib/api';
 import styles from '../page.module.css';
+import WorkspaceGreeting from '@/app/components/WorkspaceGreeting';
 
 const inputStyle = {
   width: '100%',
@@ -94,7 +95,8 @@ export default function BookmarksPage() {
         }
       `}</style>
       
-      <main className={styles.mainPanel}>
+      <main className={`${styles.mainPanel} ${styles.toolPage}`}>
+        <WorkspaceGreeting userProfile={userProfile} context="Bookmarks" />
         <header className={styles.header}>
           <h2 className={styles.pageTitle}>Bookmarks Manager</h2>
           <button 
@@ -106,24 +108,13 @@ export default function BookmarksPage() {
           </button>
         </header>
 
-        <div style={{ marginBottom: '2rem' }}>
+        <div className="tool-search">
+          <span className="material-symbols-outlined" style={{ color: 'var(--text-muted)' }}>search</span>
           <input
             type="text"
             placeholder="Search bookmarks..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.85rem 1.2rem',
-              borderRadius: '12px',
-              border: '1px solid rgba(255, 255, 255, 0.4)',
-              fontSize: '0.95rem',
-              outline: 'none',
-              backgroundColor: 'rgba(255, 255, 255, 0.6)',
-              backdropFilter: 'blur(10px)',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)',
-              transition: 'all 0.2s ease'
-            }}
             onFocus={e => e.target.style.boxShadow = '0 4px 20px rgba(59, 130, 246, 0.15)'}
             onBlur={e => e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.03)'}
           />
@@ -134,7 +125,7 @@ export default function BookmarksPage() {
           {/* Bookmarks List */}
           <div>
             {bookmarks.length === 0 ? (
-              <div style={{ background: 'linear-gradient(145deg, #ffffff, #f8fafc)', padding: '4rem', borderRadius: '24px', textAlign: 'center', border: '1px dashed #cbd5e1', boxShadow: '0 10px 30px rgba(0,0,0,0.02)' }}>
+              <div className="empty-state" style={{ background: 'linear-gradient(145deg, #ffffff, #f8fafc)', padding: '4rem', borderRadius: '24px', textAlign: 'center', border: '1px dashed #cbd5e1', boxShadow: '0 10px 30px rgba(0,0,0,0.02)' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: '4rem', color: '#94a3b8', marginBottom: '1rem', display: 'block' }}>bookmark_border</span>
                 <p style={{ color: '#475569', fontSize: '1.1rem', fontWeight: 500 }}>No bookmarks saved yet. Click "+ Add Bookmark" to get started.</p>
               </div>
@@ -176,7 +167,7 @@ export default function BookmarksPage() {
 
           {/* Add Bookmark Sidebar */}
           {showAddForm && (
-            <div style={{ background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(16px)', padding: '2rem', borderRadius: '24px', border: '1px solid rgba(255, 255, 255, 0.6)', height: 'fit-content', boxShadow: '0 8px 32px rgba(0,0,0,0.06)' }}>
+            <div className="tool-form" style={{ background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(16px)', padding: '2rem', borderRadius: '24px', border: '1px solid rgba(255, 255, 255, 0.6)', height: 'fit-content', boxShadow: '0 8px 32px rgba(0,0,0,0.06)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>🔖 New Bookmark</h3>
                 <button onClick={() => setShowAddForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>

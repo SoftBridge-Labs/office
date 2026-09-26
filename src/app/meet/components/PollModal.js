@@ -76,7 +76,8 @@ export default function PollModal({
         onClick={handleCreate}
         style={{ width: '100%', padding: '0.85rem', background: pollForm.type === 'Quiz' ? C.amber : C.accent, color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontWeight: 700, fontSize: '0.95rem', transition: 'opacity 0.18s' }}
       >
-        🚀 Launch {pollForm.type}
+        <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: 6 }}>rocket_launch</span>
+        Launch {pollForm.type}
       </button>
     </Modal>
   );

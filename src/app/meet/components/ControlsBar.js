@@ -1,6 +1,11 @@
 import React from 'react';
 import { C, IconBtn, PillBtn } from './ui';
 
+const reactions = [
+  ['👍', 'thumb_up', 'Like'], ['👏', 'front_hand', 'Applause'], ['🎉', 'celebration', 'Celebrate'], ['❤️', 'favorite', 'Love'],
+  ['🔥', 'local_fire_department', 'Fire'], ['💡', 'lightbulb', 'Idea'], ['😮', 'sentiment_satisfied', 'Surprised'], ['🙌', 'volunteer_activism', 'Support'],
+];
+
 export default function ControlsBar({
   micActive,
   toggleMic,
@@ -59,11 +64,11 @@ export default function ControlsBar({
             boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
             animation: 'modalIn 0.18s ease'
           }}>
-            {['👍','👏','🎉','❤️','🔥','💡','😮','🙌'].map(e => (
-              <button key={e} onClick={() => handleSendReaction(e)} style={{ fontSize: '1.35rem', background: 'none', border: 'none', cursor: 'pointer', transition: 'transform 0.15s', borderRadius: 8, padding: '4px' }}
+            {reactions.map(([value, icon, label]) => (
+              <button key={value} title={label} aria-label={label} onClick={() => handleSendReaction(value)} style={{ background: 'none', border: 'none', color: C.text, cursor: 'pointer', transition: 'transform 0.15s', borderRadius: 8, padding: '6px' }}
                 onMouseEnter={el => el.currentTarget.style.transform = 'scale(1.3)'}
                 onMouseLeave={el => el.currentTarget.style.transform = 'none'}>
-                {e}
+                <span className="material-symbols-outlined">{icon}</span>
               </button>
             ))}
           </div>

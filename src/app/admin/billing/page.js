@@ -17,6 +17,8 @@ const loadRazorpay = () => {
   });
 };
 
+const formatINR = (value) => `₹${Math.abs(Number(value) || 0).toLocaleString('en-IN')}`;
+
 export default function BillingPage() {
   const [status, setStatus] = useState(null);
   const [creditHistory, setCreditHistory] = useState([]);
@@ -48,7 +50,7 @@ export default function BillingPage() {
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_signature: response.razorpay_signature,
           });
-          setMsg({ text: vRes.success ? '✅ Payment successful!' : '❌ Verification failed.', type: vRes.success ? 'success' : 'error' });
+          setMsg({ text: vRes.success ? 'Payment successful.' : 'Verification failed.', type: vRes.success ? 'success' : 'error' });
         },
         prefill: {},
         theme: { color: '#1a73e8' },
@@ -93,7 +95,7 @@ export default function BillingPage() {
             <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
               <div style={{ flex: 1, padding: '1.5rem', border: '1px solid #e2e8f0', borderRadius: '12px', cursor: 'pointer', backgroundColor: status.currentPlan === 'monthly' ? '#eff6ff' : '#fff' }} onClick={() => setMsg({ text: 'You are currently on the Monthly plan (or it is selected).', type: 'success' })}>
                 <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#1e293b' }}>Monthly Plan</h4>
-                <div style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.5rem 0', color: '#2563eb' }}>₹199<span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500 }}>/seat/mo</span></div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.5rem 0', color: '#2563eb' }}>₹{status.monthlyPricePerSeat || 499}<span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500 }}>/seat/mo</span></div>
                 <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Billed monthly per active user.</p>
               </div>
               <div style={{ flex: 1, padding: '1.5rem', border: '1px solid #e2e8f0', borderRadius: '12px', cursor: 'pointer', backgroundColor: status.currentPlan === 'yearly' ? '#eff6ff' : '#fff' }} onClick={async () => {
@@ -123,7 +125,7 @@ export default function BillingPage() {
                 } catch (e) { setMsg({ text: e.message, type: 'error' }); }
               }}>
                 <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#1e293b' }}>Yearly Plan <span style={{ fontSize: '0.7rem', backgroundColor: '#dcfce7', color: '#166534', padding: '0.2rem 0.5rem', borderRadius: '12px', verticalAlign: 'middle', marginLeft: '0.5rem' }}>SAVE ~16%</span></h4>
-                <div style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.5rem 0', color: '#2563eb' }}>₹1999<span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500 }}>/seat/yr</span></div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.5rem 0', color: '#2563eb' }}>₹{status.yearlyPricePerSeat || 4999}<span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500 }}>/seat/yr</span></div>
                 <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Billed annually per active user.</p>
               </div>
             </div>
@@ -168,7 +170,7 @@ export default function BillingPage() {
                       razorpay_signature: response.razorpay_signature,
                       amount
                     });
-                    setMsg({ text: vRes.success ? '✅ Balance added! Operations unlocked.' : '❌ Verification failed.', type: vRes.success ? 'success' : 'error' });
+                    setMsg({ text: vRes.success ? 'Balance added. Operations unlocked.' : 'Verification failed.', type: vRes.success ? 'success' : 'error' });
                   },
                   theme: { color: '#1a73e8' },
                 };
@@ -204,10 +206,10 @@ export default function BillingPage() {
                           {new Date(entry.created_at || entry.createdAt).toLocaleString()}
                         </td>
                         <td style={{ padding: '0.75rem 1rem', color: '#d93025', fontSize: '0.9rem', fontWeight: 500 }}>
-                          {entry.credit_amount}
+                          -{formatINR(entry.credit_amount)}
                         </td>
                         <td style={{ padding: '0.75rem 1rem', color: '#5f6368', fontSize: '0.9rem' }}>
-                          {entry.credit_amount > -199 ? 'Meet Add-on (Hourly overage)' : 'Seat Deduction'}
+                          Credit debit
                         </td>
                       </tr>
                     ))}

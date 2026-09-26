@@ -251,7 +251,7 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
     };
   }, [authorized, userProfile, id]);
 
-  const optimalVideo = { width: { ideal: 480, max: 640 }, height: { ideal: 360, max: 480 }, frameRate: { ideal: 15, max: 20 } };
+  const optimalVideo = { width: { ideal: 960, max: 1280 }, height: { ideal: 540, max: 720 }, frameRate: { ideal: 24, max: 30 } };
 
   // 3. Media
   useEffect(() => {
@@ -320,8 +320,8 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
             try {
               const params = sender.getParameters();
               if (!params.encodings) params.encodings = [{}];
-              params.encodings[0].maxBitrate = 150000; // 150 kbps limit
-              params.encodings[0].maxFramerate = 15;
+              params.encodings[0].maxBitrate = 900000; // 900 kbps limit
+              params.encodings[0].maxFramerate = 24;
               sender.setParameters(params).catch(() => {});
             } catch (e) {}
           }
@@ -553,7 +553,11 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
     };
 
     // Fetch temporary TURN credentials from Cloudflare via our Next.js API route
-    fetch('/api/turn')
+    const turnHeaders = {};
+    const accessToken = localStorage.getItem('sb_id_token');
+    if (accessToken) turnHeaders.Authorization = `Bearer ${accessToken}`;
+
+    fetch('/api/turn', { headers: turnHeaders })
       .then(r => r.json())
       .then(res => {
         if (res.success && res.iceServers) {

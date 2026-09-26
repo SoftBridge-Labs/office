@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import styles from '../page.module.css';
 import { BookmarkWMA } from '@/lib/wma';
 import WMAResultToast from '@/app/components/WMAResultToast';
+import WorkspaceGreeting from '@/app/components/WorkspaceGreeting';
 
 export default function DocsDashboardPage() {
   const router = useRouter();
@@ -89,16 +90,18 @@ export default function DocsDashboardPage() {
     <div className={styles.container}>
       <TopNav userProfile={userProfile} isLoggedOut={!userProfile} />
       
-      <main className={styles.mainPanel} style={{ padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      <main className={`${styles.mainPanel} ${styles.toolPage}`} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <WorkspaceGreeting userProfile={userProfile} context="Documents" />
         
         {/* Header Section */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '1.5rem' }}>
+        <div className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Documents Workspace</h1>
+            <h2 className={styles.pageTitle}>Documents Workspace</h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.25rem' }}>Create, edit, and collaborate on rich markdown files.</p>
           </div>
           <button 
             onClick={handleCreateNew} 
+            className={styles.actionBadge}
             style={{
               padding: '0.75rem 1.5rem',
               background: 'var(--brand, #4f46e5)',
@@ -161,21 +164,13 @@ export default function DocsDashboardPage() {
           </div>
         ) : (
           <>
-            <div style={{ marginBottom: '1rem' }}>
+            <div className="tool-search">
+              <span className="material-symbols-outlined" style={{ color: 'var(--text-muted)' }}>search</span>
               <input
                 type="text"
                 placeholder="Filter documents by title..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem 1rem',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border)',
-                  fontSize: '0.95rem',
-                  outline: 'none',
-                  backgroundColor: 'var(--bg-surface)'
-                }}
               />
             </div>
             <div style={{

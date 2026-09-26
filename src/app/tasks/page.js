@@ -5,6 +5,7 @@ import TopNav from '@/app/components/TopNav';
 import AppDisabled from '@/app/components/AppDisabled';
 import { api } from '@/lib/api';
 import styles from '../page.module.css';
+import WorkspaceGreeting from '@/app/components/WorkspaceGreeting';
 
 const inputStyle = {
   width: '100%',
@@ -129,7 +130,8 @@ export default function TasksPage() {
         }
       `}</style>
       
-      <main className={styles.mainPanel}>
+      <main className={`${styles.mainPanel} ${styles.toolPage}`}>
+        <WorkspaceGreeting userProfile={userProfile} context="Tasks" />
         <header className={styles.header}>
           <h2 className={styles.pageTitle}>Sprint Tasks Board</h2>
           <button 
@@ -141,37 +143,26 @@ export default function TasksPage() {
           </button>
         </header>
 
-        <div style={{ marginBottom: '1.5rem' }}>
+        <div className="tool-search">
+          <span className="material-symbols-outlined" style={{ color: 'var(--text-muted)' }}>search</span>
           <input
             type="text"
             placeholder="Search tasks..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.85rem 1.2rem',
-              borderRadius: '12px',
-              border: '1px solid rgba(255, 255, 255, 0.4)',
-              fontSize: '0.95rem',
-              outline: 'none',
-              backgroundColor: 'rgba(255, 255, 255, 0.6)',
-              backdropFilter: 'blur(10px)',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)',
-              transition: 'all 0.2s ease'
-            }}
             onFocus={e => e.target.style.boxShadow = '0 4px 20px rgba(233, 30, 99, 0.15)'}
             onBlur={e => e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.03)'}
           />
         </div>
 
-        <div className="tasks-main-grid" style={{ display: 'grid', gridTemplateColumns: showAddForm ? '1.2fr 1fr' : '1fr', gap: '2rem' }}>
+        <div className={`${styles.toolGrid} tasks-main-grid`} style={{ display: 'grid', gridTemplateColumns: showAddForm ? '1.2fr 1fr' : '1fr' }}>
           
           {/* Kanban Columns */}
           <div className="tasks-kanban-cols" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', alignItems: 'start' }}>
             {columns.map(col => {
               const colTasks = tasks.filter(t => t.status === col.id && (!searchQuery || (t.title && t.title.toLowerCase().includes(searchQuery.toLowerCase())) || (t.description && t.description.toLowerCase().includes(searchQuery.toLowerCase()))));
               return (
-                <div key={col.id} className="task-column" style={{ background: 'linear-gradient(145deg, #f8f9fa, #f1f5f9)', borderRadius: '20px', padding: '1.25rem', border: '1px solid rgba(255,255,255,0.7)', minHeight: '400px', boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.02)' }}>
+                <div key={col.id} className="task-column tool-column" style={{ background: 'linear-gradient(145deg, #f8f9fa, #f1f5f9)', borderRadius: '20px', padding: '1.25rem', border: '1px solid rgba(255,255,255,0.7)', minHeight: '400px', boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.02)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid rgba(0,0,0,0.03)' }}>
                     <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: col.color, boxShadow: `0 0 10px ${col.color}80` }} />
                     <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#1e293b' }}>{col.label} <span style={{ opacity: 0.5, fontSize: '0.85rem' }}>({colTasks.length})</span></h3>
@@ -179,7 +170,7 @@ export default function TasksPage() {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     {colTasks.map(task => (
-                      <div key={task._id} className="task-card" style={{ background: '#ffffff', padding: '1.25rem', borderRadius: '16px', border: '1px solid rgba(226, 232, 240, 0.8)', boxShadow: '0 4px 12px rgba(0,0,0,0.04)', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', position: 'relative' }}>
+                      <div key={task._id} className="task-card tool-card" style={{ background: '#ffffff', padding: '1.25rem', borderRadius: '16px', border: '1px solid rgba(226, 232, 240, 0.8)', boxShadow: '0 4px 12px rgba(0,0,0,0.04)', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', position: 'relative' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                           <span style={{ 
                             fontSize: '0.65rem', 
@@ -233,9 +224,9 @@ export default function TasksPage() {
 
           {/* Add Task Sidebar */}
           {showAddForm && (
-            <div style={{ background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(16px)', padding: '2rem', borderRadius: '24px', border: '1px solid rgba(255, 255, 255, 0.6)', height: 'fit-content', boxShadow: '0 8px 32px rgba(0,0,0,0.06)' }}>
+            <div className="tool-form" style={{ background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(16px)', padding: '2rem', borderRadius: '24px', border: '1px solid rgba(255, 255, 255, 0.6)', height: 'fit-content', boxShadow: '0 8px 32px rgba(0,0,0,0.06)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>✨ New Task</h3>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}><span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: 6 }}>add_task</span>New Task</h3>
                 <button onClick={() => setShowAddForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
                   <span className="material-symbols-outlined">close</span>
                 </button>
