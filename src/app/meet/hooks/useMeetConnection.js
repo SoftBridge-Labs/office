@@ -421,7 +421,12 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
         }
       });
 
-      peer.on('error', () => {});
+      peer.on('error', (err) => {
+        console.error('[Meet] PeerJS error:', err?.type || err?.message || err);
+        if (err?.type === 'network' || err?.type === 'server-error') {
+          setStatusMsg('Signaling connection lost. Retrying...');
+        }
+      });
 
       const handleIncomingData = async (data) => {
         try {
@@ -651,23 +656,37 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
     const accessToken = localStorage.getItem('sb_id_token');
     if (accessToken) turnHeaders.Authorization = `Bearer ${accessToken}`;
 
-    fetch('/api/turn', { headers: turnHeaders })
+    const turnRequest = new AbortController();
+    const turnTimeout = setTimeout(() => turnRequest.abort(), 8000);
+
+    fetch('/api/turn', { headers: turnHeaders, signal: turnRequest.signal })
       .then(r => r.json())
       .then(res => {
         if (res.success && res.iceServers) {
+          if (res.relayAvailable === false || res.warning) {
+            console.warn('[Meet] TURN relay unavailable:', res.warning || 'unknown reason');
+            setStatusMsg('Relay unavailable; cross-network media may fail');
+          }
           startPeer(res.iceServers);
         } else {
           console.warn('[Meet] TURN credentials unavailable, falling back to STUN only');
+          setStatusMsg('Relay unavailable; cross-network media may fail');
           startPeer(defaultIceServers);
         }
       })
-      .catch(() => {
-        console.warn('[Meet] Could not reach TURN credential endpoint, falling back to STUN only');
+      .catch((err) => {
+        console.warn('[Meet] Could not reach TURN credential endpoint, falling back to STUN only:', err?.name || err);
+        setStatusMsg('Relay unavailable; cross-network media may fail');
         startPeer(defaultIceServers);
+      })
+      .finally(() => {
+        clearTimeout(turnTimeout);
       });
 
     return () => {
       destroyed = true;
+      turnRequest.abort();
+      clearTimeout(turnTimeout);
       if (syncInterval) clearInterval(syncInterval);
       if (triggerCleanup) triggerCleanup();
       connectingPeers.current.clear();

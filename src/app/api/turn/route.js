@@ -91,19 +91,21 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       iceServers: STUN_SERVERS,
+      relayAvailable: false,
       warning: 'TURN not configured — cross-network calls may fail',
     });
   }
 
   try {
     const iceServers = await getIceServers();
-    return NextResponse.json({ success: true, iceServers });
+    return NextResponse.json({ success: true, iceServers, relayAvailable: true });
   } catch (err) {
     console.error('[TURN] Failed to get Cloudflare credentials:', err.message);
     // Graceful degradation — never hard-fail the meeting join
     return NextResponse.json({
       success: true,
       iceServers: STUN_SERVERS,
+      relayAvailable: false,
       warning: 'TURN temporarily unavailable — same-network calls only',
     });
   }
