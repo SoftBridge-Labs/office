@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { encryptPayload, decryptPayload } from '@/lib/crypto';
 import { io } from 'socket.io-client';
+import { createBackgroundEffectStream } from '../lib/backgroundEffects';
+import { VIDEO_FILTERS } from '../components/ui';
 
 const getApiUrl = () => {
   if (typeof window !== 'undefined' && window.__ENV__ && window.__ENV__.NEXT_PUBLIC_API_URL) return window.__ENV__.NEXT_PUBLIC_API_URL;
@@ -44,6 +46,9 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [networkPing, setNetworkPing] = useState(0);
   const [connectionQuality, setConnectionQuality] = useState('good'); // 'good'|'fair'|'poor'|'bad'
+  const [videoFilter, setVideoFilter] = useState('none');
+  const [customBackgrounds, setCustomBackgrounds] = useState([]);
+  const [processedPreviewStream, setProcessedPreviewStream] = useState(null);
 
   // Chat
   const [chatMessages, setChatMessages] = useState([]);
@@ -67,12 +72,74 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
   const micActiveRef = useRef(micActive);
   const videoActiveRef = useRef(videoActive);
   const myStreamRef = useRef(null);          // Always-current ref — avoids stale closures
+  const outgoingStreamRef = useRef(null);
+  const cameraSourceRef = useRef(null);
+  const backgroundEffectRef = useRef(null);
   const iceServersRef = useRef(null);        // Cached for ICE restart
   const lastQualityProfile = useRef(QUALITY_PROFILES[0]);
   const connectingPeers = useRef(new Set()); // Prevents both peers calling simultaneously
   useEffect(() => { micActiveRef.current = micActive; }, [micActive]);
   useEffect(() => { videoActiveRef.current = videoActive; }, [videoActive]);
   useEffect(() => { myStreamRef.current = myStream; }, [myStream]);
+    useEffect(() => {
+      try { setCustomBackgrounds(JSON.parse(localStorage.getItem('sb_meet_backgrounds') || '[]')); } catch {}
+    }, []);
+
+    const addCustomBackground = (file) => {
+      if (!file?.type?.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const item = { id: `custom-${Date.now()}`, label: file.name.replace(/\.[^/.]+$/, '').slice(0, 18) || 'Uploaded', effect: reader.result };
+        setCustomBackgrounds(previous => {
+          const next = [...previous, item].slice(-5);
+          localStorage.setItem('sb_meet_backgrounds', JSON.stringify(next));
+          return next;
+        });
+        setVideoFilter(item.id);
+      };
+      reader.readAsDataURL(file);
+    };
+  useEffect(() => {
+    outgoingStreamRef.current?.getAudioTracks().forEach(track => { track.enabled = micActive; });
+  }, [micActive, processedPreviewStream]);
+
+  useEffect(() => {
+    const sourceStream = cameraSourceRef.current;
+    if (!sourceStream) return;
+    let cancelled = false;
+
+    const applyBackgroundEffect = async () => {
+      backgroundEffectRef.current?.stop();
+      backgroundEffectRef.current = null;
+      if (videoFilter === 'none') {
+        outgoingStreamRef.current = sourceStream;
+        setProcessedPreviewStream(null);
+        return;
+      }
+
+      try {
+        const preset = VIDEO_FILTERS.find(item => item.id === videoFilter);
+        const custom = customBackgrounds.find(item => item.id === videoFilter);
+        const result = await createBackgroundEffectStream(sourceStream, preset?.effect || custom?.effect || videoFilter);
+        if (cancelled) { result.stop(); return; }
+        backgroundEffectRef.current = result;
+        outgoingStreamRef.current = result.stream;
+        setProcessedPreviewStream(result.stream);
+        const nextTrack = result.stream.getVideoTracks()[0];
+        Object.values(activeCalls.current).forEach(call => {
+          const sender = call.peerConnection?.getSenders().find(item => item.track?.kind === 'video');
+          sender?.replaceTrack(nextTrack).catch(() => {});
+        });
+      } catch (error) {
+        console.warn('[Meet] Background effect unavailable:', error);
+        outgoingStreamRef.current = sourceStream;
+        setProcessedPreviewStream(null);
+      }
+    };
+
+    applyBackgroundEffect();
+    return () => { cancelled = true; };
+  }, [videoFilter, myStream, customBackgrounds]);
 
   // Audio refs
   const joinAudioRef = useRef(null);
@@ -361,20 +428,30 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
       .then(stream => {
         stream.getAudioTracks()[0] && (stream.getAudioTracks()[0].enabled = micActive);
         stream.getVideoTracks()[0] && (stream.getVideoTracks()[0].enabled = videoActive);
+        cameraSourceRef.current = stream;
+        outgoingStreamRef.current = stream;
         setMyStream(stream); local = stream;
         setStatusMsg('Connecting...');
       })
       .catch(() => navigator.mediaDevices.getUserMedia({ video: false, audio: true }).then(stream => {
         stream.getAudioTracks()[0] && (stream.getAudioTracks()[0].enabled = micActive);
+        outgoingStreamRef.current = stream;
         setMyStream(stream); local = stream; setVideoActive(false); setStatusMsg('Connecting (Audio only)...');
       }).catch(() => {
         // Fallback to empty stream if they block both mic and cam
         const emptyStream = createEmptyStream();
+        outgoingStreamRef.current = emptyStream;
         setMyStream(emptyStream); local = emptyStream;
         setVideoActive(false); setMicActive(false);
         setStatusMsg('Connecting (View only)...');
       }));
-    return () => { local?.getTracks().forEach(t => t.stop()); };
+    return () => {
+      backgroundEffectRef.current?.stop();
+      backgroundEffectRef.current = null;
+      cameraSourceRef.current = null;
+      setProcessedPreviewStream(null);
+      local?.getTracks().forEach(t => t.stop());
+    };
   }, [authorized]);
 
   // 4. PeerJS + sync
@@ -469,7 +546,7 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
         // Reject duplicate inbound calls — the other side already has a channel open
         if (activeCalls.current[call.peer]) { try { call.close(); } catch {} return; }
 
-        call.answer(myStreamRef.current);
+        call.answer(outgoingStreamRef.current || myStreamRef.current);
         activeCalls.current[call.peer] = call;
         const cleanupMonitor = monitorCallConnection(call, call.peer);
 
@@ -516,7 +593,7 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
               if (!myHasMedia && !otherHasMedia) return;
 
               connectingPeers.current.add(other.peerId);
-              const call = peerInstance.current.call(other.peerId, myStreamRef.current);
+              const call = peerInstance.current.call(other.peerId, outgoingStreamRef.current || myStreamRef.current);
               if (call) {
                 activeCalls.current[other.peerId] = call;
                 const cleanupMonitor = monitorCallConnection(call, other.peerId);
@@ -984,12 +1061,13 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
 
   return {
     authorized, setAuthorized, accessDenied, setAccessDenied, peerLoaded,
-    myStream, remoteStreams, micActive, videoActive, isScreenSharing,
+    myStream, processedPreviewStream, remoteStreams, micActive, videoActive, isScreenSharing,
     statusMsg, userProfile, setUserProfile, meetLimits, isHandRaised,
     isHostUser, setIsHostUser, roomSettings, meetingTimer, floatingReactions,
     showReactionPicker, setShowReactionPicker, chatMessages, newMessage,
     setNewMessage, chatEndRef, unreadCount, setUnreadCount, polls, showPollModal,
-    setShowPollModal, pollForm, setPollForm, toggleMic, toggleVideo,
+    setShowPollModal, pollForm, setPollForm, videoFilter, setVideoFilter, toggleMic, toggleVideo,
+      setShowPollModal, pollForm, setPollForm, videoFilter, setVideoFilter, customBackgrounds, addCustomBackground, toggleMic, toggleVideo,
     toggleScreenShare, toggleHandRaise, handleSendMessage, handleSendReaction,
     toggleBlockPeer, toggleGlobal, endCall, activeCalls, myPeerIdRef,
     remotePeerIds: Object.keys(remoteStreams), networkPing, connectionQuality, fmt

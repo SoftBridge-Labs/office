@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import TopNav from '@/app/components/TopNav';
+import { VIDEO_FILTERS } from './components/ui';
+import { createBackgroundEffectStream } from './lib/backgroundEffects';
 
 export default function MeetLobbyPage() {
   const router = useRouter();
@@ -12,12 +14,16 @@ export default function MeetLobbyPage() {
   const [videoActive, setVideoActive] = useState(false);
   const [micActive, setMicActive] = useState(true);
   const [stream, setStream] = useState(null);
+  const [, setProcessedPreviewStream] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [meetLimits, setMeetLimits] = useState(null);
   const [hostedMeetings, setHostedMeetings] = useState([]);
   const [statusMsg, setStatusMsg] = useState('');
+  const [videoFilter, setVideoFilter] = useState('none');
+  const [customBackgrounds, setCustomBackgrounds] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const videoRef = useRef(null);
+  const backgroundInputRef = useRef(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -43,6 +49,25 @@ export default function MeetLobbyPage() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    try { setCustomBackgrounds(JSON.parse(localStorage.getItem('sb_meet_backgrounds') || '[]')); } catch {}
+  }, []);
+
+  const addCustomBackground = (file) => {
+    if (!file?.type?.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const item = { id: `custom-${Date.now()}`, label: file.name.replace(/\.[^/.]+$/, '').slice(0, 18) || 'Uploaded', effect: reader.result };
+      setCustomBackgrounds(previous => {
+        const next = [...previous, item].slice(-5);
+        localStorage.setItem('sb_meet_backgrounds', JSON.stringify(next));
+        return next;
+      });
+      setVideoFilter(item.id);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const fetchLimits = async (uid) => {
     try {
@@ -89,6 +114,32 @@ export default function MeetLobbyPage() {
       }
     };
   }, [videoActive, micActive]);
+
+  useEffect(() => {
+    if (!stream || !videoActive || videoFilter === 'none') {
+      setProcessedPreviewStream(null);
+      if (videoRef.current) videoRef.current.srcObject = stream;
+      return;
+    }
+
+    let cancelled = false;
+    let effectStream = null;
+    const preset = VIDEO_FILTERS.find(item => item.id === videoFilter);
+    const custom = customBackgrounds.find(item => item.id === videoFilter);
+    createBackgroundEffectStream(stream, preset?.effect || custom?.effect || videoFilter)
+      .then(result => {
+        if (cancelled) { result.stop(); return; }
+        effectStream = result;
+        setProcessedPreviewStream(result.stream);
+        if (videoRef.current) videoRef.current.srcObject = result.stream;
+      })
+      .catch(error => console.warn('Lobby background effect unavailable:', error));
+
+    return () => {
+      cancelled = true;
+      effectStream?.stop();
+    };
+  }, [stream, videoActive, videoFilter, customBackgrounds]);
 
   const saveName = () => {
     if (typeof window !== 'undefined' && name.trim()) {
@@ -223,7 +274,7 @@ export default function MeetLobbyPage() {
                   width: '100%',
                   height: '100%',
                   objectFit: 'cover',
-                  transform: 'scaleX(-1)'
+                  transform: 'scaleX(-1)',
                 }}
               />
             ) : (
@@ -260,6 +311,18 @@ export default function MeetLobbyPage() {
 
           {/* Quick Media Control Buttons */}
           <div style={{ display: 'flex', gap: '1rem', width: '100%', justifyContent: 'center' }}>
+                      <div style={{ width: '100%' }}>
+                        <div style={{ color: '#475569', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem' }}>Camera filter</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
+                          {[...VIDEO_FILTERS, ...customBackgrounds].map(filter => (
+                            <button key={filter.id} onClick={() => setVideoFilter(filter.id)} style={{ padding: '0.45rem 0.65rem', borderRadius: 8, border: `1px solid ${videoFilter === filter.id ? '#4f46e5' : '#cbd5e1'}`, background: videoFilter === filter.id ? '#eef2ff' : '#fff', color: '#334155', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}>{filter.label}</button>
+                          ))}
+                          <button onClick={() => backgroundInputRef.current?.click()} style={{ padding: '0.45rem 0.65rem', borderRadius: 8, border: '1px dashed #4f46e5', background: '#fff', color: '#4f46e5', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}>
+                            Upload background
+                          </button>
+                          <input ref={backgroundInputRef} type="file" accept="image/*" hidden onChange={event => { addCustomBackground(event.target.files?.[0]); event.target.value = ''; }} />
+                        </div>
+                      </div>
             <button
               onClick={() => setMicActive(!micActive)}
               style={{

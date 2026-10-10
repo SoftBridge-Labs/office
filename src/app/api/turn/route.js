@@ -56,7 +56,12 @@ async function refreshCredentials() {
 
   // We prepend Google STUN for faster direct P2P, then append Cloudflare's TURN servers (UDP + TCP/TLS candidates).
   // Restoring TCP candidates allows the browser to fallback to secure TLS/TCP on port 443 if the ISP blocks/throttles UDP port 3478.
-  cache.iceServers  = [...STUN_SERVERS, ...data.iceServers];
+  const relayServers = Array.isArray(data.iceServers)
+    ? data.iceServers.filter(server => server?.urls)
+    : [];
+  if (relayServers.length === 0) throw new Error('Cloudflare returned no ICE servers');
+
+  cache.iceServers  = [...STUN_SERVERS, ...relayServers];
   cache.expiresAt   = Math.floor(Date.now() / 1000) + TTL_SECONDS;
 
   console.log(`[TURN] Cloudflare credentials refreshed — valid until ${new Date(cache.expiresAt * 1000).toISOString()}`);
@@ -93,12 +98,12 @@ export async function GET() {
       iceServers: STUN_SERVERS,
       relayAvailable: false,
       warning: 'TURN not configured — cross-network calls may fail',
-    });
+    }, { headers: { 'Cache-Control': 'no-store' } });
   }
 
   try {
     const iceServers = await getIceServers();
-    return NextResponse.json({ success: true, iceServers, relayAvailable: true });
+    return NextResponse.json({ success: true, iceServers, relayAvailable: true }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (err) {
     console.error('[TURN] Failed to get Cloudflare credentials:', err.message);
     // Graceful degradation — never hard-fail the meeting join
@@ -107,6 +112,6 @@ export async function GET() {
       iceServers: STUN_SERVERS,
       relayAvailable: false,
       warning: 'TURN temporarily unavailable — same-network calls only',
-    });
+    }, { headers: { 'Cache-Control': 'no-store' } });
   }
 }

@@ -17,6 +17,14 @@ export const C = {
   violet: '#7c3aed',
 };
 
+export const VIDEO_FILTERS = [
+  { id: 'none', label: 'Natural' },
+  { id: 'blur', label: 'Blur background' },
+  { id: 'office', label: 'SoftBridge Office', effect: '/backgrounds/softbridge-office.svg' },
+  { id: 'library', label: 'Library', effect: '/backgrounds/softbridge-library.svg' },
+  { id: 'sunroom', label: 'Sunroom', effect: '/backgrounds/softbridge-sunroom.svg' },
+];
+
 // ─── Reusable UI Atoms ───────────────────────────────────────────────────────
 export const Avatar = ({ name, avatar_url, size = 32, color }) => {
   if (avatar_url) {

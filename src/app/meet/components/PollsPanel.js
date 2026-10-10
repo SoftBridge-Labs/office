@@ -13,17 +13,15 @@ export default function PollsPanel({
   return (
     <Drawer title="Polls & Quizzes" onClose={onClose}>
       <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {isHostUser && (
-          <button
-            onClick={() => setShowPollModal(true)}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', width: '100%', padding: '0.75rem', background: 'rgba(79,126,247,0.15)', border: `1px dashed rgba(79,126,247,0.4)`, borderRadius: 12, color: C.accent, cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem', transition: 'all 0.18s' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(79,126,247,0.25)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'rgba(79,126,247,0.15)'}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>add_circle</span>
-            Create Poll / Quiz
-          </button>
-        )}
+        <button
+          onClick={() => setShowPollModal(true)}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', width: '100%', padding: '0.75rem', background: 'rgba(79,126,247,0.15)', border: `1px dashed rgba(79,126,247,0.4)`, borderRadius: 12, color: C.accent, cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem', transition: 'all 0.18s' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(79,126,247,0.25)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(79,126,247,0.15)'}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>add_circle</span>
+          Create Poll / Quiz
+        </button>
         {polls.length === 0 && (
           <div style={{ textAlign: 'center', color: C.muted, fontSize: '0.85rem', marginTop: '2rem' }}>
             <span className="material-symbols-outlined" style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.5rem', color: C.muted }}>poll</span>

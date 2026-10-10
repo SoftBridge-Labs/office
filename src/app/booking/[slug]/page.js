@@ -14,11 +14,7 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 function formatTime(iso) {
   if (!iso) return '';
   const d = new Date(iso);
-  let h = d.getHours();
-  const m = String(d.getMinutes()).padStart(2, '0');
-  const ap = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  return `${h}:${m} ${ap}`;
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatFullDate(iso) {
@@ -94,30 +90,61 @@ export default function PublicBookingPage() {
   async function fetchSlotsForDate(date) {
     setSlotsLoading(true);
     setSelectedSlot(null);
-    const dateStr = date.toISOString().split('T')[0];
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+    const userTimezone = typeof window !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : null;
+
     try {
-      const res = await api.getAvailableSlots(slug, dateStr, schedulingLink?.user_uid).catch(() => ({ success: false }));
+      const res = await api.getAvailableSlots(slug, dateStr, schedulingLink?.user_uid, userTimezone).catch(() => ({ success: false }));
       if (res.success && res.slots) {
-        const futureSlots = res.slots.filter(s => new Date(s.start) > now);
-        setSlots(futureSlots);
+        const filtered = res.slots.filter(s => new Date(s.start) > now);
+        setSlots(filtered);
       } else {
+        // Fallback: generate slots locally using availability_rules windows
         const simulated = [];
-        const duration = schedulingLink?.duration || 15;
-        const isToday = date.toDateString() === now.toDateString();
-        const baseHour = isToday ? Math.max(now.getHours() + 1, 9) : 9;
-        let slot = 0;
-        for (let i = 0; i < 12 && slot < 8; i++) {
-          const startMins = i * (duration + 10);
-          const startHour = baseHour + Math.floor(startMins / 60);
-          const startMin  = startMins % 60;
-          if (startHour >= 18) break;
-          const startDate = new Date(date);
-          startDate.setHours(startHour, startMin, 0, 0);
-          if (startDate <= now) continue;
-          const endDate = new Date(startDate);
-          endDate.setMinutes(startDate.getMinutes() + duration);
-          simulated.push({ start: startDate.toISOString(), end: endDate.toISOString() });
-          slot++;
+        const duration = parseInt(schedulingLink?.duration, 10) || 15;
+        const buffer   = parseInt(schedulingLink?.buffer_time, 10) || 0;
+        const step     = duration + buffer;
+        const rules    = schedulingLink?.availability_rules;
+        const days     = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+        const dayName  = days[date.getDay()];
+        const windows  = rules?.[dayName];
+
+        if (windows && windows.length > 0) {
+          for (const w of windows) {
+            const [startH, startM] = w.start.split(':').map(Number);
+            const [endH,   endM  ] = w.end.split(':').map(Number);
+            let cur = startH * 60 + startM;
+            const endMins = endH * 60 + endM;
+            while (cur + duration <= endMins) {
+              const startDate = new Date(date);
+              startDate.setHours(Math.floor(cur / 60), cur % 60, 0, 0);
+              if (startDate > now) {
+                const endDate = new Date(startDate);
+                endDate.setMinutes(startDate.getMinutes() + duration);
+                simulated.push({ start: startDate.toISOString(), end: endDate.toISOString() });
+              }
+              cur += step;
+            }
+          }
+        } else {
+          // No rules at all — fall back to generic 9-17 window
+          const isToday = date.toDateString() === now.toDateString();
+          const baseHour = isToday ? Math.max(now.getHours() + 1, 9) : 9;
+          for (let i = 0; i < 16; i++) {
+            const totalMins = i * step;
+            const h = baseHour + Math.floor(totalMins / 60);
+            const m = totalMins % 60;
+            if (h >= 17) break;
+            const startDate = new Date(date);
+            startDate.setHours(h, m, 0, 0);
+            if (startDate <= now) continue;
+            const endDate = new Date(startDate);
+            endDate.setMinutes(startDate.getMinutes() + duration);
+            simulated.push({ start: startDate.toISOString(), end: endDate.toISOString() });
+          }
         }
         setSlots(simulated);
       }
@@ -297,7 +324,7 @@ export default function PublicBookingPage() {
             )}
             <div className={styles.detailRow}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-              {schedulingLink?.timezone || 'Asia/Kolkata'}
+              {typeof window !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : (schedulingLink?.timezone || 'Asia/Kolkata')}
             </div>
           </div>
 

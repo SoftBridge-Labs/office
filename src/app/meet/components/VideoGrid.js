@@ -48,7 +48,7 @@ const getSharedAudioContext = () => {
   return sharedAudioCtx;
 };
 
-function VideoTile({ stream, name, avatar_url, isMuted, isVideoOff, isHandRaised, isScreenSharing, isLocal, isMini = false, isFeatured = false }) {
+function VideoTile({ stream, name, avatar_url, isMuted, isVideoOff, isHandRaised, isScreenSharing, isLocal, videoFilter = 'none', isMini = false, isFeatured = false }) {
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   // Robustly handle dynamic track bindings and autoplay
@@ -166,6 +166,7 @@ function VideoTile({ stream, name, avatar_url, isMuted, isVideoOff, isHandRaised
           width: '100%', height: '100%',
           objectFit: 'cover',
           transform: (isLocal && !isScreenSharing) ? 'scaleX(-1)' : 'none',
+          filter: 'none',
           opacity: isVideoOff ? 0 : 1,
           transition: 'opacity 0.3s'
         }}
@@ -256,7 +257,8 @@ export default function VideoGrid({
   videoActive,
   micActive,
   userProfile,
-  isLocalScreenSharing
+  isLocalScreenSharing,
+  videoFilter = 'none'
 }) {
   const [currentPage, setCurrentPage] = useState(0);
   const [activeSpeakerId, setActiveSpeakerId] = useState(null);

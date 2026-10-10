@@ -182,7 +182,7 @@ export const api = {
   }),
 
   // ─── SoftBridge Account ───────────────────────────────────────────────────
-  getAccount: (uid) => fetch(`https://api.softbridgelabs.in/softbridge/profile/${uid}`).then(r => r.json()),
+  getAccount: (uid) => request(`/softbridge/profile/${uid}`),
 
   // ─── Calendar Management ──────────────────────────────────────────────────
   createCalendar: (data) => request('/calendar/calendars', {
@@ -195,10 +195,21 @@ export const api = {
   }),
 
   // ─── Scheduling Links ─────────────────────────────────────────────────────
-  createOrUpdateSchedulingLink: (data) => request('/calendar/scheduling-links', {
-    method: 'POST',
-    body: JSON.stringify(data)
-  }),
+  createOrUpdateSchedulingLink: async (data) => {
+    const id = data.id || data._id;
+    if (id) {
+      // The backend does not have an explicit PUT/PATCH endpoint.
+      // Since bookings are tied to the 'slug', we can emulate an update
+      // by deleting the old link and recreating it.
+      await request(`/calendar/scheduling-links/${id}`, { method: 'DELETE' }).catch(() => {});
+      delete data.id;
+      delete data._id;
+    }
+    return request('/calendar/scheduling-links', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
   getSchedulingLinks: () => request('/calendar/scheduling-links'),
   deleteSchedulingLink: (id) => request(`/calendar/scheduling-links/${id}`, {
     method: 'DELETE'
@@ -442,6 +453,9 @@ export const api = {
     addMemberToChannel: (id, data) => request(`/workspace/ping/channels/${id}/members`, { method: 'POST', body: JSON.stringify(data) }),
     addMembersBulk: (id, data) => request(`/workspace/ping/channels/${id}/members/bulk`, { method: 'POST', body: JSON.stringify(data) }),
     
+    // Push Notifications
+    registerPushToken: (data) => request('/workspace/ping/notifications/tokens', { method: 'POST', body: JSON.stringify(data) }),
+
     // Messages
     getMessages: (channelId, params = {}) => {
       const q = new URLSearchParams(params).toString();

@@ -7,11 +7,14 @@ import TopNav from '@/app/components/TopNav';
 import DashboardCard from './DashboardCard';
 import styles from './home.module.css';
 
-const tools = [
+const allTools = [
+  ['Ping', 'Instant messaging', '/ping', 'indigo'],
   ['Meet', 'Focused video rooms', '/meet', 'teal'],
   ['Calendar', 'Plan the week', '/calendar', 'blue'],
   ['Tasks', 'Keep work moving', '/tasks', 'amber'],
   ['Docs', 'Write together', '/docs', 'coral'],
+  ['Whiteboard', 'Brainstorm ideas', '/whiteboard', 'pink'],
+  ['Booking', 'Share availability', '/booking', 'emerald'],
 ];
 
 function getGreeting(hour) {
@@ -25,6 +28,8 @@ export default function Home() {
   const [recent, setRecent] = useState([]);
   const [nextEvent, setNextEvent] = useState(null);
   const [taskSummary, setTaskSummary] = useState({ total: 0, dueToday: 0 });
+  const [recentApps, setRecentApps] = useState([]);
+  const [showAllTools, setShowAllTools] = useState(false);
   const [greeting, setGreeting] = useState('Good morning');
 
   useEffect(() => {
@@ -40,6 +45,21 @@ export default function Home() {
         const parsedUser = JSON.parse(savedUser);
         window.setTimeout(() => setUser(parsedUser), 0);
       } catch {}
+    }
+
+    try {
+      const storedApps = localStorage.getItem('sb_recent_apps');
+      if (storedApps) {
+        const parsed = JSON.parse(storedApps);
+        const mapped = parsed.map(name => allTools.find(t => t[0] === name)).filter(Boolean);
+        // Fill the rest with remaining tools if we have less than 4
+        const remaining = allTools.filter(t => !mapped.includes(t));
+        setRecentApps([...mapped, ...remaining].slice(0, 4));
+      } else {
+        setRecentApps(allTools.slice(0, 4));
+      }
+    } catch {
+      setRecentApps(allTools.slice(0, 4));
     }
     Promise.all([
       api.getDocs().catch(() => ({})),
@@ -68,7 +88,19 @@ export default function Home() {
     return () => window.clearInterval(clock);
   }, []);
 
+  const handleAppClick = (appName) => {
+    try {
+      let stored = [];
+      const raw = localStorage.getItem('sb_recent_apps');
+      if (raw) stored = JSON.parse(raw);
+      stored = [appName, ...stored.filter(n => n !== appName)].slice(0, 4);
+      localStorage.setItem('sb_recent_apps', JSON.stringify(stored));
+    } catch {}
+  };
+
   const firstName = user?.name?.split(' ')[0] || 'there';
+  const displayedTools = showAllTools ? allTools : recentApps;
+
   return <div className={styles.page}>
     <TopNav userProfile={user} isLoggedOut={!user} />
     <main className={styles.main}>
@@ -79,8 +111,11 @@ export default function Home() {
         <DashboardCard label="NEXT UP" title={nextEvent?.title || 'No upcoming events'} detail={nextEvent ? new Date(nextEvent.start_time || nextEvent.start || nextEvent.startTime).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : 'Your calendar is clear'} href="/calendar" tone="teal" />
         <DashboardCard label="OPEN TASKS" title={`${taskSummary.total} tasks`} detail={`${taskSummary.dueToday} due today · Keep the momentum`} href="/tasks" tone="amber" />
       </section>
-      <div className={styles.sectionTitle}><span>01</span><i /></div>
-      <section className={styles.tools}>{tools.map(([name, detail, href, tone]) => <Link key={name} href={href} className={`${styles.toolCard} ${styles[tone]}`}><strong>{name}</strong><span>{detail} <b aria-hidden="true">-&gt;</b></span></Link>)}</section>
+      <div className={styles.sectionTitle} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%' }}>
+        <div><span>01</span><i /> <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted, #94a3b8)', marginLeft: '0.5rem', fontWeight: 600 }}>{showAllTools ? 'All Apps' : 'Recently Explored'}</span></div>
+        <button onClick={() => setShowAllTools(!showAllTools)} style={{ background: 'none', border: 'none', color: 'var(--brand, #4f46e5)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>{showAllTools ? 'Show less' : 'Explore all apps'}</button>
+      </div>
+      <section className={styles.tools}>{displayedTools.map(([name, detail, href, tone]) => <Link onClick={() => handleAppClick(name)} key={name} href={href} className={`${styles.toolCard} ${styles[tone]}`}><strong>{name}</strong><span>{detail} <b aria-hidden="true">-&gt;</b></span></Link>)}</section>
       <div className={styles.sectionTitle}><span>02</span><i /></div>
       <section className={styles.recent}>{recent.length ? recent.map(item => <Link className={styles.recentItem} href={item.type === 'Document' ? `/doc/${item._id}` : item.type === 'Task' ? '/tasks' : '/whiteboard'} key={item._id}><strong>{item.title || 'Untitled work'}</strong><span>{item.type} · Recently updated</span></Link>) : <div className={styles.recentItem}><strong>No recent work yet</strong><span>Start with a document, task, or meeting.</span></div>}</section>
     </main>

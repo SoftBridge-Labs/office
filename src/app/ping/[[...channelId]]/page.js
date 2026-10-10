@@ -7,6 +7,7 @@ import PingMainChat from '../components/PingMainChat';
 import PingRightPanel from '../components/PingRightPanel';
 import PingModals from '../components/PingModals';
 import TopNav from '@/app/components/TopNav';
+import PushNotificationManager from '../components/PushNotificationManager';
 
 export default function PingPage() {
   const [userProfile, setUserProfile] = useState(null);
@@ -31,6 +32,7 @@ export default function PingPage() {
         </div>
       </div>
       <PingModals />
+      <PushNotificationManager />
     </PingProvider>
   );
 }

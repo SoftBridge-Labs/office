@@ -141,11 +141,12 @@ export default function MeetPage() {
           <VideoGrid
             remotePeerIds={remotePeerIds}
             remoteStreams={remoteStreams}
-            localStream={myStream}
+            localStream={conn.processedPreviewStream || myStream}
             videoActive={videoActive}
             micActive={micActive}
             userProfile={userProfile}
             isLocalScreenSharing={isScreenSharing}
+            videoFilter={conn.videoFilter}
           />
 
           {/* Floating Reactions */}

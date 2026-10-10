@@ -60,6 +60,7 @@ export default function SettingsModal({
   const [schedLoading, setSchedLoading] = useState(false);
   const [teamLoading, setTeamLoading] = useState(false);
   const [memberLoadingTeamId, setMemberLoadingTeamId] = useState(null);
+  const [showAllLinksModal, setShowAllLinksModal] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -80,10 +81,11 @@ export default function SettingsModal({
     setSchedVideoProvider, setCustomMeetUrl, setSchedMeetingType, setSelectedTeamId, setSelectedDepartmentId, setSchedMemberUids,
     setOverrideDate, setOverrideStart, setOverrideEnd,
     newTeamName = '', setNewTeamName, teamMemberUid = '', setTeamMemberUid, teamMemberRole = 'member', setTeamMemberRole,
+    editingSchedId = null, schedAvailRules = {}, setSchedAvailRules = () => {},
   } = data;
 
   const {
-    onAddCalendar, onDeleteCalendar, onAddSchedulingLink, onDeleteSched,
+    onAddCalendar, onDeleteCalendar, onAddSchedulingLink, onDeleteSched, onEditSched,
     onCreateTeam, onAddTeamMember, onRemoveTeamMember, onDeleteTeam,
     onAddOverride, onRemoveOverride
   } = handlers;
@@ -115,6 +117,61 @@ export default function SettingsModal({
     { id: 'booking', label: 'Booking Links', icon: 'link' },
     { id: 'teams', label: 'Teams & Orgs', icon: 'group' },
   ];
+
+  const renderLink = (link) => (
+    <div key={link.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', background: 'var(--bg-muted, #f8fafc)', border: '1px solid var(--border, #e2e8f0)', borderRadius: '8px' }}>
+      <div>
+        <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{link.title}</div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>/{link.slug} • {link.duration} mins</div>
+      </div>
+      <div style={{ display: 'flex', gap: '4px' }}>
+        <button
+          type="button"
+          title="Open in new tab"
+          onClick={() => window.open(`/booking/${link.slug}`, '_blank')}
+          style={{ border: 'none', background: 'none', color: 'var(--brand, #6366f1)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '4px' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-subtle, #eef2ff)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>open_in_new</span>
+        </button>
+        <button
+          type="button"
+          title="Copy link"
+          onClick={() => {
+            const url = window.location.origin + `/booking/${link.slug}`;
+            navigator.clipboard.writeText(url);
+            alert('Link copied to clipboard!');
+          }}
+          style={{ border: 'none', background: 'none', color: 'var(--text-secondary, #475569)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '4px' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover, #f1f5f9)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>content_copy</span>
+        </button>
+        <button
+          type="button"
+          title="Edit link"
+          onClick={() => { setShowAllLinksModal(false); onEditSched && onEditSched(link); }}
+          style={{ border: 'none', background: 'none', color: 'var(--text-secondary, #475569)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '4px' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover, #f1f5f9)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>edit</span>
+        </button>
+        <button
+          type="button"
+          title="Delete link"
+          onClick={() => onDeleteSched(link.id)}
+          style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '4px' }}
+          onMouseEnter={e => e.currentTarget.style.background = '#fee2e2'}
+          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>delete</span>
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div
@@ -193,50 +250,12 @@ export default function SettingsModal({
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', italic: true }}>No scheduling links configured.</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {schedulingLinks.map(link => (
-                      <div key={link.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', background: 'var(--bg-muted, #f8fafc)', border: '1px solid var(--border, #e2e8f0)', borderRadius: '8px' }}>
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{link.title}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>/{link.slug} • {link.duration} mins</div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '4px' }}>
-                          <button
-                            type="button"
-                            title="Open in new tab"
-                            onClick={() => window.open(`/booking/${link.slug}`, '_blank')}
-                            style={{ border: 'none', background: 'none', color: 'var(--brand, #6366f1)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '4px' }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'var(--brand-subtle, #eef2ff)'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>open_in_new</span>
-                          </button>
-                          <button
-                            type="button"
-                            title="Copy link"
-                            onClick={() => {
-                              const url = window.location.origin + `/booking/${link.slug}`;
-                              navigator.clipboard.writeText(url);
-                              alert('Link copied to clipboard!');
-                            }}
-                            style={{ border: 'none', background: 'none', color: 'var(--text-secondary, #475569)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '4px' }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover, #f1f5f9)'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>content_copy</span>
-                          </button>
-                          <button
-                            type="button"
-                            title="Delete link"
-                            onClick={() => onDeleteSched(link.id)}
-                            style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '4px' }}
-                            onMouseEnter={e => e.currentTarget.style.background = '#fee2e2'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>delete</span>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                    {schedulingLinks.slice(0, 3).map(renderLink)}
+                    {schedulingLinks.length > 3 && (
+                      <button type="button" onClick={() => setShowAllLinksModal(true)} style={{ marginTop: '0.5rem', background: 'var(--bg-muted)', border: '1px solid var(--border)', color: 'var(--text-primary)', padding: '0.65rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>
+                        View all {schedulingLinks.length} links
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -244,7 +263,12 @@ export default function SettingsModal({
               <hr style={{ border: 'none', borderTop: '1px solid var(--border, #e2e8f0)' }} />
 
               <form onSubmit={handleSchedSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <h4 style={{ fontSize: '0.95rem', fontWeight: 600 }}>Create Scheduling Link</h4>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 600 }}>{editingSchedId ? 'Update Scheduling Link' : 'Create Scheduling Link'}</h4>
+                  {editingSchedId && (
+                    <button type="button" onClick={() => onEditSched && onEditSched(null)} style={{ background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', fontSize: '0.8rem' }}>Cancel Edit</button>
+                  )}
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.4rem' }}>Link Slug</label>
@@ -324,6 +348,57 @@ export default function SettingsModal({
                   </div>
                 )}
 
+                {/* Availability Rules */}
+                <div style={{ background: 'var(--bg-muted, #f8fafc)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border, #e2e8f0)', marginTop: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.65rem', flexWrap: 'wrap' }}>
+                    <h5 style={{ fontWeight: 600, fontSize: '0.825rem', margin: 0 }}>Availability Hours</h5>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 600, background: 'var(--brand-subtle, #eef2ff)', color: 'var(--brand, #6366f1)', border: '1px solid var(--brand-border, #c7d2fe)', borderRadius: '20px', padding: '1px 8px' }}>
+                      {typeof window !== 'undefined'
+                        ? (() => {
+                            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                            const short = new Intl.DateTimeFormat('en', { timeZoneName: 'short' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value || tz;
+                            return `${tz} · Saved as ${short}`;
+                          })()
+                        : 'UTC · Saved as UTC'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
+                      <div key={day} style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.8rem' }}>
+                        <div style={{ width: '80px', textTransform: 'capitalize', fontWeight: 500 }}>{day}</div>
+                        <div style={{ flex: 1 }}>
+                          {(schedAvailRules[day] || []).map((slot, idx) => (
+                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                              <input type="time" style={{ ...inputStyle, padding: '0.2rem 0.4rem', width: 'auto' }} value={slot.start} onChange={e => {
+                                const newRules = { ...schedAvailRules };
+                                newRules[day][idx].start = e.target.value;
+                                setSchedAvailRules(newRules);
+                              }} />
+                              <span>-</span>
+                              <input type="time" style={{ ...inputStyle, padding: '0.2rem 0.4rem', width: 'auto' }} value={slot.end} onChange={e => {
+                                const newRules = { ...schedAvailRules };
+                                newRules[day][idx].end = e.target.value;
+                                setSchedAvailRules(newRules);
+                              }} />
+                              <button type="button" onClick={() => {
+                                const newRules = { ...schedAvailRules };
+                                newRules[day].splice(idx, 1);
+                                setSchedAvailRules(newRules);
+                              }} style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold' }}>×</button>
+                            </div>
+                          ))}
+                          <button type="button" onClick={() => {
+                            const newRules = { ...schedAvailRules };
+                            if (!newRules[day]) newRules[day] = [];
+                            newRules[day].push({ start: '09:00', end: '17:00' });
+                            setSchedAvailRules(newRules);
+                          }} style={{ fontSize: '0.75rem', color: 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>+ Add Hours</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Overrides form */}
                 <div style={{ background: 'var(--bg-muted, #f8fafc)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border, #e2e8f0)', marginTop: '0.5rem' }}>
                   <h5 style={{ fontWeight: 600, fontSize: '0.825rem', marginBottom: '0.5rem' }}>Date Overrides</h5>
@@ -358,7 +433,7 @@ export default function SettingsModal({
 
                 <button type="submit" disabled={schedLoading} style={{ alignSelf: 'flex-start', padding: '0.6rem 1.25rem', background: 'var(--text-primary, #0f172a)', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', opacity: schedLoading ? 0.7 : 1 }}>
                   {schedLoading && <Spinner />}
-                  Create Booking Link
+                  {editingSchedId ? 'Update Booking Link' : 'Create Booking Link'}
                 </button>
               </form>
             </div>
@@ -457,6 +532,20 @@ export default function SettingsModal({
 
         </div>
       </div>
+
+      {showAllLinksModal && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 3000, background: 'rgba(15, 23, 42, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', borderRadius: '16px' }}>
+          <div style={{ background: '#fff', width: '100%', maxWidth: '500px', maxHeight: '80vh', borderRadius: '12px', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)' }}>
+            <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border, #e2e8f0)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600 }}>All Scheduling Links ({schedulingLinks.length})</h4>
+              <button onClick={() => setShowAllLinksModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--text-muted)' }}>×</button>
+            </div>
+            <div style={{ padding: '1.25rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {schedulingLinks.map(renderLink)}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

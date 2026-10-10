@@ -192,9 +192,11 @@ export default function TopNav({ userProfile, isLoggedOut }) {
       </div>
 
       <div className="topnav-right-nav" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-        <Link href="/pricing" style={{ textDecoration: 'none', color: '#5f6368', fontWeight: 500, fontSize: '0.95rem' }}>
-          Pricing
-        </Link>
+        {(isLoggedOut || !userProfile || ['owner', 'admin'].includes(userProfile?.role || userProfile?.workspace_role)) && (
+          <Link href="/pricing" style={{ textDecoration: 'none', color: '#5f6368', fontWeight: 500, fontSize: '0.95rem' }}>
+            Pricing
+          </Link>
+        )}
         {!isLoggedOut && userProfile ? (
           <div style={{ position: 'relative' }} ref={menuRef}>
             <div 

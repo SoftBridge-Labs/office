@@ -1,5 +1,5 @@
-import React from 'react';
-import { C, IconBtn, PillBtn } from './ui';
+import React, { useRef } from 'react';
+import { C, IconBtn, PillBtn, VIDEO_FILTERS } from './ui';
 
 const reactions = [
   ['👍', 'thumb_up', 'Like'], ['👏', 'front_hand', 'Applause'], ['🎉', 'celebration', 'Celebrate'], ['❤️', 'favorite', 'Love'],
@@ -23,8 +23,13 @@ export default function ControlsBar({
   togglePanel,
   unreadCount,
   endCall,
-  isHostUser
+  isHostUser,
+  videoFilter,
+  setVideoFilter,
+  customBackgrounds = [],
+  addCustomBackground
 }) {
+  const backgroundInputRef = useRef(null);
   return (
     <div className="meet-controls-bar" style={{
       position: 'absolute', bottom: '1.25rem', left: '50%', transform: 'translateX(-50%)',
@@ -76,6 +81,24 @@ export default function ControlsBar({
       </div>
 
       <div style={{ width: 1, height: 28, background: C.border, marginLeft: 4, marginRight: 4 }} />
+
+      {/* Camera filters */}
+      <div style={{ position: 'relative' }}>
+        <IconBtn icon="auto_awesome" label="Camera filters" active={videoFilter !== 'none'} onClick={() => setVideoFilter(videoFilter === 'none' ? 'grayscale' : 'none')} />
+        {videoFilter !== 'none' && (
+          <div style={{ position: 'absolute', bottom: '110%', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '0.35rem', padding: '0.5rem', background: 'rgba(15,16,23,0.96)', border: `1px solid ${C.border}`, borderRadius: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}>
+            {[...VIDEO_FILTERS, ...customBackgrounds].map(filter => (
+              <button key={filter.id} title={filter.label} onClick={() => setVideoFilter(filter.id)} style={{ border: `1px solid ${videoFilter === filter.id ? C.accent : C.border}`, borderRadius: 8, padding: '0.35rem 0.5rem', background: videoFilter === filter.id ? 'rgba(79,126,247,0.2)' : 'transparent', color: C.text, cursor: 'pointer', fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
+                {filter.label}
+              </button>
+            ))}
+            <button title="Upload background" onClick={() => backgroundInputRef.current?.click()} style={{ border: `1px dashed ${C.accent}`, borderRadius: 8, padding: '0.35rem 0.5rem', background: 'transparent', color: C.accent, cursor: 'pointer', fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '0.85rem', verticalAlign: 'middle' }}>upload</span> Upload
+            </button>
+            <input ref={backgroundInputRef} type="file" accept="image/*" hidden onChange={event => { addCustomBackground?.(event.target.files?.[0]); event.target.value = ''; }} />
+          </div>
+        )}
+      </div>
 
       {/* Participants */}
       <PillBtn icon="group" label={`Participants${remotePeerIds.length > 0 ? ` (${remotePeerIds.length + 1})` : ''}`} active={activePanel === 'participants'} onClick={() => togglePanel('participants')} />

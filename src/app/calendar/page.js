@@ -97,6 +97,12 @@ export default function CalendarPage() {
   const [overrideDate, setOverrideDate]         = useState('');
   const [overrideStart, setOverrideStart]       = useState('09:00');
   const [overrideEnd, setOverrideEnd]           = useState('17:00');
+  const [editingSchedId, setEditingSchedId]     = useState(null);
+  const [schedAvailRules, setSchedAvailRules]   = useState({
+    monday: [{start:'09:00',end:'17:00'}], tuesday: [{start:'09:00',end:'17:00'}],
+    wednesday: [{start:'09:00',end:'17:00'}], thursday: [{start:'09:00',end:'17:00'}],
+    friday: [{start:'09:00',end:'17:00'}], saturday: [], sunday: []
+  });
 
   // ── Teams form ────────────────────────────────────────────────────────────
   const [newTeamName, setNewTeamName]       = useState('');
@@ -368,11 +374,122 @@ export default function CalendarPage() {
     catch (err) { notify(err.message || 'Error', 'error'); }
   }
 
+  // ── Timezone conversion helpers ───────────────────────────────────────────
+  // getTimezoneOffset() returns (UTC - local) in minutes, e.g. IST → -330
+  function localTimeToUTC(timeStr) {
+    if (!timeStr) return timeStr;
+    const [h, m] = timeStr.split(':').map(Number);
+    const offset = new Date().getTimezoneOffset(); // UTC - local in minutes
+    const normalized = (((h * 60 + m) + offset) % 1440 + 1440) % 1440;
+    return `${String(Math.floor(normalized / 60)).padStart(2,'0')}:${String(normalized % 60).padStart(2,'0')}`;
+  }
+
+  function utcTimeToLocal(timeStr) {
+    if (!timeStr) return timeStr;
+    const [h, m] = timeStr.split(':').map(Number);
+    const offset = new Date().getTimezoneOffset(); // UTC - local in minutes
+    const normalized = (((h * 60 + m) - offset) % 1440 + 1440) % 1440;
+    return `${String(Math.floor(normalized / 60)).padStart(2,'0')}:${String(normalized % 60).padStart(2,'0')}`;
+  }
+
+  function convertRulesToLocal(rules) {
+    if (!rules) return {};
+    const out = {};
+    for (const [day, slots] of Object.entries(rules)) {
+      out[day] = (slots || []).map(s => ({ start: utcTimeToLocal(s.start), end: utcTimeToLocal(s.end) }));
+    }
+    return out;
+  }
+
+  function convertRulesToUTC(rules) {
+    if (!rules) return {};
+    const out = {};
+    for (const [day, slots] of Object.entries(rules)) {
+      if (slots && slots.length > 0)
+        out[day] = slots.map(s => ({ start: localTimeToUTC(s.start), end: localTimeToUTC(s.end) }));
+    }
+    return out;
+  }
+
+  function resetSchedForm() {
+    setEditingSchedId(null);
+    setSchedSlug(''); setSchedTitle(''); setSchedDesc(''); setSchedOverrides([]);
+    setSchedDuration(15); setSchedBuffer(5); setSchedLimit(5);
+    setSchedVideoProvider('softbridge-meet'); setCustomMeetUrl(''); setSchedMeetingType('one-on-one');
+    setSelectedTeamId(''); setSelectedDepartmentId(''); setSchedMemberUids('');
+    // Reset to local defaults (09:00-17:00 local → stored as UTC later on save)
+    setSchedAvailRules({
+      monday: [{start:'09:00',end:'17:00'}], tuesday: [{start:'09:00',end:'17:00'}],
+      wednesday: [{start:'09:00',end:'17:00'}], thursday: [{start:'09:00',end:'17:00'}],
+      friday: [{start:'09:00',end:'17:00'}], saturday: [], sunday: []
+    });
+  }
+
+  function handleEditSched(link) {
+    if (!link) {
+      resetSchedForm();
+      return;
+    }
+    setEditingSchedId(link.id || link._id);
+    setSchedSlug(link.slug || '');
+    setSchedTitle(link.title || '');
+    setSchedDesc(link.description || '');
+    setSchedDuration(link.duration || 15);
+    setSchedBuffer(link.buffer_time || 5);
+    setSchedLimit(link.daily_limit || 5);
+    setSchedVideoProvider(link.video_provider || 'softbridge-meet');
+    setCustomMeetUrl(link.meet_url || '');
+    setSchedMeetingType(link.meeting_type || 'one-on-one');
+    setSelectedTeamId(link.team_id || '');
+    setSelectedDepartmentId(link.department_id || '');
+    setSchedMemberUids(link.member_uids ? link.member_uids.join(', ') : '');
+    setSchedOverrides(link.availability_overrides || []);
+    if (link.availability_rules) {
+      // Times stored as local timezone — load as-is for display in the form
+      setSchedAvailRules({
+        monday:    link.availability_rules.monday    || [],
+        tuesday:   link.availability_rules.tuesday   || [],
+        wednesday: link.availability_rules.wednesday || [],
+        thursday:  link.availability_rules.thursday  || [],
+        friday:    link.availability_rules.friday    || [],
+        saturday:  link.availability_rules.saturday  || [],
+        sunday:    link.availability_rules.sunday    || []
+      });
+    }
+  }
+
   async function handleAddSchedulingLink(e) {
     e.preventDefault();
-    const payload = { slug: schedSlug, title: schedTitle, description: schedDesc, duration: +schedDuration, buffer_time: +schedBuffer, daily_limit: +schedLimit, video_provider: schedVideoProvider, meet_url: schedVideoProvider === 'google-meet' ? customMeetUrl : undefined, meeting_type: schedMeetingType, is_active: true, team_id: selectedTeamId || null, department_id: selectedDepartmentId || null, member_uids: schedMemberUids ? schedMemberUids.split(',').map(u => u.trim()) : [], availability_rules: { monday:[{start:'09:00',end:'17:00'}], tuesday:[{start:'09:00',end:'17:00'}], wednesday:[{start:'09:00',end:'17:00'}], thursday:[{start:'09:00',end:'17:00'}], friday:[{start:'09:00',end:'17:00'}] }, availability_overrides: schedOverrides };
-    if (isLoggedOut) { setSchedulingLinks(p => [...p, { id: `mock-s-${Date.now()}`, ...payload }]); setSchedSlug(''); setSchedTitle(''); return; }
-    try { const r = await api.createOrUpdateSchedulingLink(payload); if (r.success && r.schedulingLink) { setSchedulingLinks(p => [...p, r.schedulingLink]); notify('Scheduling link created', 'success'); setSchedSlug(''); setSchedTitle(''); setSchedDesc(''); setSchedOverrides([]); } }
+    // Store rules as-is in local timezone — no UTC conversion
+    const localRules = {};
+    for (const [day, slots] of Object.entries(schedAvailRules)) {
+      if (slots && slots.length > 0) localRules[day] = slots;
+    }
+    const userTimezone = typeof window !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC';
+    const payload = { slug: schedSlug, title: schedTitle, description: schedDesc, duration: +schedDuration, buffer_time: +schedBuffer, daily_limit: +schedLimit, video_provider: schedVideoProvider, meet_url: schedVideoProvider === 'google-meet' ? customMeetUrl : undefined, meeting_type: schedMeetingType, is_active: true, team_id: selectedTeamId || null, department_id: selectedDepartmentId || null, member_uids: schedMemberUids ? schedMemberUids.split(',').map(u => u.trim()) : [], availability_rules: localRules, availability_overrides: schedOverrides, timezone: userTimezone };
+    if (editingSchedId) payload.id = editingSchedId;
+
+    if (isLoggedOut) { 
+      if (editingSchedId) {
+        setSchedulingLinks(p => p.map(s => s.id === editingSchedId ? { ...s, ...payload } : s));
+      } else {
+        setSchedulingLinks(p => [...p, { id: `mock-s-${Date.now()}`, ...payload }]); 
+      }
+      resetSchedForm();
+      return; 
+    }
+    try { 
+      const r = await api.createOrUpdateSchedulingLink(payload); 
+      if (r.success && r.schedulingLink) { 
+        if (editingSchedId) {
+          setSchedulingLinks(p => p.map(s => s.id === editingSchedId ? r.schedulingLink : s));
+        } else {
+          setSchedulingLinks(p => [...p, r.schedulingLink]); 
+        }
+        notify('Scheduling link saved', 'success'); 
+        resetSchedForm();
+      } 
+    }
     catch (err) { notify(err.message || 'Error', 'error'); }
   }
 
@@ -540,8 +657,9 @@ export default function CalendarPage() {
           setSchedVideoProvider, setCustomMeetUrl, setSchedMeetingType, setSelectedTeamId, setSelectedDepartmentId, setSchedMemberUids,
           setOverrideDate, setOverrideStart, setOverrideEnd,
           newTeamName, setNewTeamName, teamMemberUid, setTeamMemberUid, teamMemberRole, setTeamMemberRole,
+          editingSchedId, schedAvailRules, setSchedAvailRules,
         }}
-        handlers={{ onAddCalendar: handleAddCalendar, onDeleteCalendar: handleDeleteCalendar, onAddSchedulingLink: handleAddSchedulingLink, onDeleteSched: handleDeleteSched, onCreateTeam: handleCreateTeam, onAddTeamMember: handleAddTeamMember, onRemoveTeamMember: handleRemoveTeamMember, onDeleteTeam: handleDeleteTeam, onAddOverride: handleAddOverride, onRemoveOverride: handleRemoveOverride }}
+        handlers={{ onAddCalendar: handleAddCalendar, onDeleteCalendar: handleDeleteCalendar, onAddSchedulingLink: handleAddSchedulingLink, onDeleteSched: handleDeleteSched, onEditSched: handleEditSched, onCreateTeam: handleCreateTeam, onAddTeamMember: handleAddTeamMember, onRemoveTeamMember: handleRemoveTeamMember, onDeleteTeam: handleDeleteTeam, onAddOverride: handleAddOverride, onRemoveOverride: handleRemoveOverride }}
       />
       <ConfirmModal
         open={!!confirmDeleteId}
