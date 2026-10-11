@@ -6,62 +6,14 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 
 const NAV_ITEMS = [
-  {
-    label: 'Calendar', href: '/calendar',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-      </svg>
-    ),
-  },
-  {
-    label: 'Docs', href: '/docs',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-      </svg>
-    ),
-  },
-  {
-    label: 'Tasks', href: '/tasks',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-      </svg>
-    ),
-  },
-  {
-    label: 'Bookmarks', href: '/bookmarks',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
-      </svg>
-    ),
-  },
-  {
-    label: 'Whiteboard', href: '/whiteboard',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-      </svg>
-    ),
-  },
-  {
-    label: 'Meet', href: '/meet',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-      </svg>
-    ),
-  },
-  {
-    label: 'Ping', href: '/ping',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-      </svg>
-    ),
-  },
+  { label: 'Home', href: '/home', iconSrc: '/Icons/Home.png' },
+  { label: 'Calendar', href: '/calendar', iconSrc: '/Icons/Calender.png' },
+  { label: 'Docs', href: '/docs', iconSrc: '/Icons/Docs.png' },
+  { label: 'Tasks', href: '/tasks', iconSrc: '/Icons/Tasks.png' },
+  { label: 'Bookmarks', href: '/bookmarks', iconSrc: '/Icons/Bookmark.png' },
+  { label: 'Whiteboard', href: '/whiteboard', iconSrc: '/Icons/Whiteboard.png' },
+  { label: 'Meet', href: '/meet', iconSrc: '/Icons/Meet.png' },
+  { label: 'Ping', href: '/ping', iconSrc: '/Icons/Ping.png' },
 ];
 
 export default function Sidebar({ userProfile, isLoggedOut }) {
@@ -104,9 +56,11 @@ export default function Sidebar({ userProfile, isLoggedOut }) {
     <aside style={s.aside}>
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', padding: '0 0.25rem' }}>
-        <div style={{ color: '#1a73e8', display: 'flex', alignItems: 'center', padding: '4px', background: 'rgba(26, 115, 232, 0.1)', borderRadius: '8px' }}>
-          {currentApp.icon || (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div style={{ color: '#1a73e8', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', padding: '2px', background: 'rgba(26, 115, 232, 0.08)', borderRadius: '8px' }}>
+          {currentApp.iconSrc ? (
+            <img src={currentApp.iconSrc} alt="" width="20" height="20" style={{ objectFit: 'contain' }} />
+          ) : currentApp.icon || (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
             </svg>
           )}
@@ -137,7 +91,11 @@ export default function Sidebar({ userProfile, isLoggedOut }) {
                 onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)'; } }}
                 onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; } }}
               >
-                <span style={{ opacity: active ? 1 : 0.7 }}>{item.icon}</span>
+                {item.iconSrc ? (
+                  <img src={item.iconSrc} alt="" width="18" height="18" style={{ objectFit: 'contain', flexShrink: 0, opacity: active ? 1 : 0.8 }} />
+                ) : (
+                  <span style={{ opacity: active ? 1 : 0.7 }}>{item.icon}</span>
+                )}
                 {item.label}
               </Link>
             );

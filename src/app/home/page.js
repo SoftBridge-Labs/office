@@ -8,13 +8,13 @@ import DashboardCard from './DashboardCard';
 import styles from './home.module.css';
 
 const allTools = [
-  ['Ping', 'Instant messaging', '/ping', 'indigo'],
-  ['Meet', 'Focused video rooms', '/meet', 'teal'],
-  ['Calendar', 'Plan the week', '/calendar', 'blue'],
-  ['Tasks', 'Keep work moving', '/tasks', 'amber'],
-  ['Docs', 'Write together', '/docs', 'coral'],
-  ['Whiteboard', 'Brainstorm ideas', '/whiteboard', 'pink'],
-  ['Booking', 'Share availability', '/booking', 'emerald'],
+  ['Ping', 'Instant messaging', '/ping', 'indigo', '/Icons/Ping.png'],
+  ['Meet', 'Focused video rooms', '/meet', 'teal', '/Icons/Meet.png'],
+  ['Calendar', 'Plan the week', '/calendar', 'blue', '/Icons/Calender.png'],
+  ['Tasks', 'Keep work moving', '/tasks', 'amber', '/Icons/Tasks.png'],
+  ['Docs', 'Write together', '/docs', 'coral', '/Icons/Docs.png'],
+  ['Whiteboard', 'Brainstorm ideas', '/whiteboard', 'pink', '/Icons/Whiteboard.png'],
+  ['Bookmarks', 'Saved links', '/bookmarks', 'purple', '/Icons/Bookmark.png'],
 ];
 
 function getGreeting(hour) {
@@ -134,9 +134,12 @@ export default function Home() {
         <button onClick={() => setShowAllTools(!showAllTools)} style={{ background: 'none', border: 'none', color: 'var(--brand, #4f46e5)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>{showAllTools ? 'Show less' : 'Explore all apps'}</button>
       </div>
       <section className={styles.tools}>
-        {displayedTools.map(([name, detail, href, tone]) => (
+        {displayedTools.map(([name, detail, href, tone, iconSrc]) => (
           <Link onClick={() => handleAppClick(name)} key={name} href={href} className={`${styles.toolCard} ${styles[tone]}`}>
-            <strong>{name}</strong>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '6px' }}>
+              <strong>{name}</strong>
+              {iconSrc && <img src={iconSrc} alt={name} width="26" height="26" style={{ objectFit: 'contain' }} />}
+            </div>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
               {detail}
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

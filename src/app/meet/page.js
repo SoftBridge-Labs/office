@@ -315,9 +315,33 @@ export default function MeetLobbyPage() {
                         <div style={{ color: '#475569', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem' }}>Camera filter</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
                           {[...VIDEO_FILTERS, ...customBackgrounds].map(filter => (
-                            <button key={filter.id} onClick={() => setVideoFilter(filter.id)} style={{ padding: '0.45rem 0.65rem', borderRadius: 8, border: `1px solid ${videoFilter === filter.id ? '#4f46e5' : '#cbd5e1'}`, background: videoFilter === filter.id ? '#eef2ff' : '#fff', color: '#334155', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}>{filter.label}</button>
+                            <button
+                              key={filter.id}
+                              onClick={() => setVideoFilter(filter.id)}
+                              style={{
+                                padding: '0.45rem 0.65rem',
+                                borderRadius: 8,
+                                border: `1px solid ${videoFilter === filter.id ? '#4f46e5' : '#cbd5e1'}`,
+                                background: videoFilter === filter.id ? '#eef2ff' : '#fff',
+                                color: videoFilter === filter.id ? '#4338ca' : '#334155',
+                                cursor: 'pointer',
+                                fontSize: '0.78rem',
+                                fontWeight: 600,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem'
+                              }}
+                            >
+                              {filter.effect && filter.effect !== 'blur' ? (
+                                <img src={filter.effect} alt="" style={{ width: 15, height: 15, borderRadius: 3, objectFit: 'cover' }} />
+                              ) : filter.id === 'blur' ? (
+                                <span className="material-symbols-outlined" style={{ fontSize: '0.95rem' }}>blur_on</span>
+                              ) : null}
+                              {filter.label}
+                            </button>
                           ))}
-                          <button onClick={() => backgroundInputRef.current?.click()} style={{ padding: '0.45rem 0.65rem', borderRadius: 8, border: '1px dashed #4f46e5', background: '#fff', color: '#4f46e5', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}>
+                          <button onClick={() => backgroundInputRef.current?.click()} style={{ padding: '0.45rem 0.65rem', borderRadius: 8, border: '1px dashed #4f46e5', background: '#fff', color: '#4f46e5', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '0.95rem' }}>upload</span>
                             Upload background
                           </button>
                           <input ref={backgroundInputRef} type="file" accept="image/*" hidden onChange={event => { addCustomBackground(event.target.files?.[0]); event.target.value = ''; }} />

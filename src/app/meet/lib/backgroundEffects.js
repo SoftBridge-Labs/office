@@ -17,6 +17,56 @@ function loadSegmenterScript() {
   return segmenterScriptPromise;
 }
 
+const PRESET_BACKGROUNDS = {
+  office: '/backgrounds/Office.png',
+  garden: '/backgrounds/Garden.png',
+  home: '/backgrounds/Home.png',
+  sea: '/backgrounds/Sea.png',
+};
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    if (!src) return reject(new Error('No image source provided'));
+    const img = new Image();
+    if (src.startsWith('http://') || src.startsWith('https://')) {
+      img.crossOrigin = 'anonymous';
+    }
+    img.onload = () => resolve(img);
+    img.onerror = (e) => reject(new Error(`Failed to load background image: ${src}`));
+    img.src = src;
+    if (img.complete && img.naturalWidth > 0) {
+      resolve(img);
+    }
+  });
+}
+
+function drawCover(ctx, img, targetWidth, targetHeight) {
+  const imgWidth = img.naturalWidth || img.width;
+  const imgHeight = img.naturalHeight || img.height;
+  if (!imgWidth || !imgHeight) {
+    ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+    return;
+  }
+
+  const targetRatio = targetWidth / targetHeight;
+  const imgRatio = imgWidth / imgHeight;
+  let sWidth, sHeight, sx, sy;
+
+  if (imgRatio > targetRatio) {
+    sHeight = imgHeight;
+    sWidth = imgHeight * targetRatio;
+    sx = (imgWidth - sWidth) / 2;
+    sy = 0;
+  } else {
+    sWidth = imgWidth;
+    sHeight = imgWidth / targetRatio;
+    sx = 0;
+    sy = (imgHeight - sHeight) / 2;
+  }
+
+  ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, targetWidth, targetHeight);
+}
+
 export async function createBackgroundEffectStream(sourceStream, effect) {
   if (typeof window === 'undefined' || !sourceStream?.getVideoTracks().length || effect === 'none') {
     return { stream: sourceStream, stop: () => {} };
@@ -27,12 +77,16 @@ export async function createBackgroundEffectStream(sourceStream, effect) {
   video.muted = true;
   video.playsInline = true;
   video.autoplay = true;
-  await video.play();
+  try {
+    await video.play();
+  } catch {
+    // Autoplay policy or video play interrupted
+  }
 
   const canvas = document.createElement('canvas');
   canvas.width = 640;
   canvas.height = 360;
-  const context = canvas.getContext('2d', { alpha: false });
+  const context = canvas.getContext('2d');
   const foregroundCanvas = document.createElement('canvas');
   foregroundCanvas.width = canvas.width;
   foregroundCanvas.height = canvas.height;
@@ -54,11 +108,42 @@ export async function createBackgroundEffectStream(sourceStream, effect) {
   let frameId = null;
   let processing = false;
   let lastFrame = 0;
+
+  // Resolve effect string if it is an ID or preset
+  let resolvedEffect = effect;
+  if (typeof effect === 'string' && effect !== 'none' && effect !== 'blur') {
+    if (PRESET_BACKGROUNDS[effect]) {
+      resolvedEffect = PRESET_BACKGROUNDS[effect];
+    } else if (effect.startsWith('custom-')) {
+      try {
+        const stored = JSON.parse(localStorage.getItem('sb_meet_backgrounds') || '[]');
+        const found = stored.find(b => b.id === effect);
+        if (found?.effect) resolvedEffect = found.effect;
+      } catch {}
+    }
+  }
+
   let backgroundImage = null;
-  if (effect?.startsWith('/')) {
-    backgroundImage = new Image();
-    backgroundImage.src = effect;
-    await backgroundImage.decode();
+  const isImageEffect = Boolean(
+    resolvedEffect &&
+    resolvedEffect !== 'none' &&
+    resolvedEffect !== 'blur' &&
+    (
+      resolvedEffect.startsWith('/') ||
+      resolvedEffect.startsWith('data:image/') ||
+      resolvedEffect.startsWith('blob:') ||
+      resolvedEffect.startsWith('http://') ||
+      resolvedEffect.startsWith('https://') ||
+      /\.(png|jpe?g|webp|svg|gif)($|\?)/i.test(resolvedEffect)
+    )
+  );
+
+  if (isImageEffect) {
+    try {
+      backgroundImage = await loadImage(resolvedEffect);
+    } catch (err) {
+      console.warn('[Meet] Failed to load background image:', err);
+    }
   }
 
   const render = async timestamp => {
@@ -76,13 +161,20 @@ export async function createBackgroundEffectStream(sourceStream, effect) {
 
       context.save();
       context.clearRect(0, 0, canvas.width, canvas.height);
-      context.filter = effect === 'blur' ? 'blur(16px)' : 'none';
-      if (backgroundImage) context.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
-      else {
-        context.fillStyle = '#6f8d7b';
+      if (effect === 'blur') {
+        context.filter = 'blur(16px)';
+        context.drawImage(video, -16, -16, canvas.width + 32, canvas.height + 32);
+      } else if (backgroundImage) {
+        // Draw image keeping natural cover aspect ratio
+        drawCover(context, backgroundImage, canvas.width, canvas.height);
+      } else {
+        // Graceful dark studio gradient if loading or fallback
+        const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, '#1e293b');
+        gradient.addColorStop(1, '#0f172a');
+        context.fillStyle = gradient;
         context.fillRect(0, 0, canvas.width, canvas.height);
       }
-      if (effect === 'blur') context.drawImage(video, -16, -16, canvas.width + 32, canvas.height + 32);
       context.restore();
 
       foregroundContext.clearRect(0, 0, canvas.width, canvas.height);

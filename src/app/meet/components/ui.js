@@ -20,9 +20,10 @@ export const C = {
 export const VIDEO_FILTERS = [
   { id: 'none', label: 'Natural' },
   { id: 'blur', label: 'Blur background' },
-  { id: 'office', label: 'SoftBridge Office', effect: '/backgrounds/softbridge-office.svg' },
-  { id: 'library', label: 'Library', effect: '/backgrounds/softbridge-library.svg' },
-  { id: 'sunroom', label: 'Sunroom', effect: '/backgrounds/softbridge-sunroom.svg' },
+  { id: 'office', label: 'Office', effect: '/backgrounds/Office.png' },
+  { id: 'garden', label: 'Garden', effect: '/backgrounds/Garden.png' },
+  { id: 'home', label: 'Home', effect: '/backgrounds/Home.png' },
+  { id: 'sea', label: 'Sea', effect: '/backgrounds/Sea.png' },
 ];
 
 // ─── Reusable UI Atoms ───────────────────────────────────────────────────────

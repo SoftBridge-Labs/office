@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { C, IconBtn, PillBtn, VIDEO_FILTERS } from './ui';
 
 const reactions = [
@@ -29,6 +29,7 @@ export default function ControlsBar({
   customBackgrounds = [],
   addCustomBackground
 }) {
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
   const backgroundInputRef = useRef(null);
   return (
     <div className="meet-controls-bar" style={{
@@ -84,16 +85,38 @@ export default function ControlsBar({
 
       {/* Camera filters */}
       <div style={{ position: 'relative' }}>
-        <IconBtn icon="auto_awesome" label="Camera filters" active={videoFilter !== 'none'} onClick={() => setVideoFilter(videoFilter === 'none' ? 'grayscale' : 'none')} />
-        {videoFilter !== 'none' && (
-          <div style={{ position: 'absolute', bottom: '110%', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '0.35rem', padding: '0.5rem', background: 'rgba(15,16,23,0.96)', border: `1px solid ${C.border}`, borderRadius: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}>
+        <IconBtn icon="auto_awesome" label="Camera filters" active={showFilterMenu || videoFilter !== 'none'} onClick={() => setShowFilterMenu(prev => !prev)} />
+        {showFilterMenu && (
+          <div style={{ position: 'absolute', bottom: '110%', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '0.35rem', padding: '0.5rem', background: 'rgba(15,16,23,0.96)', border: `1px solid ${C.border}`, borderRadius: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.6)', zIndex: 100 }}>
             {[...VIDEO_FILTERS, ...customBackgrounds].map(filter => (
-              <button key={filter.id} title={filter.label} onClick={() => setVideoFilter(filter.id)} style={{ border: `1px solid ${videoFilter === filter.id ? C.accent : C.border}`, borderRadius: 8, padding: '0.35rem 0.5rem', background: videoFilter === filter.id ? 'rgba(79,126,247,0.2)' : 'transparent', color: C.text, cursor: 'pointer', fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
+              <button
+                key={filter.id}
+                title={filter.label}
+                onClick={() => { setVideoFilter(filter.id); }}
+                style={{
+                  border: `1px solid ${videoFilter === filter.id ? C.accent : C.border}`,
+                  borderRadius: 8,
+                  padding: '0.35rem 0.55rem',
+                  background: videoFilter === filter.id ? 'rgba(79,126,247,0.2)' : 'transparent',
+                  color: C.text,
+                  cursor: 'pointer',
+                  fontSize: '0.72rem',
+                  whiteSpace: 'nowrap',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem'
+                }}
+              >
+                {filter.effect && filter.effect !== 'blur' ? (
+                  <img src={filter.effect} alt="" style={{ width: 14, height: 14, borderRadius: 3, objectFit: 'cover' }} />
+                ) : filter.id === 'blur' ? (
+                  <span className="material-symbols-outlined" style={{ fontSize: '0.85rem' }}>blur_on</span>
+                ) : null}
                 {filter.label}
               </button>
             ))}
-            <button title="Upload background" onClick={() => backgroundInputRef.current?.click()} style={{ border: `1px dashed ${C.accent}`, borderRadius: 8, padding: '0.35rem 0.5rem', background: 'transparent', color: C.accent, cursor: 'pointer', fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '0.85rem', verticalAlign: 'middle' }}>upload</span> Upload
+            <button title="Upload background" onClick={() => backgroundInputRef.current?.click()} style={{ border: `1px dashed ${C.accent}`, borderRadius: 8, padding: '0.35rem 0.5rem', background: 'transparent', color: C.accent, cursor: 'pointer', fontSize: '0.7rem', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '0.85rem' }}>upload</span> Upload
             </button>
             <input ref={backgroundInputRef} type="file" accept="image/*" hidden onChange={event => { addCustomBackground?.(event.target.files?.[0]); event.target.value = ''; }} />
           </div>

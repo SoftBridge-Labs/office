@@ -19,14 +19,14 @@ export default function TopNav({ userProfile, isLoggedOut }) {
   const switcherRef = useRef(null);
 
   const NAV_ITEMS = [
-    { label: 'Home', href: '/home', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> },
-    { label: 'Ping', href: '/ping', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> },
-    { label: 'Docs', href: '/docs', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> },
-    { label: 'Calendar', href: '/calendar', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> },
-    { label: 'Meet', href: '/meet', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg> },
-    { label: 'Tasks', href: '/tasks', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> },
-    { label: 'Bookmarks', href: '/bookmarks', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> },
-    { label: 'Whiteboard', href: '/whiteboard', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> },
+    { label: 'Home', href: '/home', iconSrc: '/Icons/Home.png' },
+    { label: 'Ping', href: '/ping', iconSrc: '/Icons/Ping.png' },
+    { label: 'Docs', href: '/docs', iconSrc: '/Icons/Docs.png' },
+    { label: 'Calendar', href: '/calendar', iconSrc: '/Icons/Calender.png' },
+    { label: 'Meet', href: '/meet', iconSrc: '/Icons/Meet.png' },
+    { label: 'Tasks', href: '/tasks', iconSrc: '/Icons/Tasks.png' },
+    { label: 'Bookmarks', href: '/bookmarks', iconSrc: '/Icons/Bookmark.png' },
+    { label: 'Whiteboard', href: '/whiteboard', iconSrc: '/Icons/Whiteboard.png' },
   ];
 
   const currentApp = NAV_ITEMS.find(n => n.href !== '/' && pathname.startsWith(n.href)) || NAV_ITEMS[0];
@@ -135,8 +135,12 @@ export default function TopNav({ userProfile, isLoggedOut }) {
                 color: '#3c4043', transition: 'all 0.2s ease', cursor: 'pointer',
                 background: currentApp.label === app.label ? 'rgba(26, 115, 232, 0.08)' : 'transparent'
               }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.04)'} onMouseLeave={e => e.currentTarget.style.background = currentApp.label === app.label ? 'rgba(26, 115, 232, 0.08)' : 'transparent'}>
-                <div style={{ color: currentApp.label === app.label ? '#1a73e8' : '#5f6368', transform: 'scale(1.5)' }}>
-                  {app.icon}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }}>
+                  {app.iconSrc ? (
+                    <img src={app.iconSrc} alt={app.label} width="32" height="32" style={{ objectFit: 'contain' }} />
+                  ) : (
+                    app.icon
+                  )}
                 </div>
                 <span style={{ fontSize: '0.75rem', fontWeight: 500, color: currentApp.label === app.label ? '#1a73e8' : '#3c4043' }}>{app.label}</span>
               </Link>
@@ -145,8 +149,12 @@ export default function TopNav({ userProfile, isLoggedOut }) {
         )}
 
         <Link href={currentApp.href} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{ color: '#1a73e8', display: 'flex', alignItems: 'center', padding: '4px', background: 'rgba(26, 115, 232, 0.1)', borderRadius: '8px' }}>
-            {currentApp.icon}
+          <div style={{ color: '#1a73e8', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', padding: '4px', background: 'rgba(26, 115, 232, 0.08)', borderRadius: '8px' }}>
+            {currentApp.iconSrc ? (
+              <img src={currentApp.iconSrc} alt={currentApp.label} width="22" height="22" style={{ objectFit: 'contain' }} />
+            ) : (
+              currentApp.icon
+            )}
           </div>
           <span className="topnav-logo-text" style={{ fontSize: '1.3rem', fontWeight: 600, color: '#202124', letterSpacing: '-0.02em' }}>
             {currentApp.label}
