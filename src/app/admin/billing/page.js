@@ -75,58 +75,137 @@ export default function BillingPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
             <div style={{ padding: '1.5rem', backgroundColor: '#f8f9fa', borderRadius: '12px' }}>
               <div style={{ fontSize: '0.85rem', color: '#5f6368', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase' }}>Active Seats</div>
-              <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#202124' }}>{status.activeSeats}</div>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: '#5f6368', marginTop: '0.25rem' }}>₹{status.pricePerSeat}/month per seat (Total: ₹{status.activeSeats * status.pricePerSeat}/month)</p>
+              <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#202124' }}>
+                {status.activeSeats} <span style={{ fontSize: '1rem', fontWeight: 500, color: '#64748b' }}>/ {status.currentPlan === 'free' ? '10 max (Free)' : 'unlimited'}</span>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: '#5f6368', marginTop: '0.25rem' }}>
+                {status.currentPlan === 'free' ? 'Free Plan includes up to 10 user seats at ₹0' : `₹${status.pricePerSeat}/month per seat (Total: ₹${status.activeSeats * status.pricePerSeat}/month)`}
+              </p>
             </div>
             
             <div style={{ padding: '1.5rem', backgroundColor: '#eff6ff', borderRadius: '12px', border: '1px solid #bfdbfe' }}>
               <div style={{ fontSize: '0.85rem', color: '#2563eb', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase' }}>Available Balance</div>
-              <div style={{ fontSize: '1.8rem', fontWeight: 700, color: status.availableBalance > 0 ? '#1e40af' : '#dc2626' }}>
+              <div style={{ fontSize: '1.8rem', fontWeight: 700, color: status.availableBalance > 0 ? '#1e40af' : (status.currentPlan === 'free' ? '#0f172a' : '#dc2626') }}>
                 ₹{status.availableBalance}
               </div>
               <p style={{ margin: 0, fontSize: '0.8rem', color: '#3b82f6', marginTop: '0.25rem' }}>
-                {status.availableBalance > 0 ? `Covers ~${Math.floor(status.availableBalance / status.pricePerSeat)} seats` : 'Top up required to unlock operations'}
+                {status.currentPlan === 'free' ? 'Free plan active (no credits required for 10 seats)' : (status.availableBalance > 0 ? `Covers ~${Math.floor(status.availableBalance / status.pricePerSeat)} seats` : 'Top up required to unlock operations')}
               </p>
             </div>
           </div>
 
           <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #e2e8f0' }}>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>Subscription Plan</h3>
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-              <div style={{ flex: 1, padding: '1.5rem', border: '1px solid #e2e8f0', borderRadius: '12px', cursor: 'pointer', backgroundColor: status.currentPlan === 'monthly' ? '#eff6ff' : '#fff' }} onClick={() => setMsg({ text: 'You are currently on the Monthly plan (or it is selected).', type: 'success' })}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <h3 style={{ fontSize: '1.1rem', margin: 0 }}>Subscription Plan</h3>
+              <span style={{ fontSize: '0.8rem', padding: '0.3rem 0.75rem', borderRadius: '20px', fontWeight: 600, backgroundColor: status.currentPlan === 'free' ? '#f1f5f9' : '#dcfce7', color: status.currentPlan === 'free' ? '#475569' : '#166534', border: '1px solid #cbd5e1' }}>
+                Current Plan: {(status.currentPlan || 'free').toUpperCase()}
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+              {/* Free Plan */}
+              <div 
+                style={{ 
+                  padding: '1.5rem', 
+                  border: status.currentPlan === 'free' ? '2px solid #3b82f6' : '1px solid #e2e8f0', 
+                  borderRadius: '12px', 
+                  cursor: 'pointer', 
+                  backgroundColor: status.currentPlan === 'free' ? '#f8fafc' : '#fff',
+                  position: 'relative'
+                }}
+                onClick={() => setMsg({ text: 'Your workspace is currently operating on the Free Plan.', type: 'success' })}
+              >
+                {status.currentPlan === 'free' && (
+                  <span style={{ position: 'absolute', top: 12, right: 12, fontSize: '0.7rem', backgroundColor: '#e2e8f0', color: '#334155', padding: '0.15rem 0.45rem', borderRadius: '8px', fontWeight: 600 }}>ACTIVE</span>
+                )}
+                <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#1e293b' }}>Free Plan</h4>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.5rem 0', color: '#0f172a' }}>₹0<span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500 }}>/forever</span></div>
+                <p style={{ margin: '0 0 1rem 0', fontSize: '0.82rem', color: '#64748b' }}>For growing teams getting started.</p>
+                <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.8rem', color: '#475569', lineHeight: 1.6 }}>
+                  <li><b>1</b> active booking link</li>
+                  <li><b>2</b> teams / departments</li>
+                  <li><b>10</b> free user seats</li>
+                  <li>Ping 5MB upload limit</li>
+                  <li>15-day Ping chat history</li>
+                  <li>Standard workspace access</li>
+                </ul>
+              </div>
+
+              {/* Monthly Plan */}
+              <div 
+                style={{ 
+                  padding: '1.5rem', 
+                  border: status.currentPlan === 'monthly' ? '2px solid #2563eb' : '1px solid #e2e8f0', 
+                  borderRadius: '12px', 
+                  cursor: 'pointer', 
+                  backgroundColor: status.currentPlan === 'monthly' ? '#eff6ff' : '#fff',
+                  position: 'relative'
+                }} 
+                onClick={handleRazorpay}
+              >
+                {status.currentPlan === 'monthly' && (
+                  <span style={{ position: 'absolute', top: 12, right: 12, fontSize: '0.7rem', backgroundColor: '#dbeafe', color: '#1d4ed8', padding: '0.15rem 0.45rem', borderRadius: '8px', fontWeight: 600 }}>ACTIVE</span>
+                )}
                 <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#1e293b' }}>Monthly Plan</h4>
                 <div style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.5rem 0', color: '#2563eb' }}>₹{status.monthlyPricePerSeat || 499}<span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500 }}>/seat/mo</span></div>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Billed monthly per active user.</p>
+                <p style={{ margin: '0 0 1rem 0', fontSize: '0.82rem', color: '#64748b' }}>Billed monthly per active user.</p>
+                <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.8rem', color: '#475569', lineHeight: 1.6 }}>
+                  <li>Unlimited booking links</li>
+                  <li>Unlimited teams & departments</li>
+                  <li>Unlimited seats</li>
+                  <li>Full 100MB Ping file uploads</li>
+                  <li>Unlimited chat history</li>
+                  <li>Premium workspace access</li>
+                </ul>
               </div>
-              <div style={{ flex: 1, padding: '1.5rem', border: '1px solid #e2e8f0', borderRadius: '12px', cursor: 'pointer', backgroundColor: status.currentPlan === 'yearly' ? '#eff6ff' : '#fff' }} onClick={async () => {
-                try {
-                  const res = await api.admin.createOneTimeOrder({ currency: 'INR', plan: 'yearly' });
-                  if (!res.order) throw new Error(res.message);
-                  const options = {
-                    key: (typeof window !== 'undefined' && window.__ENV__?.NEXT_PUBLIC_RAZORPAY_KEY_ID) || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-                    amount: res.order.amount,
-                    currency: 'INR',
-                    name: 'SoftBridge Workspace',
-                    description: `Yearly Subscription (${status.activeSeats} seats)`,
-                    order_id: res.order.id,
-                    handler: async (response) => {
-                      const vRes = await api.admin.verifyPayment({
-                        razorpay_order_id: response.razorpay_order_id,
-                        razorpay_payment_id: response.razorpay_payment_id,
-                        razorpay_signature: response.razorpay_signature,
-                        plan: 'yearly'
-                      });
-                      if (vRes.success) window.location.reload();
-                    }
-                  };
-                  const isLoaded = await loadRazorpay();
-                  if (!isLoaded) throw new Error('Failed to load payment gateway');
-                  new window.Razorpay(options).open();
-                } catch (e) { setMsg({ text: e.message, type: 'error' }); }
-              }}>
-                <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#1e293b' }}>Yearly Plan <span style={{ fontSize: '0.7rem', backgroundColor: '#dcfce7', color: '#166534', padding: '0.2rem 0.5rem', borderRadius: '12px', verticalAlign: 'middle', marginLeft: '0.5rem' }}>SAVE ~16%</span></h4>
-                <div style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.5rem 0', color: '#2563eb' }}>₹{status.yearlyPricePerSeat || 4999}<span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500 }}>/seat/yr</span></div>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Billed annually per active user.</p>
+
+              {/* Yearly Plan */}
+              <div 
+                style={{ 
+                  padding: '1.5rem', 
+                  border: status.currentPlan === 'yearly' ? '2px solid #16a34a' : '1px solid #e2e8f0', 
+                  borderRadius: '12px', 
+                  cursor: 'pointer', 
+                  backgroundColor: status.currentPlan === 'yearly' ? '#f0fdf4' : '#fff',
+                  position: 'relative'
+                }} 
+                onClick={async () => {
+                  try {
+                    const res = await api.admin.createOneTimeOrder({ currency: 'INR', plan: 'yearly' });
+                    if (!res.order) throw new Error(res.message);
+                    const options = {
+                      key: (typeof window !== 'undefined' && window.__ENV__?.NEXT_PUBLIC_RAZORPAY_KEY_ID) || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+                      amount: res.order.amount,
+                      currency: 'INR',
+                      name: 'SoftBridge Workspace',
+                      description: `Yearly Subscription (${status.activeSeats} seats)`,
+                      order_id: res.order.id,
+                      handler: async (response) => {
+                        const vRes = await api.admin.verifyPayment({
+                          razorpay_order_id: response.razorpay_order_id,
+                          razorpay_payment_id: response.razorpay_payment_id,
+                          razorpay_signature: response.razorpay_signature,
+                          plan: 'yearly'
+                        });
+                        if (vRes.success) window.location.reload();
+                      }
+                    };
+                    const isLoaded = await loadRazorpay();
+                    if (!isLoaded) throw new Error('Failed to load payment gateway');
+                    new window.Razorpay(options).open();
+                  } catch (e) { setMsg({ text: e.message, type: 'error' }); }
+                }}
+              >
+                <span style={{ position: 'absolute', top: 12, right: 12, fontSize: '0.7rem', backgroundColor: '#dcfce7', color: '#166534', padding: '0.15rem 0.45rem', borderRadius: '8px', fontWeight: 600 }}>SAVE ~16%</span>
+                <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#1e293b' }}>Yearly Plan</h4>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.5rem 0', color: '#16a34a' }}>₹{status.yearlyPricePerSeat || 4999}<span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500 }}>/seat/yr</span></div>
+                <p style={{ margin: '0 0 1rem 0', fontSize: '0.82rem', color: '#64748b' }}>Billed annually per active user.</p>
+                <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.8rem', color: '#475569', lineHeight: 1.6 }}>
+                  <li>All Monthly Plan benefits</li>
+                  <li>2 months free discount</li>
+                  <li>Priority onboarding & support</li>
+                  <li>Dedicated audit reports</li>
+                </ul>
               </div>
             </div>
           </div>

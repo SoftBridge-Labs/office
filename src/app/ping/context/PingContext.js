@@ -500,17 +500,21 @@ export function PingProvider({ children }) {
     }
   };
 
-  const handleInviteUser = async () => {
-    if (!selectedUser || !activeChannelId) return;
+  const handleInviteUser = async (targetUid) => {
+    const userToInvite = targetUid || selectedUser;
+    if (!userToInvite || !activeChannelId) return;
     try {
-      const res = await api.ping.addMemberToChannel(activeChannelId, { memberUid: selectedUser, role: 'member' });
+      const res = await api.ping.addMemberToChannel(activeChannelId, { memberUid: userToInvite, role: 'member' });
       if (res && res.success) {
         setChannels(prev => prev.map(c => (c._id === activeChannelId || c.id === activeChannelId) ? res.data : c));
-        alert('User invited successfully!');
-        setSelectedUser('');
+        alert('User added to channel successfully!');
+        if (!targetUid) setSelectedUser('');
+      } else {
+        alert(res?.error || 'Failed to add user to channel');
       }
     } catch (err) {
       console.error('Failed to invite user', err);
+      alert(err.message || 'Error inviting user to channel');
     }
   };
 

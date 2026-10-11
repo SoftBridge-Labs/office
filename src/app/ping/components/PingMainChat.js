@@ -333,7 +333,27 @@ export default function PingMainChat() {
   const handleFileSelect = (e, type) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
-    setPendingAttachments(prev => [...prev, ...files.map(file => ({ file, type, id: Date.now() + Math.random() }))]);
+
+    const MAX_FREE_SIZE = 5 * 1024 * 1024; // 5MB
+    const DISALLOWED_EXTS = ['exe', 'bat', 'sh', 'zip', 'tar', 'gz', 'rar', '7z', 'iso', 'bin', 'mp4', 'mov', 'avi', 'mkv', 'flv', 'wmv'];
+
+    const validFiles = [];
+    for (const file of files) {
+      if (file.size > MAX_FREE_SIZE) {
+        alert(`File "${file.name}" exceeds the 5MB upload limit. Upgrade your workspace plan for up to 100MB uploads.`);
+        continue;
+      }
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      if (type === 'video' || (ext && DISALLOWED_EXTS.includes(ext))) {
+        alert(`File format for "${file.name}" is not supported on the Free Plan. Upgrade your workspace to unlock all file types.`);
+        continue;
+      }
+      validFiles.push(file);
+    }
+
+    if (validFiles.length > 0) {
+      setPendingAttachments(prev => [...prev, ...validFiles.map(file => ({ file, type, id: Date.now() + Math.random() }))]);
+    }
     e.target.value = null;
   };
 

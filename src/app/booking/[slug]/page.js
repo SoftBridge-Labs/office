@@ -78,6 +78,12 @@ export default function PublicBookingPage() {
       if (res.success && res.schedulingLink) {
         setSchedulingLink(res.schedulingLink);
         setOwner(res.owner || { name: 'SoftBridge Member', avatar_url: '' });
+        if (res.schedulingLink.title) {
+          setBookingTitle(res.schedulingLink.title);
+        }
+        if (res.schedulingLink.description) {
+          setBookingDesc(res.schedulingLink.description);
+        }
       } else {
         setSchedulingLink({ id: 'mock', slug, title: slug === '30-min-chat' ? 'Product Deep-dive' : 'Quick 15 Minute Sync', duration: slug === '30-min-chat' ? 30 : 15, description: 'A brief sync for discussing design options or integration scope.', timezone: 'Asia/Kolkata' });
         setOwner({ name: 'SoftBridge', avatar_url: '' });

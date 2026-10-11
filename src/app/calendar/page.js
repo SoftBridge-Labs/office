@@ -466,7 +466,7 @@ export default function CalendarPage() {
       if (slots && slots.length > 0) localRules[day] = slots;
     }
     const userTimezone = typeof window !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC';
-    const payload = { slug: schedSlug, title: schedTitle, description: schedDesc, duration: +schedDuration, buffer_time: +schedBuffer, daily_limit: +schedLimit, video_provider: schedVideoProvider, meet_url: schedVideoProvider === 'google-meet' ? customMeetUrl : undefined, meeting_type: schedMeetingType, is_active: true, team_id: selectedTeamId || null, department_id: selectedDepartmentId || null, member_uids: schedMemberUids ? schedMemberUids.split(',').map(u => u.trim()) : [], availability_rules: localRules, availability_overrides: schedOverrides, timezone: userTimezone };
+    const payload = { slug: schedSlug, title: schedTitle, description: schedDesc, duration: +schedDuration, buffer_time: +schedBuffer, daily_limit: +schedLimit, video_provider: schedVideoProvider, meet_url: (schedVideoProvider === 'custom' || schedVideoProvider === 'google-meet') ? customMeetUrl : undefined, meeting_type: schedMeetingType, is_active: true, team_id: selectedTeamId || null, department_id: selectedDepartmentId || null, member_uids: schedMemberUids ? schedMemberUids.split(',').map(u => u.trim()) : [], availability_rules: localRules, availability_overrides: schedOverrides, timezone: userTimezone };
     if (editingSchedId) payload.id = editingSchedId;
 
     if (isLoggedOut) { 
