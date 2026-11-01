@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 
-export function GET(request) {
-  const origin = new URL(request.url).origin;
+export function GET() {
   const script = `(function () {
   var current = document.currentScript;
+  var widgetOrigin = current && current.src ? new URL(current.src, window.location.href).origin : window.location.origin;
   var organization = current && current.dataset.organizationId;
   var key = current && current.dataset.publicKey;
   var launcherStyle = current && current.dataset.launcherStyle || 'fab';
@@ -29,7 +29,7 @@ export function GET(request) {
   button.textContent = launcherStyle === 'sidebar' ? 'Support' : launcherStyle === 'bottom-bar' ? 'Need help? Contact support' : launcherStyle === 'inline' ? 'Contact support' : '?';
   var frame = document.createElement('iframe');
   frame.title = 'Customer support';
-  frame.src = ${JSON.stringify(origin + '/widget/tickets')} + '?organization=' + encodeURIComponent(organization) + '&key=' + encodeURIComponent(key) + '&title=' + encodeURIComponent(widgetTitle) + '&greeting=' + encodeURIComponent(widgetGreeting) + '&color=' + encodeURIComponent(widgetColor) + '&width=' + encodeURIComponent(widgetWidth) + '&radius=' + encodeURIComponent(widgetRadius) + '&icon=' + encodeURIComponent(widgetIcon);
+  frame.src = widgetOrigin + '/widget/tickets?organization=' + encodeURIComponent(organization) + '&key=' + encodeURIComponent(key) + '&title=' + encodeURIComponent(widgetTitle) + '&greeting=' + encodeURIComponent(widgetGreeting) + '&color=' + encodeURIComponent(widgetColor) + '&width=' + encodeURIComponent(widgetWidth) + '&radius=' + encodeURIComponent(widgetRadius) + '&icon=' + encodeURIComponent(widgetIcon);
   frame.style.cssText = 'display:none;position:fixed;right:24px;bottom:88px;width:min(' + Number(widgetWidth || 430) + 'px,calc(100vw - 32px));height:min(680px,calc(100vh - 112px));border:0;border-radius:' + Number(widgetRadius || 16) + 'px;box-shadow:0 18px 50px rgba(25,70,53,.22);z-index:2147483645;background:#f5f8f6';
   button.onclick = function () { frame.style.display = frame.style.display === 'none' ? 'block' : 'none'; };
   document.body.appendChild(frame);

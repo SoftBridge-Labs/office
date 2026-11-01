@@ -110,7 +110,7 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
   }, [loadTickets]);
 
   useEffect(() => {
-    if (tab !== 'settings') return;
+    if (tab !== 'settings' && tab !== 'automation') return;
     let active = true;
     const loadConfig = async () => {
       setConfigLoading(true);
@@ -118,7 +118,7 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
         const response = await api.getAiConfig();
         if (!active) return;
         const config = responseItem(response) || {};
-        if (!config.publicApiKey) {
+        if (tab === 'settings' && !config.publicApiKey) {
           const generatedResponse = await api.generateTicketApiKey();
           const generatedConfig = responseItem(generatedResponse) || {};
           config.publicApiKey = generatedResponse.apiKey || generatedConfig.publicApiKey;
