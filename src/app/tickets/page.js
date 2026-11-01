@@ -5,6 +5,7 @@ import Link from 'next/link';
 import TopNav from '@/app/components/TopNav';
 import WorkspaceGreeting from '@/app/components/WorkspaceGreeting';
 import { api } from '@/lib/api';
+import { connectTicketSocket } from '@/lib/ticketSocket';
 import styles from './tickets.module.css';
 
 const STATUSES = ['open', 'pending', 'resolved'];
@@ -90,6 +91,7 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [organizationName, setOrganizationName] = useState('Support');
 
   const loadTickets = useCallback(async () => {
     setLoading(true);
@@ -124,6 +126,7 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
           config.publicApiKey = generatedResponse.apiKey || generatedConfig.publicApiKey;
         }
         setPublicKey(config.publicApiKey || '');
+        setOrganizationName(config.organizationName || 'Support');
         setLauncherStyle(config.widgetLauncherStyle || 'fab');
         setWidgetTheme({
           title: config.widgetTitle || 'How can we help?',
@@ -149,6 +152,18 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
     loadConfig();
     return () => { active = false; };
   }, [tab]);
+
+  useEffect(() => {
+    if (!selected) return undefined;
+    return connectTicketSocket({
+      ticketId: ticketId(selected),
+      onEvent: event => {
+        if (event.message) setMessages(current => current.some(item => item._id === event.message._id) ? current : [...current, event.message]);
+        setSelected(current => current ? { ...current, status: event.status, updatedAt: event.updatedAt } : current);
+        loadTickets();
+      }
+    });
+  }, [selected, loadTickets]);
 
   const visibleTickets = useMemo(() => {
     const query = filters.search.trim().toLowerCase();
@@ -282,6 +297,7 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
       ['data-widget-width', widgetTheme.width],
       ['data-widget-radius', widgetTheme.radius],
       ['data-widget-icon', widgetTheme.icon]
+      ,['data-organization-name', organizationName]
     ].map(([name, value]) => `${name}="${String(value).replaceAll('"', '&quot;')}"`).join(' ');
     const snippet = `<script src="${window.location.origin}/widget/tickets.js" ${attributes}></script>`;
     await navigator.clipboard.writeText(snippet);
@@ -363,7 +379,7 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
           {selected ? <section className={styles.conversation}>
             <header className={styles.conversationHeader}><div className={styles.customerHeader}><div className={`${styles.avatar} ${styles.large}`}>{customerLabel(selected.customer).slice(0, 1).toUpperCase()}</div><div><h2>{customerLabel(selected.customer)}</h2><p>{customerEmail(selected.customer, selected.customerId)}</p></div></div><div className={styles.conversationActions}><select aria-label="Update ticket status" value={selected.status || 'open'} disabled={saving} onChange={event => updateTicket({ status: event.target.value })}><option value="open">Open</option><option value="pending">Pending</option><option value="resolved">Resolved</option></select><button title="Archive ticket" onClick={archiveSelected}><span className="material-symbols-outlined">archive</span></button></div></header>
             <div className={styles.subjectBar}><div><span className={styles.sectionKicker}>Ticket conversation</span><h2>{selected.subject || 'Ticket'}</h2></div><span className={`${styles.badge} ${styles[statusClass[selected.status] || 'open']}`}>{selected.priority || 'normal'} priority</span></div>
-            <div className={styles.messages}>{messages.length === 0 ? <div className={styles.emptyState}><span className="material-symbols-outlined">chat_bubble_outline</span><p>No messages yet</p></div> : messages.map((message, index) => <div key={message._id || message.id || index} className={`${styles.message} ${message.senderType === 'agent' ? styles.agentMessage : ''}`}><div className={styles.messageLabel}>{message.senderType === 'agent' ? 'You' : message.senderType || 'Customer'} {message.isInternal && <span>Internal note</span>}</div><div className={styles.messageBubble}>{message.body}</div></div>)}</div>
+            <div className={styles.messages}>{messages.length === 0 ? <div className={styles.emptyState}><span className="material-symbols-outlined">chat_bubble_outline</span><p>No messages yet</p></div> : messages.map((message, index) => <div key={message._id || message.id || index} className={`${styles.message} ${message.senderType === 'agent' || message.senderId === 'ai' ? styles.agentMessage : ''}`}><div className={styles.messageLabel}>{message.senderId === 'ai' ? 'AI support' : message.senderType === 'agent' ? 'You' : message.senderType || 'Customer'} {message.isInternal && <span>Internal note</span>}</div><div className={styles.messageBubble}>{message.body}</div></div>)}</div>
             <form className={styles.replyBox} onSubmit={sendReply}><textarea required rows="3" placeholder="Reply to customer..." value={reply} onChange={event => setReply(event.target.value)} /><div><span>↵ Send with Enter</span><button disabled={saving} className={styles.primaryButton} type="submit"><span className="material-symbols-outlined">send</span>Send reply</button></div></form>
           </section> : <section className={styles.noConversation}><span className="material-symbols-outlined">forum</span><h2>Select a conversation</h2><p>Choose a customer conversation from your inbox to read the thread and reply.</p></section>}
         </section>}

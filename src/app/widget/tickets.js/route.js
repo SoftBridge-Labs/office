@@ -13,6 +13,7 @@ export function GET() {
   var widgetWidth = current && current.dataset.widgetWidth || '430';
   var widgetRadius = current && current.dataset.widgetRadius || '16';
   var widgetIcon = current && current.dataset.widgetIcon || 'S';
+  var organizationName = current && current.dataset.organizationName || 'Support';
   if (!organization || !key) return;
   var button = document.createElement('button');
   button.type = 'button';
@@ -29,7 +30,7 @@ export function GET() {
   button.textContent = launcherStyle === 'sidebar' ? 'Support' : launcherStyle === 'bottom-bar' ? 'Need help? Contact support' : launcherStyle === 'inline' ? 'Contact support' : '?';
   var frame = document.createElement('iframe');
   frame.title = 'Customer support';
-  frame.src = widgetOrigin + '/widget/tickets?organization=' + encodeURIComponent(organization) + '&key=' + encodeURIComponent(key) + '&title=' + encodeURIComponent(widgetTitle) + '&greeting=' + encodeURIComponent(widgetGreeting) + '&color=' + encodeURIComponent(widgetColor) + '&width=' + encodeURIComponent(widgetWidth) + '&radius=' + encodeURIComponent(widgetRadius) + '&icon=' + encodeURIComponent(widgetIcon);
+  frame.src = widgetOrigin + '/widget/tickets?organization=' + encodeURIComponent(organization) + '&key=' + encodeURIComponent(key) + '&title=' + encodeURIComponent(widgetTitle) + '&greeting=' + encodeURIComponent(widgetGreeting) + '&color=' + encodeURIComponent(widgetColor) + '&width=' + encodeURIComponent(widgetWidth) + '&radius=' + encodeURIComponent(widgetRadius) + '&icon=' + encodeURIComponent(widgetIcon) + '&organizationName=' + encodeURIComponent(organizationName);
   frame.style.cssText = 'display:none;position:fixed;right:24px;bottom:88px;width:min(' + Number(widgetWidth || 430) + 'px,calc(100vw - 32px));height:min(680px,calc(100vh - 112px));border:0;border-radius:' + Number(widgetRadius || 16) + 'px;box-shadow:0 18px 50px rgba(25,70,53,.22);z-index:2147483645;background:#f5f8f6';
   button.onclick = function () { frame.style.display = frame.style.display === 'none' ? 'block' : 'none'; };
   document.body.appendChild(frame);

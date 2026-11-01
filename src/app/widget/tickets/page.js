@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
+import { connectTicketSocket } from '@/lib/ticketSocket';
 
 export default function TicketWidgetPage() {
   const searchParams = useSearchParams();
@@ -13,6 +14,7 @@ export default function TicketWidgetPage() {
   const color = searchParams.get('color') || '#287c68';
   const radius = Number(searchParams.get('radius')) || 16;
   const icon = searchParams.get('icon') || 'S';
+  const organizationName = searchParams.get('organizationName') || 'Support';
   const [form, setForm] = useState({ email: '', name: '', subject: '', description: '' });
   const [state, setState] = useState('idle');
   const [error, setError] = useState('');
@@ -41,6 +43,14 @@ export default function TicketWidgetPage() {
         }
       });
     return () => { active = false; };
+  }, [continuationId]);
+
+  useEffect(() => {
+    if (!continuationId) return undefined;
+    return connectTicketSocket({
+      continuationId,
+      onEvent: event => setConversation(current => current ? { ...current, status: event.status, updatedAt: event.updatedAt, messages: event.message ? [...(current.messages || []), event.message] : current.messages } : current)
+    });
   }, [continuationId]);
 
   const submit = async event => {
@@ -73,7 +83,8 @@ export default function TicketWidgetPage() {
     setError('');
     try {
       const response = await api.addPublicTicketMessage(continuationId, reply.trim());
-      setConversation(response?.data?.ticket || response?.data || response?.ticket || conversation);
+      const message = response?.data?.message || response?.data;
+      setConversation(current => current ? { ...current, messages: [...(current.messages || []), message] } : conversation);
       setReply('');
       setReplyState('sent');
     } catch (err) {
@@ -84,11 +95,11 @@ export default function TicketWidgetPage() {
 
   if (state === 'sent') {
     const messages = conversation?.messages || [];
-    return <main style={{ ...styles.shell, '--widget-color': color, '--widget-radius': `${radius}px` }}><div style={styles.brand}><span style={styles.brandMark}>{icon}</span>Support</div><div style={styles.success}><div style={{ ...styles.successIcon, color }}>✓</div><h1>Message received</h1><p>Thanks for reaching out. Our team will reply to you as soon as possible.</p>{messages.length > 0 && <div style={styles.messages}>{messages.map(message => <div key={message._id || message.id || `${message.createdAt}-${message.body}`} style={{ ...styles.message, ...(message.senderType === 'customer' ? styles.customerMessage : {}) }}><span>{message.body}</span></div>)}</div>}{continuationId && <form onSubmit={sendReply}><textarea style={styles.textarea} rows="3" placeholder="Add a reply..." value={reply} onChange={event => setReply(event.target.value)} /><button disabled={replyState === 'sending' || !reply.trim()} style={styles.submitButton}>{replyState === 'sending' ? 'Sending...' : 'Reply'} <span>→</span></button></form>}<button style={styles.outlineButton} onClick={() => { setState('idle'); setConversation(null); }}>Start another conversation</button></div></main>;
+    return <main style={{ ...styles.shell, '--widget-color': color, '--widget-radius': `${radius}px` }}><div style={styles.brand}><span style={styles.brandMark}>{icon}</span>{organizationName} Support</div><div style={styles.success}><div style={{ ...styles.successIcon, color }}>✓</div><h1>Message received</h1><p>AI support will respond first. A human will join when needed.</p>{messages.length > 0 && <div style={styles.messages}>{messages.map(message => <div key={message._id || message.id || `${message.createdAt}-${message.body}`} style={{ ...styles.message, ...(message.senderType === 'customer' ? styles.customerMessage : {}) }}><small>{message.senderType === 'customer' ? 'You' : message.senderId === 'ai' ? 'AI support' : 'Support'}</small><span>{message.body}</span></div>)}</div>}{continuationId && <form onSubmit={sendReply}><textarea style={styles.textarea} rows="3" placeholder="Add a reply..." value={reply} onChange={event => setReply(event.target.value)} /><button disabled={replyState === 'sending' || !reply.trim()} style={styles.submitButton}>{replyState === 'sending' ? 'Sending...' : 'Reply'} <span>→</span></button></form>}<button style={styles.outlineButton} onClick={() => { setState('idle'); setConversation(null); }}>Start another conversation</button></div></main>;
   }
 
   return <main style={{ ...styles.shell, '--widget-color': color, '--widget-radius': `${radius}px` }}>
-    <div style={styles.brand}><span style={styles.brandMark}>{icon}</span><span>Support</span><span style={styles.powered}>Powered by SoftBridge</span></div>
+    <div style={styles.brand}><span style={styles.brandMark}>{icon}</span><span>{organizationName} Support</span></div>
     <section style={styles.card}>
       <div style={styles.header}><div style={{ ...styles.avatar, background: color }}>{icon}</div><div><h1>{title}</h1><p>{greeting}</p></div></div>
       {error && <div style={styles.error}>{error}</div>}

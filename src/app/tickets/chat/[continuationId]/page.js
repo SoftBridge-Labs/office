@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
+import { connectTicketSocket } from '@/lib/ticketSocket';
 import styles from './chat.module.css';
 
 function getTicket(response) {
@@ -47,6 +48,11 @@ export default function TicketChatPage() {
     return () => window.clearTimeout(timer);
   }, [continuationId, loadTicket]);
 
+  useEffect(() => {
+    if (!continuationId) return undefined;
+    return connectTicketSocket({ continuationId, onEvent: () => loadTicket() });
+  }, [continuationId, loadTicket]);
+
   const sendReply = async event => {
     event.preventDefault();
     const body = reply.trim();
@@ -71,7 +77,7 @@ export default function TicketChatPage() {
       <header className={styles.header}>
         <Link href="/" className={styles.brand}>
           <span className={styles.brandMark}>S</span>
-          <span>SoftBridge Support</span>
+          <span>{ticket.organizationName || 'Support'} Support</span>
         </Link>
         {isCompanyUser && <Link href="/tickets" className={styles.workspaceLink}>Open Tickets workspace</Link>}
       </header>
@@ -98,7 +104,7 @@ export default function TicketChatPage() {
                 const isCustomer = message.senderType === 'customer';
                 return (
                   <article className={`${styles.message} ${isCustomer ? styles.customerMessage : ''}`} key={message._id || message.id || `${message.createdAt}-${message.body}`}>
-                    <div className={styles.messageMeta}>{isCustomer ? 'You' : message.senderType === 'system' ? 'System' : 'Support team'}</div>
+                    <div className={styles.messageMeta}>{isCustomer ? 'You' : message.senderId === 'ai' ? 'AI support' : message.senderType === 'system' ? 'System' : 'Support team'}</div>
                     <div className={styles.bubble}>{message.body}</div>
                   </article>
                 );
