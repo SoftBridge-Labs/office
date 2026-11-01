@@ -228,7 +228,7 @@ export default function TicketWidgetPage() {
           {!organizationId || !publicApiKey ? <small style={styles.configuration}>This support form has not been configured yet.</small> : null}
         </form>
         
-        {needsEscalation && <button style={styles.escalateButton} onClick={() => setNeedsEscalation(true)}>Talk to a human</button>}
+        <button style={styles.humanButton} onClick={() => setNeedsEscalation(true)}>Connect with Human</button>
       </div>
     </main>;
   }
@@ -318,6 +318,7 @@ const styles = {
   aiForm: { margin: '20px 0' },
   replyForm: { margin: '20px 0', padding: 15, background: '#fbfdfc', borderRadius: 12, border: '1px solid #dce7e2' },
   escalateButton: { marginTop: 16, padding: '10px 16px', border: '1px solid var(--widget-color)', borderRadius: 8, color: '#fff', background: 'var(--widget-color)', fontWeight: 700, fontSize: 12, cursor: 'pointer', width: '100%' },
+  humanButton: { marginTop: 12, padding: '10px 16px', border: '1px solid #cde2d8', borderRadius: 8, color: '#52635d', background: '#fff', fontWeight: 600, fontSize: 12, cursor: 'pointer', width: '100%', transition: 'all 0.2s' },
   backButton: { marginTop: 16, padding: '10px 16px', border: '1px solid #cde2d8', borderRadius: 8, color: 'var(--widget-color)', background: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', width: '100%' },
   outlineButton: { marginTop: 16, padding: '10px 16px', border: '1px solid #cde2d8', borderRadius: 8, color: 'var(--widget-color)', background: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', width: '100%' },
   submitButton: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, width: '100%', padding: 12, marginTop: 10, border: 0, borderRadius: 8, color: '#fff', background: 'var(--widget-color)', fontWeight: 800, fontSize: 12, cursor: 'pointer' },
