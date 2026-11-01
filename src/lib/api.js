@@ -381,6 +381,7 @@ export const api = {
 
   // ─── Ticketing ────────────────────────────────────────────────────────────
   getAiConfig: () => request('/api/v1/organizations/me/ai-config'),
+  getAiPrompts: () => request('/api/v1/organizations/me/ai-prompts'),
   generateTicketApiKey: () => request('/api/v1/organizations/me/api-key', { method: 'POST' }),
   updateAiConfig: (data) => request('/api/v1/organizations/me/ai-config', { method: 'PATCH', body: JSON.stringify(data) }),
   getTickets: (params = {}) => {
@@ -404,11 +405,28 @@ export const api = {
   getWebhookDeliveries: (limit = 50) => request(`/api/v1/webhooks/deliveries?limit=${Math.min(Math.max(Number(limit) || 50, 1), 100)}`),
   getEmailUsage: (limit = 50) => request(`/api/v1/billing/email-usage?limit=${Math.min(Math.max(Number(limit) || 50, 1), 100)}`),
   createPingChannel: (data) => request('/api/v1/ping/channels', { method: 'POST', body: JSON.stringify(data) }),
-  createPublicTicket: (data, { organizationId, publicApiKey }) => publicRequest('/api/v1/public/tickets', {
-    method: 'POST',
-    headers: { 'x-organization-id': organizationId, 'x-ticket-public-key': publicApiKey },
-    body: JSON.stringify(data)
+  getPublicAiPrompts: ({ organizationId, publicApiKey }) => publicRequest('/api/v1/public/ai-prompts', {
+    headers: { 'x-organization-id': organizationId, 'x-ticket-public-key': publicApiKey }
   }),
+  createPublicTicket: (data, { organizationId, publicApiKey }) => {
+    if (!organizationId || !publicApiKey) throw new Error('Ticket widget is not configured.');
+    return publicRequest('/api/v1/public/tickets', {
+      method: 'POST',
+      headers: { 'x-organization-id': organizationId, 'x-ticket-public-key': publicApiKey },
+      body: JSON.stringify(data)
+    });
+  },
+  getPublicTicket: (continuationId) => {
+    if (!continuationId) throw new Error('A ticket continuation ID is required.');
+    return publicRequest(`/api/v1/public/tickets/chat/${encodeURIComponent(continuationId)}`);
+  },
+  addPublicTicketMessage: (continuationId, body) => {
+    if (!continuationId) throw new Error('A ticket continuation ID is required.');
+    return publicRequest(`/api/v1/public/tickets/chat/${encodeURIComponent(continuationId)}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ body })
+    });
+  },
 
   // ─── Workspace Whiteboards ────────────────────────────────────────────────
   getWhiteboards: () => request('/workspace/whiteboard').catch((e) => { if (e.status === 403) throw e; return { success: true, data: getLocal('whiteboards', []) }; }),

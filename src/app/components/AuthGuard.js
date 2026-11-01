@@ -11,7 +11,7 @@ export default function AuthGuard({ children }) {
 
   useEffect(() => {
     // List of paths that do not require authentication
-    const publicPaths = ['/', '/login', '/meet', '/api', '/booking', '/pricing', '/widget', '/services'];
+    const publicPaths = ['/', '/login', '/meet', '/api', '/booking', '/pricing', '/widget', '/services', '/tickets/chat'];
     const isPublic = publicPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
     const handleExpired = () => router.replace('/login');
 

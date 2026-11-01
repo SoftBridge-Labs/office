@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 
@@ -16,6 +16,33 @@ export default function TicketWidgetPage() {
   const [form, setForm] = useState({ email: '', name: '', subject: '', description: '' });
   const [state, setState] = useState('idle');
   const [error, setError] = useState('');
+  const [continuationId, setContinuationId] = useState(() => (
+    typeof window === 'undefined' ? '' : localStorage.getItem('sb_ticket_continuation_id') || ''
+  ));
+  const [conversation, setConversation] = useState(null);
+  const [reply, setReply] = useState('');
+  const [replyState, setReplyState] = useState('idle');
+
+  useEffect(() => {
+    if (!continuationId) return;
+    let active = true;
+    api.getPublicTicket(continuationId)
+      .then(response => {
+        if (active) {
+          setConversation(response?.data?.ticket || response?.data || response?.ticket || response);
+          setState('sent');
+        }
+      })
+      .catch(() => {
+        if (active) {
+          localStorage.removeItem('sb_ticket_continuation_id');
+          setContinuationId('');
+          setConversation(null);
+        }
+      });
+    return () => { active = false; };
+  }, [continuationId]);
+
   const submit = async event => {
     event.preventDefault();
     setState('sending');
@@ -24,7 +51,13 @@ export default function TicketWidgetPage() {
       const storageKey = 'sb_ticket_external_id';
       const externalId = localStorage.getItem(storageKey) || `web-${Math.random().toString(36).slice(2, 10)}`;
       localStorage.setItem(storageKey, externalId);
-      await api.createPublicTicket({ ...form, externalId }, { organizationId, publicApiKey });
+      const response = await api.createPublicTicket({ ...form, externalId }, { organizationId, publicApiKey });
+      const nextContinuationId = response?.continuationId || response?.data?.continuationId;
+      if (nextContinuationId) {
+        localStorage.setItem('sb_ticket_continuation_id', nextContinuationId);
+        setContinuationId(nextContinuationId);
+      }
+      setConversation(response?.data?.ticket || response?.data || response?.ticket || null);
       setState('sent');
       setForm({ email: '', name: '', subject: '', description: '' });
     } catch (err) {
@@ -33,8 +66,25 @@ export default function TicketWidgetPage() {
     }
   };
 
+  const sendReply = async event => {
+    event.preventDefault();
+    if (!continuationId || !reply.trim()) return;
+    setReplyState('sending');
+    setError('');
+    try {
+      const response = await api.addPublicTicketMessage(continuationId, reply.trim());
+      setConversation(response?.data?.ticket || response?.data || response?.ticket || conversation);
+      setReply('');
+      setReplyState('sent');
+    } catch (err) {
+      setError(err.message || 'We could not send your reply. Please try again.');
+      setReplyState('idle');
+    }
+  };
+
   if (state === 'sent') {
-    return <main style={{ ...styles.shell, '--widget-color': color, '--widget-radius': `${radius}px` }}><div style={styles.brand}><span style={styles.brandMark}>{icon}</span>Support</div><div style={styles.success}><div style={{ ...styles.successIcon, color }}>✓</div><h1>Message received</h1><p>Thanks for reaching out. Our team will reply to you as soon as possible.</p><button style={styles.outlineButton} onClick={() => setState('idle')}>Start another conversation</button></div></main>;
+    const messages = conversation?.messages || [];
+    return <main style={{ ...styles.shell, '--widget-color': color, '--widget-radius': `${radius}px` }}><div style={styles.brand}><span style={styles.brandMark}>{icon}</span>Support</div><div style={styles.success}><div style={{ ...styles.successIcon, color }}>✓</div><h1>Message received</h1><p>Thanks for reaching out. Our team will reply to you as soon as possible.</p>{messages.length > 0 && <div style={styles.messages}>{messages.map(message => <div key={message._id || message.id || `${message.createdAt}-${message.body}`} style={{ ...styles.message, ...(message.senderType === 'customer' ? styles.customerMessage : {}) }}><span>{message.body}</span></div>)}</div>}{continuationId && <form onSubmit={sendReply}><textarea style={styles.textarea} rows="3" placeholder="Add a reply..." value={reply} onChange={event => setReply(event.target.value)} /><button disabled={replyState === 'sending' || !reply.trim()} style={styles.submitButton}>{replyState === 'sending' ? 'Sending...' : 'Reply'} <span>→</span></button></form>}<button style={styles.outlineButton} onClick={() => { setState('idle'); setConversation(null); }}>Start another conversation</button></div></main>;
   }
 
   return <main style={{ ...styles.shell, '--widget-color': color, '--widget-radius': `${radius}px` }}>
@@ -72,6 +122,9 @@ const styles = {
   successIcon: { display: 'grid', placeItems: 'center', width: 48, height: 48, margin: '0 auto 16px', borderRadius: '50%', color: '#287c68', background: '#e5f5ed', fontSize: 22, fontWeight: 800 },
   outlineButton: { marginTop: 22, padding: '10px 13px', border: '1px solid #cde2d8', borderRadius: 7, color: '#287c68', background: '#fff', fontWeight: 700, fontSize: 11 },
   submitButton: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, width: '100%', padding: 12, border: 0, borderRadius: 8, color: '#fff', background: 'var(--widget-color)', fontWeight: 800, fontSize: 12 },
+  messages: { display: 'grid', gap: 8, margin: '20px 0', textAlign: 'left' },
+  message: { padding: '9px 11px', borderRadius: 10, color: '#52635d', background: '#f1f6f3', fontSize: 12 },
+  customerMessage: { color: '#fff', background: 'var(--widget-color)', justifySelf: 'end' },
   privacy: { display: 'block', marginTop: 11, color: '#9aa7a1', fontSize: 10, textAlign: 'center' },
   configuration: { display: 'block', marginTop: 11, color: '#ae7a2c', fontSize: 10, textAlign: 'center' }
 };
