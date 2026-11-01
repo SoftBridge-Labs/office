@@ -21,6 +21,7 @@ export default function TopNav({ userProfile, isLoggedOut }) {
   const NAV_ITEMS = [
     { label: 'Home', href: '/home', iconSrc: '/Icons/Home.png' },
     { label: 'Ping', href: '/ping', iconSrc: '/Icons/Ping.png' },
+    { label: 'Tickets', href: '/tickets', iconSrc: '/Icons/Tickets.png' },
     { label: 'Docs', href: '/docs', iconSrc: '/Icons/Docs.png' },
     { label: 'Calendar', href: '/calendar', iconSrc: '/Icons/Calender.png' },
     { label: 'Meet', href: '/meet', iconSrc: '/Icons/Meet.png' },

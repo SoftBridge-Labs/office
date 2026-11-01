@@ -13,7 +13,7 @@ export default function GlobalLayoutHelper() {
   const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => typeof window !== 'undefined' && sessionStorage.getItem('sb_mobile_dismissed') === 'true');
   const [dialog, setDialog] = useState(null); // { type, message, resolve }
 
   useEffect(() => {
@@ -74,12 +74,6 @@ export default function GlobalLayoutHelper() {
   }, [pathname]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setDismissed(sessionStorage.getItem('sb_mobile_dismissed') === 'true');
-    }
-  }, []);
-
-  useEffect(() => {
     // 1. Mobile Detection
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 1024); // Show notice under 1024px
@@ -127,7 +121,7 @@ export default function GlobalLayoutHelper() {
   return (
     <>
       {/* Professional Mobile Suggestion Banner */}
-      {isMobile && !dismissed && (
+      {isMobile && !dismissed && !pathname.startsWith('/widget') && (
         <div style={{
           position: 'fixed',
           top: 0,

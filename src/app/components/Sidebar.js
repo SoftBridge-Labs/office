@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { label: 'Whiteboard', href: '/whiteboard', iconSrc: '/Icons/Whiteboard.png' },
   { label: 'Meet', href: '/meet', iconSrc: '/Icons/Meet.png' },
   { label: 'Ping', href: '/ping', iconSrc: '/Icons/Ping.png' },
+  { label: 'Tickets', href: '/tickets', iconSrc: '/Icons/Tickets.png' },
 ];
 
 export default function Sidebar({ userProfile, isLoggedOut }) {

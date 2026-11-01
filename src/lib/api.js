@@ -82,6 +82,24 @@ async function request(endpoint, options = {}, hasRetried = false) {
   return data;
 }
 
+async function publicRequest(endpoint, options = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    ...options,
+    headers,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || data.message || `Request failed with status ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
 export const api = {
   // ─── Sheets CRUD Operations ───────────────────────────────────────────────
   getSheets: () => request('/workspace/forms/sheets/'),
@@ -360,6 +378,37 @@ export const api = {
   createTask: (data) => request('/workspace/tasks', { method: 'POST', body: JSON.stringify(data) }).catch((e) => { if (e.status === 403) throw e; return saveLocalItem('tasks', data); }),
   updateTask: (id, data) => request(`/workspace/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }).catch((e) => { if (e.status === 403) throw e; return updateLocalItem('tasks', id, data); }),
   deleteTask: (id) => request(`/workspace/tasks/${id}`, { method: 'DELETE' }).catch((e) => { if (e.status === 403) throw e; return deleteLocalItem('tasks', id); }),
+
+  // ─── Ticketing ────────────────────────────────────────────────────────────
+  getAiConfig: () => request('/api/v1/organizations/me/ai-config'),
+  generateTicketApiKey: () => request('/api/v1/organizations/me/api-key', { method: 'POST' }),
+  updateAiConfig: (data) => request('/api/v1/organizations/me/ai-config', { method: 'PATCH', body: JSON.stringify(data) }),
+  getTickets: (params = {}) => {
+    const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== '' && value !== null && value !== undefined)).toString();
+    return request(`/api/v1/tickets${query ? `?${query}` : ''}`);
+  },
+  getTicket: (id) => request(`/api/v1/tickets/${encodeURIComponent(id)}`),
+  createTicket: (data) => request('/api/v1/tickets', { method: 'POST', body: JSON.stringify(data) }),
+  updateTicket: (id, data) => request(`/api/v1/tickets/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  archiveTicket: (id) => request(`/api/v1/tickets/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  getTicketMessages: (id) => request(`/api/v1/tickets/${encodeURIComponent(id)}/messages`),
+  addTicketMessage: (id, data) => request(`/api/v1/tickets/${encodeURIComponent(id)}/messages`, { method: 'POST', body: JSON.stringify(data) }),
+  upsertCustomer: (data) => request('/api/v1/customers', { method: 'POST', body: JSON.stringify(data) }),
+  getCustomerTickets: (id) => request(`/api/v1/customers/${encodeURIComponent(id)}/tickets`),
+  registerPushToken: (data) => request('/api/v1/customers/push-tokens', { method: 'POST', body: JSON.stringify(data) }),
+  deflectWithAi: (data) => request('/api/v1/ai/deflect', { method: 'POST', body: JSON.stringify(data) }),
+  autoTriageTicket: (ticketId) => request('/api/v1/ai/auto-triage', { method: 'POST', body: JSON.stringify({ ticketId }) }),
+  summarizeTicket: (id) => request(`/api/v1/ai/summarize/${encodeURIComponent(id)}`, { method: 'POST' }),
+  createChatCompletion: (data) => request('/api/v1/chat/completions', { method: 'POST', body: JSON.stringify(data) }),
+  createWebhook: (data) => request('/api/v1/webhooks', { method: 'POST', body: JSON.stringify(data) }),
+  getWebhookDeliveries: (limit = 50) => request(`/api/v1/webhooks/deliveries?limit=${Math.min(Math.max(Number(limit) || 50, 1), 100)}`),
+  getEmailUsage: (limit = 50) => request(`/api/v1/billing/email-usage?limit=${Math.min(Math.max(Number(limit) || 50, 1), 100)}`),
+  createPingChannel: (data) => request('/api/v1/ping/channels', { method: 'POST', body: JSON.stringify(data) }),
+  createPublicTicket: (data, { organizationId, publicApiKey }) => publicRequest('/api/v1/public/tickets', {
+    method: 'POST',
+    headers: { 'x-organization-id': organizationId, 'x-ticket-public-key': publicApiKey },
+    body: JSON.stringify(data)
+  }),
 
   // ─── Workspace Whiteboards ────────────────────────────────────────────────
   getWhiteboards: () => request('/workspace/whiteboard').catch((e) => { if (e.status === 403) throw e; return { success: true, data: getLocal('whiteboards', []) }; }),
