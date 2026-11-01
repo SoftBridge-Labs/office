@@ -77,7 +77,7 @@ export default function TicketChatPage() {
       <header className={styles.header}>
         <Link href="/" className={styles.brand}>
           <span className={styles.brandMark}>S</span>
-          <span>{ticket.organizationName || 'Support'} Support</span>
+          <span>{ticket?.organizationName || 'Support'} Support</span>
         </Link>
         {isCompanyUser && <Link href="/tickets" className={styles.workspaceLink}>Open Tickets workspace</Link>}
       </header>
