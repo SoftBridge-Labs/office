@@ -6,6 +6,9 @@
   font-family: "DM Sans", sans-serif;
 }
 
+.watermark { margin-top: 24px; color: #8b9993; font-size: 11px; text-align: center; }
+.watermark a { color: #287c68; font-weight: 700; text-decoration: none; }
+
 .header {
   display: flex;
   align-items: center;

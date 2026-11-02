@@ -146,6 +146,7 @@ export default function TicketChatPage() {
             </form>
           </>
         )}
+        <div className={styles.watermark}>Powered by <a href="https://office.softbridgelabs.in/products/tickets" target="_blank" rel="noreferrer">Tickets by SoftBridge Labs</a></div>
       </section>
     </main>
   );

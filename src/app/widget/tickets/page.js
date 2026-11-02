@@ -17,6 +17,7 @@ export default function TicketWidgetPage() {
   const icon = searchParams.get('icon') || 'S';
   const organizationName = searchParams.get('organizationName') || 'Support';
     const supportBrand = organizationName && !/^support$/i.test(organizationName.trim()) ? `${organizationName.trim()} Support` : 'Support';
+    const watermark = <div style={styles.watermark}>Powered by <a href="https://office.softbridgelabs.in/products/tickets" target="_blank" rel="noreferrer">Tickets by SoftBridge Labs</a></div>;
   
   // AI Chat state
   const [aiMessages, setAiMessages] = useState([]);
@@ -43,28 +44,41 @@ export default function TicketWidgetPage() {
   useEffect(() => {
     if (!continuationId) return;
     let active = true;
-    api.getPublicTicket(continuationId)
-      .then(response => {
+    const loadConversation = async () => {
+      try {
+        const response = await api.getPublicTicket(continuationId);
         if (active) {
           setConversation(response?.data?.ticket || response?.data || response?.ticket || response);
           setState('sent');
         }
-      })
-      .catch(() => {
-        if (active) {
+      } catch (error) {
+        if (active && error.status === 404) {
           localStorage.removeItem('sb_ticket_continuation_id');
           setContinuationId('');
           setConversation(null);
         }
-      });
-    return () => { active = false; };
+      }
+    };
+    loadConversation();
+    const refreshTimer = window.setInterval(loadConversation, 4000);
+    return () => {
+      active = false;
+      window.clearInterval(refreshTimer);
+    };
   }, [continuationId]);
 
   useEffect(() => {
     if (!continuationId) return undefined;
     return connectTicketSocket({
       continuationId,
-      onEvent: event => setConversation(current => current ? { ...current, status: event.status, updatedAt: event.updatedAt, messages: event.message ? [...(current.messages || []), event.message] : current.messages } : current)
+      onEvent: event => setConversation(current => {
+        if (!current) return current;
+        const incomingMessage = event.message;
+        const messages = incomingMessage
+          ? [...(current.messages || []).filter(message => message._id !== incomingMessage._id && message.id !== incomingMessage.id), incomingMessage]
+          : current.messages;
+        return { ...current, ...event.ticket, status: event.status || event.ticket?.status || current.status, updatedAt: event.updatedAt || current.updatedAt, messages };
+      })
     });
   }, [continuationId]);
 
@@ -268,6 +282,7 @@ export default function TicketWidgetPage() {
         </form>
         
         <button style={styles.humanButton} onClick={openEscalation}>Connect with Human</button>
+        {watermark}
       </div>
     </main>;
   }
@@ -294,6 +309,7 @@ export default function TicketWidgetPage() {
         </form>
         
         <button style={styles.backButton} onClick={() => setNeedsEscalation(false)}>Back to chat</button>
+        {watermark}
       </div>
     </main>;
   }
@@ -331,6 +347,7 @@ export default function TicketWidgetPage() {
         </button>}
         
         <button style={styles.outlineButton} onClick={() => { setState('idle'); setConversation(null); setContinuationId(''); setAiMessages([]); setNeedsEscalation(false); }}>Start another conversation</button>
+        {watermark}
       </div>
     </main>;
   }
@@ -374,6 +391,7 @@ const styles = {
   humanButton: { marginTop: 12, padding: '10px 16px', border: '1px solid #cde2d8', borderRadius: 8, color: '#52635d', background: '#fff', fontWeight: 600, fontSize: 12, cursor: 'pointer', width: '100%', transition: 'all 0.2s' },
   backButton: { marginTop: 16, padding: '10px 16px', border: '1px solid #cde2d8', borderRadius: 8, color: 'var(--widget-color)', background: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', width: '100%' },
   outlineButton: { marginTop: 16, padding: '10px 16px', border: '1px solid #cde2d8', borderRadius: 8, color: 'var(--widget-color)', background: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', width: '100%' },
+  watermark: { marginTop: 24, color: '#8b9993', fontSize: 10, textAlign: 'center' },
   submitButton: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, width: '100%', padding: 12, marginTop: 10, border: 0, borderRadius: 8, color: '#fff', background: 'var(--widget-color)', fontWeight: 800, fontSize: 12, cursor: 'pointer' },
   privacy: { display: 'block', marginTop: 11, color: '#9aa7a1', fontSize: 10, textAlign: 'center' },
   configuration: { display: 'block', marginTop: 11, color: '#ae7a2c', fontSize: 10, textAlign: 'center' }

@@ -75,7 +75,8 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
     serviceDescription: '',
     kbContextSnippets: '',
     escalationPolicy: '',
-    triageGuidelines: ''
+    triageGuidelines: '',
+    emailNotificationsEnabled: true
   });
   const [publicKey, setPublicKey] = useState('');
   const [launcherStyle, setLauncherStyle] = useState('fab');
@@ -103,14 +104,14 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
       const assignedTo = filters.assignedTo === '__me__'
         ? (typeof window !== 'undefined' ? localStorage.getItem('sb_uid') || '' : '')
         : filters.assignedTo;
-      const response = await api.getTickets({ status: filters.status, priority: filters.priority, assignedTo, limit: 100, offset: 0 });
+      const response = await api.getTickets({ status: tab === 'archived' ? 'archived' : filters.status, priority: filters.priority, assignedTo, limit: 100, offset: 0 });
       setTickets(responseItems(response));
     } catch (err) {
       setError(err.message || 'Unable to load tickets.');
     } finally {
       setLoading(false);
     }
-  }, [filters.status, filters.priority, filters.assignedTo]);
+  }, [filters.status, filters.priority, filters.assignedTo, tab]);
 
   useEffect(() => {
     const timer = window.setTimeout(loadTickets, 0);
@@ -147,7 +148,8 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
           serviceDescription: config.serviceDescription || '',
           kbContextSnippets: (config.kbContextSnippets || []).join('\n'),
           escalationPolicy: config.escalationPolicy || '',
-          triageGuidelines: config.triageGuidelines || ''
+          triageGuidelines: config.triageGuidelines || '',
+          emailNotificationsEnabled: config.emailNotificationsEnabled !== false
         });
       } catch (err) {
         if (active) setError(err.message || 'Unable to load widget settings.');
@@ -192,7 +194,7 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
   const openTicket = async (ticket) => {
     setError('');
     try {
-      const response = await api.getTicket(ticketId(ticket));
+      const response = await api.getTicket(ticketId(ticket), { archived: tab === 'archived' });
       const detail = responseItem(response);
       setSelected(detail);
       setMessages(detail.messages || []);
@@ -227,7 +229,13 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
     if (!selected) return;
     setSaving(true);
     try {
-      const response = await api.updateTicket(ticketId(selected), updates);
+      const assignmentChanged = Object.prototype.hasOwnProperty.call(updates, 'assignedTo')
+        && updates.assignedTo
+        && updates.assignedTo !== selected.assignedTo;
+      const response = await api.updateTicket(ticketId(selected), {
+        ...updates,
+        ...(assignmentChanged ? { notifyAssignee: true } : {})
+      });
       const updated = responseItem(response);
       setSelected(current => ({ ...current, ...updated }));
       setTickets(current => current.map(ticket => ticketId(ticket) === ticketId(selected) ? { ...ticket, ...updated } : ticket));
@@ -267,6 +275,8 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
       setSaving(false);
     }
   };
+
+  const restoreSelected = () => updateTicket({ status: 'open' });
 
   const rotatePublicKey = async () => {
     setSaving(true);
@@ -334,7 +344,8 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
         widgetColor: widgetTheme.color,
         widgetWidth: Number(widgetTheme.width) || 430,
         widgetRadius: Number(widgetTheme.radius) || 16,
-        widgetIcon: widgetTheme.icon || 'S'
+        widgetIcon: widgetTheme.icon || 'S',
+        emailNotificationsEnabled: aiDraft.emailNotificationsEnabled
       });
     } catch (err) {
       setError(err.message || 'Unable to save widget appearance.');
@@ -363,6 +374,7 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
 
         <nav className={styles.tabs} aria-label="Ticket workspace sections">
           <Link className={tab === 'inbox' ? styles.activeTab : ''} href="/tickets"><span className="material-symbols-outlined">inbox</span>Inbox <em>{tickets.length}</em></Link>
+          <Link className={tab === 'archived' ? styles.activeTab : ''} href="/tickets/archived"><span className="material-symbols-outlined">archive</span>Archived</Link>
           <Link className={tab === 'settings' ? styles.activeTab : ''} href="/tickets/install"><span className="material-symbols-outlined">code</span>Install widget</Link>
           <Link className={tab === 'automation' ? styles.activeTab : ''} href="/tickets/automation"><span className="material-symbols-outlined">auto_awesome</span>AI & automation</Link>
         </nav>
@@ -374,18 +386,18 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
           <Link href="/admin/billing">View credits and billing</Link>
         </div>
 
-        {tab === 'inbox' && <section className={styles.inboxLayout}>
+        {(tab === 'inbox' || tab === 'archived') && <section className={styles.inboxLayout}>
           <div className={styles.inboxColumn}>
             <div className={styles.inboxToolbar}>
-              <div className={styles.inboxTitle}><h2>Inbox</h2><span>{visibleTickets.length} conversations</span></div>
+              <div className={styles.inboxTitle}><h2>{tab === 'archived' ? 'Archived conversations' : 'Inbox'}</h2><span>{visibleTickets.length} conversations</span></div>
               <div className={styles.searchBox}><span className="material-symbols-outlined">search</span><input aria-label="Search tickets" placeholder="Search conversations" value={filters.search} onChange={event => setFilters(current => ({ ...current, search: event.target.value }))} /></div>
               <div className={styles.filterRow}>
-                <select aria-label="Filter by status" value={filters.status} onChange={event => setFilters(current => ({ ...current, status: event.target.value }))}><option value="">All statuses</option><option value="open">Open</option><option value="pending">Pending</option><option value="resolved">Resolved</option></select>
+                {tab !== 'archived' && <select aria-label="Filter by status" value={filters.status} onChange={event => setFilters(current => ({ ...current, status: event.target.value }))}><option value="">All statuses</option><option value="open">Open</option><option value="pending">Pending</option><option value="resolved">Resolved</option></select>}
                 <select aria-label="Filter by priority" value={filters.priority} onChange={event => setFilters(current => ({ ...current, priority: event.target.value }))}><option value="">All priorities</option><option value="urgent">Urgent</option><option value="high">High</option><option value="normal">Normal</option><option value="low">Low</option></select>
                 <select aria-label="Filter by assignment" value={filters.assignedTo} onChange={event => setFilters(current => ({ ...current, assignedTo: event.target.value }))}><option value="">All assignments</option><option value="__me__">Assigned to Me</option><option value="unassigned">Unassigned</option>{members.map(member => <option key={member.uid || member.id} value={member.uid || member.id}>{member.name || member.email}</option>)}</select>
               </div>
             </div>
-            <div className={styles.statRow}>{STATUSES.map(status => <div key={status} className={styles.stat}><strong>{counts[status]}</strong><span className={`${styles.dot} ${styles[statusClass[status]]}`} />{status}</div>)}</div>
+            {tab !== 'archived' && <div className={styles.statRow}>{STATUSES.map(status => <div key={status} className={styles.stat}><strong>{counts[status]}</strong><span className={`${styles.dot} ${styles[statusClass[status]]}`} />{status}</div>)}</div>}
             {showCreate && <form className={styles.createCard} onSubmit={createTicket}>
               <div className={styles.cardHeading}><div><span className={styles.sectionKicker}>Manual intake</span><h3>Create a customer ticket</h3></div><button type="button" className={styles.iconButton} onClick={() => setShowCreate(false)}>×</button></div>
               <div className={styles.formGrid}><input required placeholder="Customer ID *" value={form.externalId} onChange={event => setForm({ ...form, externalId: event.target.value })} /><input type="email" placeholder="Email address" value={form.email} onChange={event => setForm({ ...form, email: event.target.value })} /><input placeholder="Customer name" value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} /></div>
@@ -402,7 +414,7 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
               })}</div>
           </div>
           {selected ? <section className={styles.conversation}>
-            <header className={styles.conversationHeader}><div className={styles.customerHeader}><div className={`${styles.avatar} ${styles.large}`}>{customerLabel(selected.customer).slice(0, 1).toUpperCase()}</div><div><h2>{customerLabel(selected.customer)}</h2><p>{customerEmail(selected.customer, selected.customerId)}</p></div></div><div className={styles.conversationActions}><select aria-label="Update ticket status" value={selected.status || 'open'} disabled={saving} onChange={event => updateTicket({ status: event.target.value })}><option value="open">Open</option><option value="pending">Pending</option><option value="resolved">Resolved</option></select><select aria-label="Set ticket priority" value={selected.priority || 'normal'} disabled={saving} onChange={event => updateTicket({ priority: event.target.value })}><option value="low">Low priority</option><option value="normal">Normal priority</option><option value="high">High priority</option><option value="urgent">Urgent priority</option></select><select aria-label="Assign ticket" value={selected.assignedTo || ''} disabled={saving} onChange={event => updateTicket({ assignedTo: event.target.value || null })}><option value="">Unassigned</option>{members.map(member => <option key={member.uid || member.id} value={member.uid || member.id}>{member.name || member.email}</option>)}</select><button title="Archive ticket" onClick={archiveSelected}><span className="material-symbols-outlined">archive</span></button></div></header>
+            <header className={styles.conversationHeader}><div className={styles.customerHeader}><div className={`${styles.avatar} ${styles.large}`}>{customerLabel(selected.customer).slice(0, 1).toUpperCase()}</div><div><h2>{customerLabel(selected.customer)}</h2><p>{customerEmail(selected.customer, selected.customerId)}</p></div></div><div className={styles.conversationActions}>{tab !== 'archived' && <><select aria-label="Update ticket status" value={selected.status || 'open'} disabled={saving} onChange={event => updateTicket({ status: event.target.value })}><option value="open">Open</option><option value="pending">Pending</option><option value="resolved">Resolved</option></select><select aria-label="Set ticket priority" value={selected.priority || 'normal'} disabled={saving} onChange={event => updateTicket({ priority: event.target.value })}><option value="low">Low priority</option><option value="normal">Normal priority</option><option value="high">High priority</option><option value="urgent">Urgent priority</option></select><select aria-label="Assign ticket" value={selected.assignedTo || ''} disabled={saving} onChange={event => updateTicket({ assignedTo: event.target.value || null })}><option value="">Unassigned</option>{members.map(member => <option key={member.uid || member.id} value={member.uid || member.id}>{member.name || member.email}</option>)}</select><button title="Archive ticket" onClick={archiveSelected}><span className="material-symbols-outlined">archive</span></button></>}{tab === 'archived' && <button type="button" className={styles.secondaryButton} disabled={saving} onClick={restoreSelected}>Restore conversation</button>}</div></header>
             <div className={styles.subjectBar}><div><span className={styles.sectionKicker}>Ticket conversation</span><h2>{selected.subject || 'Ticket'}</h2></div><span className={`${styles.badge} ${styles[statusClass[selected.status] || 'open']}`}>{selected.priority || 'normal'} priority</span></div>
             <div className={styles.messages}>{messages.length === 0 ? <div className={styles.emptyState}><span className="material-symbols-outlined">chat_bubble_outline</span><p>No messages yet</p></div> : messages.map((message, index) => <div key={message._id || message.id || index} className={`${styles.message} ${message.senderType === 'agent' || message.senderId === 'ai' ? styles.agentMessage : ''}`}><div className={styles.messageLabel}>{message.senderId === 'ai' ? 'AI support' : message.senderType === 'agent' ? 'You' : message.senderType || 'Customer'} {message.isInternal && <span>Internal note</span>}</div><div className={styles.messageBubble}>{message.body}</div></div>)}</div>
             <form className={styles.replyBox} onSubmit={sendReply}><textarea required rows="3" placeholder="Reply to customer..." value={reply} onChange={event => setReply(event.target.value)} /><div><span>↵ Send with Enter</span><button disabled={saving} className={styles.primaryButton} type="submit"><span className="material-symbols-outlined">send</span>Send reply</button></div></form>
@@ -411,7 +423,7 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
 
         {tab === 'settings' && <section className={styles.settingsLayout}>
           <div className={styles.settingsIntro}><span className={styles.sectionKicker}>Widget studio</span><h2>Build a support experience that feels like your product.</h2><p>Choose the launcher, tune the appearance, and copy one installation snippet. Your customers get a full-size, focused support form on every screen.</p><div className={styles.installSteps}><div><b>01</b><span>Configure</span><small>Choose the look and launcher.</small></div><div><b>02</b><span>Save</span><small>Keep your settings on the workspace.</small></div><div><b>03</b><span>Install</span><small>Paste the snippet before &lt;/body&gt;.</small></div></div></div>
-          <div className={styles.settingsCard}><div className={styles.cardHeading}><div><span className={styles.sectionKicker}>Installation</span><h3>Connect your website</h3></div><span className={styles.connected}><i />{configLoading ? 'Loading key' : publicKey ? 'Ready' : 'Unavailable'}</span></div><label>Public API key<input readOnly value={publicKey} placeholder={configLoading ? 'Loading workspace key...' : 'No key returned by server'} /></label><p className={styles.helpText}>Your key is tenant-scoped and safe to use in the public embed snippet.</p><div className={styles.keyActions}><button type="button" disabled={saving || configLoading} onClick={rotatePublicKey} className={styles.secondaryButton}>{saving ? 'Generating...' : 'Generate new key'}</button></div><div className={styles.launcherHeading}><span>Launcher style</span><small>How should customers open support?</small></div><div className={styles.launcherGrid}>{LAUNCHER_OPTIONS.map(option => <button type="button" key={option.value} className={`${styles.launcherOption} ${launcherStyle === option.value ? styles.launcherSelected : ''}`} onClick={() => setLauncherStyle(option.value)}><strong>{option.label}</strong><small>{option.description}</small></button>)}</div><div className={styles.launcherHeading}><span>Widget appearance</span><small>Make it match your brand.</small></div><div className={styles.customizationGrid}><label>Title<input value={widgetTheme.title} onChange={event => setWidgetTheme({ ...widgetTheme, title: event.target.value })} /></label><label>Greeting<input value={widgetTheme.greeting} onChange={event => setWidgetTheme({ ...widgetTheme, greeting: event.target.value })} /></label><label>Accent color<input type="color" value={widgetTheme.color} onChange={event => setWidgetTheme({ ...widgetTheme, color: event.target.value })} /></label><label>Panel width<input type="number" min="320" max="640" value={widgetTheme.width} onChange={event => setWidgetTheme({ ...widgetTheme, width: event.target.value })} /></label><label>Corner radius<input type="number" min="0" max="32" value={widgetTheme.radius} onChange={event => setWidgetTheme({ ...widgetTheme, radius: event.target.value })} /></label></div><div className={styles.iconHeading}><span>Support icon</span><small>Select the icon shown in the widget.</small></div><div className={styles.iconGrid}>{ICON_OPTIONS.map(option => <button type="button" key={option.value} aria-label={option.label} className={`${styles.iconOption} ${widgetTheme.icon === option.value ? styles.iconSelected : ''}`} onClick={() => setWidgetTheme({ ...widgetTheme, icon: option.value })}><b>{option.value}</b><span>{option.label}</span></button>)}</div><button type="button" disabled={saving} onClick={saveWidgetAppearance} className={styles.saveAppearance}>{saving ? 'Saving...' : 'Save appearance'}</button><div className={styles.codeBlock}><div><span>Embed this on your website</span><button disabled={!publicKey} onClick={copyEmbed}><span className="material-symbols-outlined">{copied ? 'check' : 'content_copy'}</span>{copied ? 'Copied' : 'Copy code'}</button></div><pre>{`<script src="${typeof window !== 'undefined' ? window.location.origin : ''}/widget/tickets.js"\n  data-organization-id="${typeof window !== 'undefined' ? localStorage.getItem('sb_uid') || 'your-firebase-uid' : 'your-firebase-uid'}"\n  data-public-key="${publicKey || 'your-public-key'}"\n  data-launcher-style="${launcherStyle}"\n  data-widget-icon="${widgetTheme.icon}"></script>`}</pre></div><a className={styles.previewLink} href="/widget/tickets" target="_blank" rel="noreferrer">Preview customer widget <span>↗</span></a></div>
+          <div className={styles.settingsCard}><div className={styles.cardHeading}><div><span className={styles.sectionKicker}>Installation</span><h3>Connect your website</h3></div><span className={styles.connected}><i />{configLoading ? 'Loading key' : publicKey ? 'Ready' : 'Unavailable'}</span></div><label>Public API key<input readOnly value={publicKey} placeholder={configLoading ? 'Loading workspace key...' : 'No key returned by server'} /></label><p className={styles.helpText}>Your key is tenant-scoped and safe to use in the public embed snippet.</p><div className={styles.keyActions}><button type="button" disabled={saving || configLoading} onClick={rotatePublicKey} className={styles.secondaryButton}>{saving ? 'Generating...' : 'Generate new key'}</button></div><label className={styles.emailToggle}><input type="checkbox" checked={aiDraft.emailNotificationsEnabled} onChange={event => setAiDraft({ ...aiDraft, emailNotificationsEnabled: event.target.checked })} /><span><strong>Send Brevo email updates</strong><small>Notify customers and agents by email when ticket activity changes.</small></span></label><div className={styles.launcherHeading}><span>Launcher style</span><small>How should customers open support?</small></div><div className={styles.launcherGrid}>{LAUNCHER_OPTIONS.map(option => <button type="button" key={option.value} className={`${styles.launcherOption} ${launcherStyle === option.value ? styles.launcherSelected : ''}`} onClick={() => setLauncherStyle(option.value)}><strong>{option.label}</strong><small>{option.description}</small></button>)}</div><div className={styles.launcherHeading}><span>Widget appearance</span><small>Make it match your brand.</small></div><div className={styles.customizationGrid}><label>Title<input value={widgetTheme.title} onChange={event => setWidgetTheme({ ...widgetTheme, title: event.target.value })} /></label><label>Greeting<input value={widgetTheme.greeting} onChange={event => setWidgetTheme({ ...widgetTheme, greeting: event.target.value })} /></label><label>Accent color<input type="color" value={widgetTheme.color} onChange={event => setWidgetTheme({ ...widgetTheme, color: event.target.value })} /></label><label>Panel width<input type="number" min="320" max="640" value={widgetTheme.width} onChange={event => setWidgetTheme({ ...widgetTheme, width: event.target.value })} /></label><label>Corner radius<input type="number" min="0" max="32" value={widgetTheme.radius} onChange={event => setWidgetTheme({ ...widgetTheme, radius: event.target.value })} /></label></div><div className={styles.iconHeading}><span>Support icon</span><small>Select the icon shown in the widget.</small></div><div className={styles.iconGrid}>{ICON_OPTIONS.map(option => <button type="button" key={option.value} aria-label={option.label} className={`${styles.iconOption} ${widgetTheme.icon === option.value ? styles.iconSelected : ''}`} onClick={() => setWidgetTheme({ ...widgetTheme, icon: option.value })}><b>{option.value}</b><span>{option.label}</span></button>)}</div><button type="button" disabled={saving} onClick={saveWidgetAppearance} className={styles.saveAppearance}>{saving ? 'Saving...' : 'Save appearance'}</button><div className={styles.codeBlock}><div><span>Embed this on your website</span><button disabled={!publicKey} onClick={copyEmbed}><span className="material-symbols-outlined">{copied ? 'check' : 'content_copy'}</span>{copied ? 'Copied' : 'Copy code'}</button></div><pre>{`<script src="${typeof window !== 'undefined' ? window.location.origin : ''}/widget/tickets.js"\n  data-organization-id="${typeof window !== 'undefined' ? localStorage.getItem('sb_uid') || 'your-firebase-uid' : 'your-firebase-uid'}"\n  data-public-key="${publicKey || 'your-public-key'}"\n  data-launcher-style="${launcherStyle}"\n  data-widget-icon="${widgetTheme.icon}"></script>`}</pre></div><a className={styles.previewLink} href="/widget/tickets" target="_blank" rel="noreferrer">Preview customer widget <span>↗</span></a></div>
         </section>}
 
         {tab === 'automation' && <form className={styles.automationCard} onSubmit={saveAiConfig}><div className={styles.automationHero}><span className="material-symbols-outlined">auto_awesome</span><div><span className={styles.sectionKicker}>AI assistance</span><h2>Configure how AI helps your customers.</h2><p>These instructions power customer deflection, ticket triage, and agent summaries. Keep them specific to your product and escalation process.</p></div></div><div className={styles.aiForm}><label>Service description<textarea rows="3" placeholder="What does your company or product do?" value={aiDraft.serviceDescription} onChange={event => setAiDraft({ ...aiDraft, serviceDescription: event.target.value })} /></label><label>Customer-facing system prompt<textarea rows="4" placeholder="Be concise, friendly, and..." value={aiDraft.customSystemPrompt} onChange={event => setAiDraft({ ...aiDraft, customSystemPrompt: event.target.value })} /></label><label>Knowledge base snippets<textarea rows="4" placeholder="One fact per line, such as: Password resets are available in Settings." value={aiDraft.kbContextSnippets} onChange={event => setAiDraft({ ...aiDraft, kbContextSnippets: event.target.value })} /></label><div className={styles.aiTwoCol}><label>Escalation policy<textarea rows="4" placeholder="When should AI hand off to an agent?" value={aiDraft.escalationPolicy} onChange={event => setAiDraft({ ...aiDraft, escalationPolicy: event.target.value })} /></label><label>Triage guidelines<textarea rows="4" placeholder="How should urgency and categories be assigned?" value={aiDraft.triageGuidelines} onChange={event => setAiDraft({ ...aiDraft, triageGuidelines: event.target.value })} /></label></div></div><div className={styles.automationFooter}><span>Changes apply to new AI requests immediately.</span><button disabled={saving} className={styles.primaryButton} type="submit">{saving ? 'Saving...' : 'Save AI configuration'} <span className="material-symbols-outlined">save</span></button></div></form>}

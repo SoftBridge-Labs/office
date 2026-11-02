@@ -388,7 +388,7 @@ export const api = {
     const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== '' && value !== null && value !== undefined)).toString();
     return request(`/api/v1/tickets${query ? `?${query}` : ''}`);
   },
-  getTicket: (id) => request(`/api/v1/tickets/${encodeURIComponent(id)}`),
+  getTicket: (id, { archived = false } = {}) => request(`/api/v1/tickets/${encodeURIComponent(id)}${archived ? '?archived=true' : ''}`),
   createTicket: (data) => request('/api/v1/tickets', { method: 'POST', body: JSON.stringify(data) }),
   updateTicket: (id, data) => request(`/api/v1/tickets/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
   getTicketMembers: () => request('/api/v1/ticket-members'),
