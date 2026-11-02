@@ -15,12 +15,17 @@ function getMessages(ticket) {
   return Array.isArray(ticket?.messages) ? ticket.messages : [];
 }
 
+function supportBrand(name) {
+  return name && !/^support$/i.test(name.trim()) ? `${name.trim()} Support` : 'Support';
+}
+
 export default function TicketChatPage() {
   const { continuationId } = useParams();
   const [ticket, setTicket] = useState(null);
   const [reply, setReply] = useState('');
   const [state, setState] = useState('loading');
   const [replyState, setReplyState] = useState('idle');
+  const [statusState, setStatusState] = useState('idle');
   const [error, setError] = useState('');
   const [isCompanyUser] = useState(() => (
     typeof window !== 'undefined' && Boolean(localStorage.getItem('sb_id_token'))
@@ -70,6 +75,20 @@ export default function TicketChatPage() {
     }
   };
 
+  const updateStatus = async status => {
+    setStatusState('saving');
+    setError('');
+    try {
+      const response = await api.updatePublicTicket(continuationId, { status });
+      const updated = getTicket(response);
+      setTicket(current => ({ ...current, ...updated, status: updated.status || status }));
+    } catch (err) {
+      setError(err.message || 'We could not update this conversation.');
+    } finally {
+      setStatusState('idle');
+    }
+  };
+
   const messages = getMessages(ticket);
 
   return (
@@ -77,7 +96,7 @@ export default function TicketChatPage() {
       <header className={styles.header}>
         <Link href="/" className={styles.brand}>
           <span className={styles.brandMark}>S</span>
-          <span>{ticket?.organizationName || 'Support'} Support</span>
+          <span>{supportBrand(ticket?.organizationName)}</span>
         </Link>
         {isCompanyUser && <Link href="/tickets" className={styles.workspaceLink}>Open Tickets workspace</Link>}
       </header>
@@ -97,6 +116,11 @@ export default function TicketChatPage() {
               <span className={styles.eyebrow}>Support conversation</span>
               <h1>{ticket.subject || 'Your support request'}</h1>
               <p>{ticket.status === 'resolved' ? 'This request is resolved, but you can reply to reopen it.' : 'Our support team will respond here.'}</p>
+              <div className={styles.statusActions}>
+                <button type="button" className={styles.secondaryButton} disabled={statusState === 'saving'} onClick={() => updateStatus(ticket.status === 'resolved' ? 'open' : 'resolved')}>
+                  {statusState === 'saving' ? 'Saving...' : ticket.status === 'resolved' ? 'Reopen conversation' : 'Close conversation'}
+                </button>
+              </div>
             </div>
             <div className={styles.messages}>
               {messages.length === 0 && <p className={styles.empty}>No messages yet.</p>}

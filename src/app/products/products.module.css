@@ -1,0 +1,611 @@
+.main {
+  min-height: 100vh;
+  background: var(--bg-app);
+  color: var(--text-primary);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Header */
+.header {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--text-primary);
+  font-weight: 800;
+  font-size: 16px;
+  font-family: var(--font-display);
+}
+
+.brand span:first-child {
+  width: 24px;
+  height: 24px;
+  background: var(--brand);
+  color: white;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.nav {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.nav a {
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.nav a:hover {
+  color: var(--brand);
+}
+
+.signIn {
+  color: var(--brand);
+  font-weight: 600;
+  padding: 8px 16px;
+  border: 1px solid var(--brand);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.signIn:hover {
+  background: var(--brand-subtle);
+}
+
+/* Hero */
+.hero {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-hover) 100%);
+  color: white;
+  padding: 80px 20px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 500px;
+  height: 500px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.hero .container {
+  max-width: 800px;
+  position: relative;
+  z-index: 1;
+}
+
+.hero h1 {
+  font-size: clamp(32px, 6vw, 56px);
+  font-weight: 800;
+  margin: 0 0 24px;
+  line-height: 1.2;
+  font-family: var(--font-display);
+}
+
+.hero p {
+  font-size: clamp(14px, 3vw, 18px);
+  margin: 0 0 32px;
+  opacity: 0.95;
+  line-height: 1.6;
+}
+
+.cta {
+  display: inline-block;
+  padding: 14px 32px;
+  background: white;
+  color: var(--brand);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+  border-radius: var(--radius);
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-md);
+}
+
+.cta:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Products Section */
+.productsSection {
+  padding: 60px 20px;
+  background: var(--bg-surface);
+}
+
+.productsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+}
+
+.productTile {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 20px;
+  padding: 28px;
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--product-color);
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.productTile:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--product-color);
+  background: var(--bg-surface);
+}
+
+.tileIcon {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 4px;
+}
+
+.tileIcon img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
+.tileContent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.productTile h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+}
+
+.tileSummary {
+  margin: 0;
+  font-size: 13px;
+  color: var(--product-color);
+  font-weight: 600;
+}
+
+.tileDescription {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.tileFeatures {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.featureLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.tileFeatures ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tileFeatures li {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tileFeatures li::before {
+  content: '✓';
+  color: var(--product-color);
+  font-weight: 700;
+}
+
+.tileAction {
+  color: var(--product-color);
+  font-weight: 700;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+/* Integration Section */
+.integration {
+  padding: 60px 20px;
+  background: var(--bg-app);
+}
+
+.integration h2 {
+  font-size: clamp(28px, 5vw, 40px);
+  font-weight: 800;
+  text-align: center;
+  margin: 0 0 16px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+}
+
+.integration > .container > p {
+  text-align: center;
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin: 0 0 40px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+}
+
+.integrationGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.integrationCard {
+  padding: 28px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.integrationCard:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+.integrationCard h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+}
+
+.integrationCard p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Final CTA */
+.finalCta {
+  padding: 80px 20px;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-hover) 100%);
+  color: white;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.finalCta::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 500px;
+  height: 500px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.finalCta h2 {
+  font-size: clamp(28px, 5vw, 48px);
+  margin: 0 0 16px;
+  font-weight: 800;
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-display);
+}
+
+.finalCta p {
+  font-size: 16px;
+  margin: 0 0 32px;
+  opacity: 0.95;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+  position: relative;
+  z-index: 1;
+}
+
+.ctaButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+
+.primaryBtn,
+.secondaryBtn {
+  padding: 12px 28px;
+  border-radius: var(--radius);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  display: inline-block;
+  text-align: center;
+}
+
+.primaryBtn {
+  background: white;
+  color: var(--brand);
+  box-shadow: var(--shadow-md);
+}
+
+.primaryBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.secondaryBtn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid white;
+}
+
+.secondaryBtn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Footer */
+.footer {
+  background: var(--text-primary);
+  color: var(--text-muted);
+  padding: 48px 20px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.footerGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 32px;
+  margin-bottom: 32px;
+}
+
+.footer h4 {
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+}
+
+.footer ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.footer li {
+  margin-bottom: 8px;
+}
+
+.footer a {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 13px;
+  transition: color 0.2s ease;
+}
+
+.footer a:hover {
+  color: white;
+}
+
+.footer a:hover {
+  color: #dce7e2;
+}
+
+.footerBottom {
+  padding-top: 24px;
+  border-top: 1px solid #2e3d38;
+  text-align: center;
+  font-size: 12px;
+  color: #6b7971;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header {
+    padding: 12px 0;
+  }
+
+  .header .container {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .nav {
+    gap: 12px;
+    font-size: 12px;
+  }
+
+  .hero {
+    padding: 40px 20px;
+  }
+
+  .hero h1 {
+    font-size: 28px;
+  }
+
+  .productsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .productTile {
+    grid-template-columns: 60px 1fr;
+    gap: 16px;
+    padding: 20px;
+  }
+
+  .tileIcon img {
+    width: 48px;
+    height: 48px;
+  }
+
+  .productTile h2 {
+    font-size: 18px;
+  }
+
+  .integrationGrid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  .finalCta {
+    padding: 40px 20px;
+  }
+
+  .ctaButtons {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .primaryBtn,
+  .secondaryBtn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .header .container {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .hero {
+    padding: 32px 16px;
+  }
+
+  .hero h1 {
+    font-size: 20px;
+  }
+
+  .hero p {
+    font-size: 13px;
+  }
+
+  .cta {
+    padding: 10px 20px;
+    font-size: 12px;
+  }
+
+  .productsSection {
+    padding: 32px 16px;
+  }
+
+  .productTile {
+    grid-template-columns: 50px 1fr;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .tileIcon img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .productTile h2 {
+    font-size: 16px;
+  }
+
+  .tileDescription,
+  .tileSummary {
+    font-size: 12px;
+  }
+
+  .integration {
+    padding: 32px 16px;
+  }
+
+  .integration h2 {
+    font-size: 22px;
+  }
+
+  .integrationGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .finalCta {
+    padding: 32px 16px;
+  }
+
+  .finalCta h2 {
+    font-size: 20px;
+  }
+
+  .finalCta p {
+    font-size: 14px;
+  }
+
+  .footerGrid {
+    gap: 20px;
+  }
+}

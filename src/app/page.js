@@ -4,12 +4,13 @@ import Link from 'next/link';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './page.module.css';
+import { products } from './products/productData';
 
 const tools = [
-  { name: 'Meet', detail: 'Focused video rooms', tone: 'teal', href: '/meet', iconSrc: '/Icons/Meet.png' },
-  { name: 'Calendar', detail: 'Plan the week', tone: 'blue', href: '/calendar', iconSrc: '/Icons/Calender.png' },
-  { name: 'Tasks', detail: 'Keep work moving', tone: 'amber', href: '/tasks', iconSrc: '/Icons/Tasks.png' },
-  { name: 'Docs', detail: 'Write together', tone: 'coral', href: '/docs', iconSrc: '/Icons/Docs.png' },
+  { name: 'Meet', detail: 'Focused video rooms', tone: 'teal', href: '/products/meet', iconSrc: '/Icons/Meet.png' },
+  { name: 'Calendar', detail: 'Plan the week', tone: 'blue', href: '/products/calendar', iconSrc: '/Icons/Calender.png' },
+  { name: 'Tasks', detail: 'Keep work moving', tone: 'amber', href: '/products/tasks', iconSrc: '/Icons/Tasks.png' },
+  { name: 'Docs', detail: 'Write together', tone: 'coral', href: '/products/docs', iconSrc: '/Icons/Docs.png' },
 ];
 
 export default function LandingPage() {
@@ -23,7 +24,7 @@ export default function LandingPage() {
     <main className={styles.landing}>
       <header className={styles.header}>
         <Link className={styles.brand} href="/"><span className={styles.brandMark}>S</span><span>SoftBridge <em>Workspace</em></span></Link>
-        <nav className={styles.nav} aria-label="Primary navigation"><Link href="/pricing">Plans</Link><Link className={styles.signIn} href="/login">Sign in <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '4px' }}><path d="M5 12h14M12 5l7 7-7 7"/></svg></Link></nav>
+        <nav className={styles.nav} aria-label="Primary navigation"><Link href="/products">Products</Link><Link href="/pricing">Plans</Link><Link className={styles.signIn} href="/login">Sign in <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '4px' }}><path d="M5 12h14M12 5l7 7-7 7"/></svg></Link></nav>
       </header>
 
       <section className={styles.hero}>
@@ -31,7 +32,7 @@ export default function LandingPage() {
           <p className={styles.eyebrow}><span /> THE CALM WORKSPACE FOR BUSY TEAMS</p>
           <h1>Work clearly.<br /><strong>Move together.</strong></h1>
           <p className={styles.lede}>A focused home for conversations, schedules, documents, and the small decisions that keep a team moving.</p>
-          <div className={styles.actions}><Link className={styles.primaryAction} href="/login">Open Workspace <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '6px' }}><path d="M5 12h14M12 5l7 7-7 7"/></svg></Link><Link className={styles.secondaryAction} href="/pricing">View plans</Link></div>
+          <div className={styles.actions}><Link className={styles.primaryAction} href="/login">Open Workspace <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '6px' }}><path d="M5 12h14M12 5l7 7-7 7"/></svg></Link><Link className={styles.secondaryAction} href="/products">Explore Products</Link></div>
           <p className={styles.note}>One account. One shared view of the work.</p>
         </div>
 
@@ -57,7 +58,34 @@ export default function LandingPage() {
         <div className={styles.toolGrid}>{tools.map((tool, index) => <Link className={`${styles.tool} ${styles[tool.tone]}`} href={tool.href} key={tool.name}><div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}><span className={styles.toolNumber}>0{index + 1}</span><img src={tool.iconSrc} alt="" width="26" height="26" style={{ objectFit: 'contain' }} /></div><h3>{tool.name}</h3><p>{tool.detail}</p><span className={styles.toolArrow} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span></Link>)}</div>
       </section>
 
-      <footer className={styles.footer}><span>© {new Date().getFullYear()} SoftBridge Labs</span><span>Built for thoughtful work</span><div><a href="https://softbridgelabs.in/legal/privacy.html">Privacy</a><a href="https://softbridgelabs.in/legal/terms.html">Terms</a></div></footer>
+      <section className={styles.allProducts}>
+        <div className={styles.sectionLabel}><span>02</span><p>Complete Workspace</p><span className={styles.rule} /></div>
+        <div className={styles.productsIntro}>
+          <h2>Everything you need to work together</h2>
+          <p>From team communication to customer support, SoftBridge has the tools to keep your team aligned and productive.</p>
+          <Link href="/products" className={styles.viewAllLink}>View all products →</Link>
+        </div>
+        <div className={styles.productsGrid}>
+          {products.map((product) => (
+            <Link key={product.id} href={product.href} className={styles.productCard} style={{ '--accent-color': product.color }}>
+              <div className={styles.productIcon}>
+                <img src={product.icon} alt={product.name} width="48" height="48" />
+              </div>
+              <h3>{product.name}</h3>
+              <p className={styles.tagline}>{product.tagline}</p>
+              <p className={styles.shortDesc}>{product.shortDescription}</p>
+              <div className={styles.features}>
+                {product.features.slice(0, 3).map((feat, i) => (
+                  <span key={i}>✓ {feat}</span>
+                ))}
+              </div>
+              <span className={styles.learnMore}>Learn more →</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <footer className={styles.footer}><span>© {new Date().getFullYear()} SoftBridge Labs</span><span>Built for thoughtful work</span><div><a href="https://softbridgelabs.in/legal/privacy/workspace.html">Privacy</a><a href="https://softbridgelabs.in/legal/terms/workspace.html">Terms</a></div></footer>
     </main>
   );
 }

@@ -8,6 +8,7 @@ import { connectTicketSocket } from '@/lib/ticketSocket';
 export default function TicketWidgetPage() {
   const searchParams = useSearchParams();
   const organizationId = searchParams.get('organization') || '';
+  const workspaceId = searchParams.get('workspace') || '';
   const publicApiKey = searchParams.get('key') || '';
   const title = searchParams.get('title') || 'How can we help?';
   const greeting = searchParams.get('greeting') || 'Send us a message and our team will get back to you.';
@@ -15,6 +16,7 @@ export default function TicketWidgetPage() {
   const radius = Number(searchParams.get('radius')) || 16;
   const icon = searchParams.get('icon') || 'S';
   const organizationName = searchParams.get('organizationName') || 'Support';
+    const supportBrand = organizationName && !/^support$/i.test(organizationName.trim()) ? `${organizationName.trim()} Support` : 'Support';
   
   // AI Chat state
   const [aiMessages, setAiMessages] = useState([]);
@@ -36,6 +38,7 @@ export default function TicketWidgetPage() {
   const [conversation, setConversation] = useState(null);
   const [reply, setReply] = useState('');
   const [replyState, setReplyState] = useState('idle');
+  const [statusState, setStatusState] = useState('idle');
 
   useEffect(() => {
     if (!continuationId) return;
@@ -121,8 +124,13 @@ export default function TicketWidgetPage() {
         setAiState('idle');
       }
     } catch (err) {
-      setAiError(err.message || 'Failed to get a response. Please try again.');
+      // On AI error, automatically open human chat
+      setAiError(err.message || 'Failed to get a response. Connecting you with a human agent...');
       setAiState('idle');
+      // Auto-escalate to human after 1.5 seconds
+      setTimeout(() => {
+        setNeedsEscalation(true);
+      }, 1500);
     }
   };
 
@@ -151,7 +159,7 @@ export default function TicketWidgetPage() {
         externalId
       };
       
-      const response = await api.createPublicTicket(ticketData, { organizationId, publicApiKey });
+      const response = await api.createPublicTicket(ticketData, { organizationId, publicApiKey, workspaceId });
       const nextContinuationId = response?.continuationId || response?.data?.continuationId;
       
       if (nextContinuationId) {
@@ -188,10 +196,24 @@ export default function TicketWidgetPage() {
     }
   };
 
+  const updateStatus = async status => {
+    setStatusState('saving');
+    setError('');
+    try {
+      const response = await api.updatePublicTicket(continuationId, { status });
+      const updated = response?.data?.ticket || response?.data || response?.ticket || response;
+      setConversation(current => ({ ...current, ...updated, status: updated.status || status }));
+    } catch (err) {
+      setError(err.message || 'We could not update this conversation.');
+    } finally {
+      setStatusState('idle');
+    }
+  };
+
   // AI Chat View (initial state)
   if (!continuationId && !needsEscalation) {
     return <main style={{ ...styles.shell, '--widget-color': color, '--widget-radius': `${radius}px` }}>
-      <div style={styles.brand}><span style={styles.brandMark}>{icon}</span><span>{organizationName} Support</span></div>
+      <div style={styles.brand}><span style={styles.brandMark}>{icon}</span><span>{supportBrand}</span></div>
       <div style={styles.conversationContainer}>
         <div style={styles.chatHeader}>
           <h1>{title}</h1>
@@ -206,6 +228,15 @@ export default function TicketWidgetPage() {
               </div>
             </div>
           ))}
+          {aiState === 'sending' && <div style={{ ...styles.messageRow, justifyContent: 'flex-start' }}>
+            <div style={{ ...styles.messageBubble, ...styles.supportBubble }}>
+              <div style={styles.typingIndicator}>
+                <span style={{...styles.typingDot, animationDelay: '0ms'}}></span>
+                <span style={{...styles.typingDot, animationDelay: '150ms'}}></span>
+                <span style={{...styles.typingDot, animationDelay: '300ms'}}></span>
+              </div>
+            </div>
+          </div>}
         </div>}
         
         {aiError && <div style={styles.error}>{aiError}</div>}
@@ -223,7 +254,7 @@ export default function TicketWidgetPage() {
             disabled={aiState === 'sending' || !userMessage.trim() || !organizationId || !publicApiKey} 
             style={styles.submitButton}
           >
-            {aiState === 'sending' ? 'Sending...' : 'Send'} <span>→</span>
+            {aiState === 'sending' ? 'Waiting...' : 'Send'} <span>→</span>
           </button>
           {!organizationId || !publicApiKey ? <small style={styles.configuration}>This support form has not been configured yet.</small> : null}
         </form>
@@ -236,7 +267,7 @@ export default function TicketWidgetPage() {
   // Escalation Form (needs human)
   if (needsEscalation && !continuationId) {
     return <main style={{ ...styles.shell, '--widget-color': color, '--widget-radius': `${radius}px` }}>
-      <div style={styles.brand}><span style={styles.brandMark}>{icon}</span><span>{organizationName} Support</span></div>
+      <div style={styles.brand}><span style={styles.brandMark}>{icon}</span><span>{supportBrand}</span></div>
       <div style={styles.conversationContainer}>
         <div style={styles.escalationHeader}>
           <h2>Connect with a human agent</h2>
@@ -262,7 +293,7 @@ export default function TicketWidgetPage() {
   if (state === 'sent') {
     const messages = conversation?.messages || [];
     return <main style={{ ...styles.shell, '--widget-color': color, '--widget-radius': `${radius}px` }}>
-      <div style={styles.brand}><span style={styles.brandMark}>{icon}</span>{organizationName} Support</div>
+      <div style={styles.brand}><span style={styles.brandMark}>{icon}</span>{supportBrand}</div>
       <div style={styles.conversationContainer}>
         <div style={styles.successHeader}>
           <div style={{ ...styles.successIcon, color }}>✓</div>
@@ -286,6 +317,9 @@ export default function TicketWidgetPage() {
           <textarea style={styles.textarea} rows="3" placeholder="Add a reply..." value={reply} onChange={event => setReply(event.target.value)} />
           <button disabled={replyState === 'sending' || !reply.trim()} style={styles.submitButton}>{replyState === 'sending' ? 'Sending...' : 'Reply'} <span>→</span></button>
         </form>}
+        {continuationId && <button type="button" style={styles.outlineButton} disabled={statusState === 'saving'} onClick={() => updateStatus(conversation?.status === 'resolved' ? 'open' : 'resolved')}>
+          {statusState === 'saving' ? 'Saving...' : conversation?.status === 'resolved' ? 'Reopen conversation' : 'Close conversation'}
+        </button>}
         
         <button style={styles.outlineButton} onClick={() => { setState('idle'); setConversation(null); setContinuationId(''); setAiMessages([]); setNeedsEscalation(false); }}>Start another conversation</button>
       </div>
@@ -311,6 +345,16 @@ const styles = {
   supportBubble: { background: '#f1f6f3', color: '#17211f', borderBottomRightRadius: 4 },
   senderLabel: { fontSize: 11, fontWeight: 700, opacity: 0.8, marginBottom: 4 },
   messageText: { wordWrap: 'break-word' },
+  typingIndicator: { display: 'flex', gap: 4, padding: '4px 0' },
+  typingDot: { 
+    width: 8, 
+    height: 8, 
+    borderRadius: '50%', 
+    background: '#52635d', 
+    opacity: 0.6,
+    animation: 'typing 1.4s infinite',
+    display: 'inline-block'
+  },
   label: { display: 'block', marginBottom: 14, color: '#52635d', fontSize: 12, fontWeight: 700 },
   input: { display: 'block', width: '100%', marginTop: 6, padding: '11px 12px', border: '1px solid #dce7e2', borderRadius: 9, background: '#fbfdfc', color: '#17211f', fontSize: 13, outline: 'none' },
   textarea: { display: 'block', width: '100%', marginTop: 6, padding: '11px 12px', border: '1px solid #dce7e2', borderRadius: 9, background: '#fbfdfc', color: '#17211f', fontSize: 13, outline: 'none', resize: 'vertical' },
@@ -325,3 +369,40 @@ const styles = {
   privacy: { display: 'block', marginTop: 11, color: '#9aa7a1', fontSize: 10, textAlign: 'center' },
   configuration: { display: 'block', marginTop: 11, color: '#ae7a2c', fontSize: 10, textAlign: 'center' }
 };
+
+// Add CSS animation for typing indicator
+if (typeof document !== 'undefined') {
+  const styleId = 'typing-animation';
+  if (!document.getElementById(styleId)) {
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      @keyframes typing {
+        0%, 60%, 100% {
+          opacity: 0.6;
+          transform: translateY(0);
+        }
+        30% {
+          opacity: 1;
+          transform: translateY(-10px);
+        }
+      }
+      
+      @keyframes typing-alt-1 {
+        0%, 60%, 100% { opacity: 0.6; transform: translateY(0); }
+        30% { opacity: 1; transform: translateY(-10px); }
+      }
+      
+      @keyframes typing-alt-2 {
+        0%, 60%, 100% { opacity: 0.6; transform: translateY(0); }
+        45% { opacity: 1; transform: translateY(-10px); }
+      }
+      
+      @keyframes typing-alt-3 {
+        0%, 60%, 100% { opacity: 0.6; transform: translateY(0); }
+        60% { opacity: 1; transform: translateY(-10px); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+}

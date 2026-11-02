@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import TopNav from '@/app/components/TopNav';
 import WorkspaceGreeting from '@/app/components/WorkspaceGreeting';
+import PushNotificationManager from '@/app/ping/components/PushNotificationManager';
 import { api } from '@/lib/api';
 import { connectTicketSocket } from '@/lib/ticketSocket';
 import styles from './tickets.module.css';
@@ -65,7 +66,7 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
   const [tickets, setTickets] = useState([]);
   const [selected, setSelected] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [filters, setFilters] = useState({ status: '', priority: '', search: '' });
+  const [filters, setFilters] = useState({ status: '', priority: '', assignedTo: '', search: '' });
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ externalId: '', email: '', name: '', subject: '', description: '' });
   const [reply, setReply] = useState('');
@@ -92,19 +93,24 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [organizationName, setOrganizationName] = useState('Support');
+  const [members, setMembers] = useState([]);
+  const [emailUsage, setEmailUsage] = useState([]);
 
   const loadTickets = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const response = await api.getTickets({ status: filters.status, priority: filters.priority, limit: 100, offset: 0 });
+      const assignedTo = filters.assignedTo === '__me__'
+        ? (typeof window !== 'undefined' ? localStorage.getItem('sb_uid') || '' : '')
+        : filters.assignedTo;
+      const response = await api.getTickets({ status: filters.status, priority: filters.priority, assignedTo, limit: 100, offset: 0 });
       setTickets(responseItems(response));
     } catch (err) {
       setError(err.message || 'Unable to load tickets.');
     } finally {
       setLoading(false);
     }
-  }, [filters.status, filters.priority]);
+  }, [filters.status, filters.priority, filters.assignedTo]);
 
   useEffect(() => {
     const timer = window.setTimeout(loadTickets, 0);
@@ -152,6 +158,16 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
     loadConfig();
     return () => { active = false; };
   }, [tab]);
+
+  useEffect(() => {
+    let active = true;
+    Promise.allSettled([api.getTicketMembers(), api.getEmailUsage(100)]).then(([membersResult, usageResult]) => {
+      if (!active) return;
+      if (membersResult.status === 'fulfilled') setMembers(responseItems(membersResult.value));
+      if (usageResult.status === 'fulfilled') setEmailUsage(responseItems(usageResult.value));
+    });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (!selected) return undefined;
@@ -287,8 +303,10 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
 
   const copyEmbed = async () => {
     const organizationId = typeof window !== 'undefined' ? localStorage.getItem('sb_uid') || '' : '';
+    const workspaceId = typeof window !== 'undefined' ? localStorage.getItem('sb_workspace_id') || '' : '';
     const attributes = [
       ['data-organization-id', organizationId],
+      ['data-workspace-id', workspaceId],
       ['data-public-key', publicKey],
       ['data-launcher-style', launcherStyle],
       ['data-widget-title', widgetTheme.title],
@@ -328,6 +346,7 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
   return (
     <div className={styles.page}>
       <TopNav userProfile={userProfile} isLoggedOut={!userProfile} />
+      <PushNotificationManager context="ticket" />
       <main className={styles.main}>
         <WorkspaceGreeting userProfile={userProfile} context="Tickets" />
         <div className={styles.hero}>
@@ -349,6 +368,11 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
         </nav>
 
         {error && <div className={styles.error} role="alert"><span className="material-symbols-outlined">error</span>{error}<button onClick={() => setError('')}>×</button></div>}
+        <div className={styles.usageBanner}>
+          <span><strong>{emailUsage.filter(item => item.status === 'sent').length}</strong> support emails used</span>
+          <span>Usage is recorded for end-of-day billing.</span>
+          <Link href="/admin/billing">View credits and billing</Link>
+        </div>
 
         {tab === 'inbox' && <section className={styles.inboxLayout}>
           <div className={styles.inboxColumn}>
@@ -358,6 +382,7 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
               <div className={styles.filterRow}>
                 <select aria-label="Filter by status" value={filters.status} onChange={event => setFilters(current => ({ ...current, status: event.target.value }))}><option value="">All statuses</option><option value="open">Open</option><option value="pending">Pending</option><option value="resolved">Resolved</option></select>
                 <select aria-label="Filter by priority" value={filters.priority} onChange={event => setFilters(current => ({ ...current, priority: event.target.value }))}><option value="">All priorities</option><option value="urgent">Urgent</option><option value="high">High</option><option value="normal">Normal</option><option value="low">Low</option></select>
+                <select aria-label="Filter by assignment" value={filters.assignedTo} onChange={event => setFilters(current => ({ ...current, assignedTo: event.target.value }))}><option value="">All assignments</option><option value="__me__">Assigned to Me</option><option value="unassigned">Unassigned</option>{members.map(member => <option key={member.uid || member.id} value={member.uid || member.id}>{member.name || member.email}</option>)}</select>
               </div>
             </div>
             <div className={styles.statRow}>{STATUSES.map(status => <div key={status} className={styles.stat}><strong>{counts[status]}</strong><span className={`${styles.dot} ${styles[statusClass[status]]}`} />{status}</div>)}</div>
@@ -377,7 +402,7 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
               })}</div>
           </div>
           {selected ? <section className={styles.conversation}>
-            <header className={styles.conversationHeader}><div className={styles.customerHeader}><div className={`${styles.avatar} ${styles.large}`}>{customerLabel(selected.customer).slice(0, 1).toUpperCase()}</div><div><h2>{customerLabel(selected.customer)}</h2><p>{customerEmail(selected.customer, selected.customerId)}</p></div></div><div className={styles.conversationActions}><select aria-label="Update ticket status" value={selected.status || 'open'} disabled={saving} onChange={event => updateTicket({ status: event.target.value })}><option value="open">Open</option><option value="pending">Pending</option><option value="resolved">Resolved</option></select><button title="Archive ticket" onClick={archiveSelected}><span className="material-symbols-outlined">archive</span></button></div></header>
+            <header className={styles.conversationHeader}><div className={styles.customerHeader}><div className={`${styles.avatar} ${styles.large}`}>{customerLabel(selected.customer).slice(0, 1).toUpperCase()}</div><div><h2>{customerLabel(selected.customer)}</h2><p>{customerEmail(selected.customer, selected.customerId)}</p></div></div><div className={styles.conversationActions}><select aria-label="Update ticket status" value={selected.status || 'open'} disabled={saving} onChange={event => updateTicket({ status: event.target.value })}><option value="open">Open</option><option value="pending">Pending</option><option value="resolved">Resolved</option></select><select aria-label="Set ticket priority" value={selected.priority || 'normal'} disabled={saving} onChange={event => updateTicket({ priority: event.target.value })}><option value="low">Low priority</option><option value="normal">Normal priority</option><option value="high">High priority</option><option value="urgent">Urgent priority</option></select><select aria-label="Assign ticket" value={selected.assignedTo || ''} disabled={saving} onChange={event => updateTicket({ assignedTo: event.target.value || null })}><option value="">Unassigned</option>{members.map(member => <option key={member.uid || member.id} value={member.uid || member.id}>{member.name || member.email}</option>)}</select><button title="Archive ticket" onClick={archiveSelected}><span className="material-symbols-outlined">archive</span></button></div></header>
             <div className={styles.subjectBar}><div><span className={styles.sectionKicker}>Ticket conversation</span><h2>{selected.subject || 'Ticket'}</h2></div><span className={`${styles.badge} ${styles[statusClass[selected.status] || 'open']}`}>{selected.priority || 'normal'} priority</span></div>
             <div className={styles.messages}>{messages.length === 0 ? <div className={styles.emptyState}><span className="material-symbols-outlined">chat_bubble_outline</span><p>No messages yet</p></div> : messages.map((message, index) => <div key={message._id || message.id || index} className={`${styles.message} ${message.senderType === 'agent' || message.senderId === 'ai' ? styles.agentMessage : ''}`}><div className={styles.messageLabel}>{message.senderId === 'ai' ? 'AI support' : message.senderType === 'agent' ? 'You' : message.senderType || 'Customer'} {message.isInternal && <span>Internal note</span>}</div><div className={styles.messageBubble}>{message.body}</div></div>)}</div>
             <form className={styles.replyBox} onSubmit={sendReply}><textarea required rows="3" placeholder="Reply to customer..." value={reply} onChange={event => setReply(event.target.value)} /><div><span>↵ Send with Enter</span><button disabled={saving} className={styles.primaryButton} type="submit"><span className="material-symbols-outlined">send</span>Send reply</button></div></form>

@@ -391,6 +391,7 @@ export const api = {
   getTicket: (id) => request(`/api/v1/tickets/${encodeURIComponent(id)}`),
   createTicket: (data) => request('/api/v1/tickets', { method: 'POST', body: JSON.stringify(data) }),
   updateTicket: (id, data) => request(`/api/v1/tickets/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  getTicketMembers: () => request('/api/v1/ticket-members'),
   archiveTicket: (id) => request(`/api/v1/tickets/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   getTicketMessages: (id) => request(`/api/v1/tickets/${encodeURIComponent(id)}/messages`),
   addTicketMessage: (id, data) => request(`/api/v1/tickets/${encodeURIComponent(id)}/messages`, { method: 'POST', body: JSON.stringify(data) }),
@@ -408,17 +409,24 @@ export const api = {
   getPublicAiPrompts: ({ organizationId, publicApiKey }) => publicRequest('/api/v1/public/ai-prompts', {
     headers: { 'x-organization-id': organizationId, 'x-ticket-public-key': publicApiKey }
   }),
-  createPublicTicket: (data, { organizationId, publicApiKey }) => {
+  createPublicTicket: (data, { organizationId, publicApiKey, workspaceId }) => {
     if (!organizationId || !publicApiKey) throw new Error('Ticket widget is not configured.');
     return publicRequest('/api/v1/public/tickets', {
       method: 'POST',
-      headers: { 'x-organization-id': organizationId, 'x-ticket-public-key': publicApiKey },
+      headers: { 'x-organization-id': organizationId, 'x-ticket-public-key': publicApiKey, ...(workspaceId ? { 'x-workspace-id': workspaceId } : {}) },
       body: JSON.stringify(data)
     });
   },
   getPublicTicket: (continuationId) => {
     if (!continuationId) throw new Error('A ticket continuation ID is required.');
     return publicRequest(`/api/v1/public/tickets/chat/${encodeURIComponent(continuationId)}`);
+  },
+  updatePublicTicket: (continuationId, data) => {
+    if (!continuationId) throw new Error('A ticket continuation ID is required.');
+    return publicRequest(`/api/v1/public/tickets/chat/${encodeURIComponent(continuationId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
   },
   addPublicTicketMessage: (continuationId, body) => {
     if (!continuationId) throw new Error('A ticket continuation ID is required.');

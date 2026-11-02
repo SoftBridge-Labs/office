@@ -3,27 +3,49 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background-color: #ededeb; /* Match workspace neutral grey background */
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-hover) 100%);
   position: relative;
   overflow: hidden;
   padding: 2rem;
   font-family: var(--font-body);
 }
 
+.loginContainer::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -10%;
+  width: 600px;
+  height: 600px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.loginContainer::after {
+  content: '';
+  position: absolute;
+  bottom: -30%;
+  right: -5%;
+  width: 400px;
+  height: 400px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
 .loginCard {
   width: 100%;
-  max-width: 400px;
-  padding: 2.5rem;
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+  max-width: 420px;
+  padding: 3rem 2.5rem;
+  border-radius: var(--radius-xl);
+  background: var(--bg-surface);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
   z-index: 10;
   display: flex;
   flex-direction: column;
   animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  position: relative;
 }
 
 .logo {
@@ -31,44 +53,45 @@
   align-items: center;
   gap: 0.5rem;
   font-family: var(--font-display);
-  font-size: 1.4rem;
+  font-size: 1.5rem;
   font-weight: 800;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   justify-content: center;
 }
 
 .logoText {
-  color: #1a1a1a;
+  color: var(--brand);
 }
 
 .logoSub {
-  color: #6366f1;
+  color: var(--text-secondary);
 }
 
 .title {
-  font-size: 1.35rem;
+  font-size: 1.5rem;
   font-weight: 800;
   margin-bottom: 0.5rem;
   text-align: center;
-  color: #1a1a1a;
+  color: var(--text-primary);
   font-family: var(--font-display);
 }
 
 .subtitle {
-  color: #8c8c8a;
-  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
   margin-bottom: 2rem;
   text-align: center;
   font-weight: 500;
+  line-height: 1.5;
 }
 
 .errorAlert {
-  background-color: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  color: #ef4444;
+  background-color: var(--danger-bg);
+  border: 1px solid var(--danger);
+  color: var(--danger);
   font-size: 0.85rem;
   padding: 0.75rem 1rem;
-  border-radius: 8px;
+  border-radius: var(--radius);
   margin-bottom: 1.5rem;
   font-weight: 600;
 }
@@ -88,16 +111,17 @@
 .inputGroup label {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #555553;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  font-family: var(--font-display);
 }
 
 .input {
   width: 100%;
   padding: 0.75rem 1rem;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   background-color: rgba(255, 255, 255, 0.6);
   font-size: 0.9rem;
   color: #1a1a1a;

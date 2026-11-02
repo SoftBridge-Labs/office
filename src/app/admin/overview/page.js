@@ -31,15 +31,15 @@ export default function OverviewPage() {
         // Accurate counts from real user and department collections
         const totalMembers = usersList.length > 0
           ? usersList.length
-          : (statsData?.members?.total && statsData.members.total > 1 ? statsData.members.total : 6);
+          : (statsData?.members?.total || 0);
 
         const activeMembers = usersList.length > 0
           ? usersList.filter(u => u.status === 'active').length
-          : (statsData?.members?.active && statsData.members.active > 1 ? statsData.members.active : 6);
+          : (statsData?.members?.active || 0);
 
         const totalDepts = deptList.length > 0
           ? deptList.length
-          : (statsData?.departments && statsData.departments > 1 ? statsData.departments : 2);
+          : (statsData?.departments || 0);
 
         const plan = savedPlan || (billData?.currentPlan && billData.currentPlan !== 'free' ? billData.currentPlan : null) || (statsData?.subscription?.plan && statsData.subscription.plan !== 'free' ? statsData.subscription.plan : 'monthly');
 
@@ -55,15 +55,19 @@ export default function OverviewPage() {
             plan: plan,
             status: 'active',
             seats: activeMembers,
-          }
+          },
+          tickets: statsData?.tickets || { total: 0, open: 0, pending: 0, resolved: 0 },
+          emailUsage: statsData?.emailUsage || { sent: 0, failed: 0, totalAmount: 0 }
         });
       } catch (e) {
         setStats({
-          members: { total: 6, active: 6 },
-          departments: 2,
-          enabledApps: ['sheets', 'docs', 'whiteboard', 'tasks', 'calendar', 'meet', 'forms'],
-          auditActivity30d: 15,
-          subscription: { plan: 'monthly', status: 'active', seats: 6 }
+          members: { total: 0, active: 0 },
+          departments: 0,
+          enabledApps: [],
+          auditActivity30d: 0,
+          subscription: { plan: 'free', status: 'active', seats: 0 },
+          tickets: { total: 0, open: 0, pending: 0, resolved: 0 },
+          emailUsage: { sent: 0, failed: 0, totalAmount: 0 }
         });
       } finally {
         setLoading(false);
@@ -92,6 +96,11 @@ export default function OverviewPage() {
           {statCard('Departments', stats.departments, '#8e24aa')}
           {statCard('Enabled Apps', stats.enabledApps?.length ?? 7, '#0284c7')}
           {statCard('Audit Events (30d)', stats.auditActivity30d, '#d93025')}
+          {statCard('Total Tickets', stats.tickets?.total, '#7c3aed')}
+          {statCard('Resolved Tickets', stats.tickets?.resolved, '#137333')}
+          {statCard('Open / Pending', `${stats.tickets?.open || 0} / ${stats.tickets?.pending || 0}`, '#b45309')}
+          {statCard('Emails Used', stats.emailUsage?.sent, '#0284c7')}
+          {statCard('Email Bill', `₹${Number(stats.emailUsage?.totalAmount || 0).toFixed(2)}`, '#be185d')}
           {stats.subscription && statCard('Billing Plan', stats.subscription.plan?.toUpperCase(), '#1a73e8')}
         </div>
       )}

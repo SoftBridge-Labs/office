@@ -24,3 +24,17 @@ messaging.onBackgroundMessage(function(payload) {
 
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
+
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+  const target = event.notification.data?.url || '/';
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
+    for (const client of clientList) {
+      if ('focus' in client) {
+        client.navigate(new URL(target, self.location.origin).href);
+        return client.focus();
+      }
+    }
+    return self.clients.openWindow(new URL(target, self.location.origin).href);
+  }));
+});

@@ -195,6 +195,7 @@
   margin-top: 18px;
   background: #287c68;
 }
+.statusActions { display: flex; justify-content: flex-end; margin-top: 14px; }
 
 @media (max-width: 600px) {
   .header {
