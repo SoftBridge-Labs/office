@@ -48,7 +48,15 @@ export default function TicketWidgetPage() {
       try {
         const response = await api.getPublicTicket(continuationId);
         if (active) {
-          setConversation(response?.data?.ticket || response?.data || response?.ticket || response);
+          const nextConversation = response?.data?.ticket || response?.data || response?.ticket || response;
+          if (nextConversation?.status === 'resolved' || nextConversation?.status === 'archived') {
+            localStorage.removeItem('sb_ticket_continuation_id');
+            setContinuationId('');
+            setConversation(null);
+            setState('idle');
+            return;
+          }
+          setConversation(nextConversation);
           setState('sent');
         }
       } catch (error) {
@@ -71,14 +79,23 @@ export default function TicketWidgetPage() {
     if (!continuationId) return undefined;
     return connectTicketSocket({
       continuationId,
-      onEvent: event => setConversation(current => {
-        if (!current) return current;
-        const incomingMessage = event.message;
-        const messages = incomingMessage
-          ? [...(current.messages || []).filter(message => message._id !== incomingMessage._id && message.id !== incomingMessage.id), incomingMessage]
-          : current.messages;
-        return { ...current, ...event.ticket, status: event.status || event.ticket?.status || current.status, updatedAt: event.updatedAt || current.updatedAt, messages };
-      })
+      onEvent: event => {
+        if (event.status === 'resolved' || event.ticket?.status === 'resolved' || event.status === 'archived' || event.ticket?.status === 'archived') {
+          localStorage.removeItem('sb_ticket_continuation_id');
+          setContinuationId('');
+          setState('idle');
+          setConversation(null);
+          return;
+        }
+        setConversation(current => {
+          if (!current) return current;
+          const incomingMessage = event.message;
+          const messages = incomingMessage
+            ? [...(current.messages || []).filter(message => message._id !== incomingMessage._id && message.id !== incomingMessage.id), incomingMessage]
+            : current.messages;
+          return { ...current, ...event.ticket, status: event.status || event.ticket?.status || current.status, updatedAt: event.updatedAt || current.updatedAt, messages };
+        });
+      }
     });
   }, [continuationId]);
 
@@ -224,7 +241,14 @@ export default function TicketWidgetPage() {
     try {
       const response = await api.updatePublicTicket(continuationId, { status });
       const updated = response?.data?.ticket || response?.data || response?.ticket || response;
-      setConversation(current => ({ ...current, ...updated, status: updated.status || status }));
+      if (status === 'resolved') {
+        localStorage.removeItem('sb_ticket_continuation_id');
+        setContinuationId('');
+        setConversation(null);
+        setState('idle');
+      } else {
+        setConversation(current => ({ ...current, ...updated, status: updated.status || status }));
+      }
     } catch (err) {
       setError(err.message || 'We could not update this conversation.');
     } finally {
@@ -320,12 +344,6 @@ export default function TicketWidgetPage() {
     return <main style={{ ...styles.shell, '--widget-color': color, '--widget-radius': `${radius}px` }}>
       <div style={styles.brand}><span style={styles.brandMark}>{icon}</span>{supportBrand}</div>
       <div style={styles.conversationContainer}>
-        <div style={styles.successHeader}>
-          <div style={{ ...styles.successIcon, color }}>✓</div>
-          <h1>Message received</h1>
-          <p>A human agent will respond to your message shortly.</p>
-        </div>
-        
         {messages.length > 0 && <div style={styles.messagesGrid}>
           {messages.map(message => {
             const isCustomer = message.senderType === 'customer';
