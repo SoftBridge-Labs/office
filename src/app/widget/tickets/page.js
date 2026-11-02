@@ -26,7 +26,7 @@ export default function TicketWidgetPage() {
   const [needsEscalation, setNeedsEscalation] = useState(false);
   
   // Escalation form state
-  const [form, setForm] = useState({ email: '', name: '', subject: '' });
+  const [form, setForm] = useState({ email: '', name: '', subject: '', description: '' });
   const [escalationError, setEscalationError] = useState('');
   
   // Human ticket state
@@ -67,6 +67,14 @@ export default function TicketWidgetPage() {
       onEvent: event => setConversation(current => current ? { ...current, status: event.status, updatedAt: event.updatedAt, messages: event.message ? [...(current.messages || []), event.message] : current.messages } : current)
     });
   }, [continuationId]);
+
+  const openEscalation = () => {
+    const transcript = aiMessages
+      .map(message => `${message.senderType === 'customer' ? 'Customer' : 'AI'}: ${message.content}`)
+      .join('\n\n');
+    setForm(current => current.description.trim() ? current : { ...current, description: transcript });
+    setNeedsEscalation(true);
+  };
 
   const sendAiMessage = async event => {
     event.preventDefault();
@@ -118,7 +126,7 @@ export default function TicketWidgetPage() {
       setAiMessages(current => [...current, { role: 'assistant', content: aiReply, senderType: 'ai' }]);
       
       if (shouldEscalate) {
-        setNeedsEscalation(true);
+        openEscalation();
         setAiState('escalation-ready');
       } else {
         setAiState('idle');
@@ -129,15 +137,19 @@ export default function TicketWidgetPage() {
       setAiState('idle');
       // Auto-escalate to human after 1.5 seconds
       setTimeout(() => {
-        setNeedsEscalation(true);
+        openEscalation();
       }, 1500);
     }
   };
 
   const escalateToHuman = async event => {
     event.preventDefault();
-    if (!form.email || !form.subject) {
-      setEscalationError('Please provide your email and issue subject');
+    const storageKey = 'sb_ticket_external_id';
+    const externalId = localStorage.getItem(storageKey) || `web-${Math.random().toString(36).slice(2, 10)}`;
+    const description = form.description.trim();
+
+    if (!externalId || !form.email.trim() || !form.subject.trim() || !description) {
+      setEscalationError('Please provide your email, issue subject, and description');
       return;
     }
     
@@ -145,16 +157,12 @@ export default function TicketWidgetPage() {
     setEscalationError('');
     
     try {
-      const storageKey = 'sb_ticket_external_id';
-      const externalId = localStorage.getItem(storageKey) || `web-${Math.random().toString(36).slice(2, 10)}`;
       localStorage.setItem(storageKey, externalId);
       
-      const description = aiMessages.map(m => `${m.senderType === 'customer' ? 'Customer' : 'AI'}: ${m.content}`).join('\n\n');
-      
       const ticketData = {
-        email: form.email,
+        email: form.email.trim(),
         name: form.name || 'Customer',
-        subject: form.subject,
+        subject: form.subject.trim(),
         description: description,
         externalId
       };
@@ -259,7 +267,7 @@ export default function TicketWidgetPage() {
           {!organizationId || !publicApiKey ? <small style={styles.configuration}>This support form has not been configured yet.</small> : null}
         </form>
         
-        <button style={styles.humanButton} onClick={() => setNeedsEscalation(true)}>Connect with Human</button>
+        <button style={styles.humanButton} onClick={openEscalation}>Connect with Human</button>
       </div>
     </main>;
   }
@@ -280,6 +288,7 @@ export default function TicketWidgetPage() {
           <label style={styles.label}>Your email<input style={styles.input} required type="email" placeholder="you@company.com" value={form.email} onChange={event => setForm({ ...form, email: event.target.value })} /></label>
           <label style={styles.label}>Name <span>(optional)</span><input style={styles.input} placeholder="Your name" value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} /></label>
           <label style={styles.label}>What can we help with?<input style={styles.input} required placeholder="Short summary" value={form.subject} onChange={event => setForm({ ...form, subject: event.target.value })} /></label>
+          <label style={styles.label}>Description<textarea style={styles.textarea} required rows="5" placeholder="Tell us what you need help with" value={form.description} onChange={event => setForm({ ...form, description: event.target.value })} /></label>
           <button disabled={state === 'sending'} style={styles.submitButton}>{state === 'sending' ? 'Connecting...' : 'Connect with agent'} <span>→</span></button>
           <small style={styles.privacy}>By contacting us, you agree to receive email updates about this request.</small>
         </form>
