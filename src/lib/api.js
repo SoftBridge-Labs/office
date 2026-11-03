@@ -409,6 +409,14 @@ export const api = {
   getPublicAiPrompts: ({ organizationId, publicApiKey }) => publicRequest('/api/v1/public/ai-prompts', {
     headers: { 'x-organization-id': organizationId, 'x-ticket-public-key': publicApiKey }
   }),
+  deflectPublicAi: (data, { organizationId, publicApiKey }) => {
+    if (!organizationId || !publicApiKey) throw new Error('Ticket widget is not configured.');
+    return publicRequest('/api/v1/public/ai/deflect', {
+      method: 'POST',
+      headers: { 'x-organization-id': organizationId, 'x-ticket-public-key': publicApiKey },
+      body: JSON.stringify(data)
+    });
+  },
   createPublicTicket: (data, { organizationId, publicApiKey, workspaceId }) => {
     if (!organizationId || !publicApiKey) throw new Error('Ticket widget is not configured.');
     return publicRequest('/api/v1/public/tickets', {

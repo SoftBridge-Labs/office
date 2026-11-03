@@ -8,7 +8,13 @@ export function connectTicketSocket({ ticketId, continuationId, onEvent }) {
     transports: ['websocket', 'polling'],
     auth: { token: continuationId || localStorage.getItem('sb_uid') || getAccessToken() || '' }
   });
-  socket.on('connect', () => socket.emit('join_ticket', { ticketId, continuationId }));
+  socket.on('connect', () => {
+    if (ticketId || continuationId) {
+      socket.emit('join_ticket', { ticketId, continuationId });
+    } else {
+      socket.emit('join_workspace');
+    }
+  });
   socket.on('ticket_event', event => {
     const normalizedEvent = event?.data || event;
     if (normalizedEvent) onEvent(normalizedEvent);

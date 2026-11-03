@@ -206,6 +206,20 @@
     gap: 16px;
   }
 
+  .page { min-height: 100dvh; padding: 0; background: #edf4f1; }
+  .header { max-width: none; margin: 0; padding: 16px clamp(18px, 4vw, 56px); border-bottom: 1px solid #d5e3dd; background: rgba(255, 255, 255, .94); }
+  .card { max-width: none; min-height: calc(100dvh - 61px); margin: 0; padding: 0 clamp(18px, 8vw, 140px) 25px; border: 0; border-radius: 0; background: #edf4f1; box-shadow: none; }
+  .titleBlock { padding: 30px 0 20px; }
+  .messages { min-height: calc(100dvh - 360px); max-height: none; padding: 30px clamp(4px, 3vw, 34px) 18px; overflow-y: auto; background: linear-gradient(180deg, rgba(255,255,255,.32), rgba(232,246,239,.5)); border: 1px solid #dce9e3; border-radius: 14px; }
+  .replyBox { margin-top: 14px; background: #fff; }
+  @media (max-width: 600px) {
+    .header { padding: 13px 15px; }
+    .card { padding: 0 12px 18px; }
+    .titleBlock { padding: 22px 4px 16px; }
+    .messages { min-height: calc(100dvh - 335px); padding: 22px 12px 12px; border-radius: 10px; }
+    .message { max-width: 92%; }
+  }
+
   .workspaceLink {
     text-align: right;
   }

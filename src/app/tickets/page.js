@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import TopNav from '@/app/components/TopNav';
 import WorkspaceGreeting from '@/app/components/WorkspaceGreeting';
@@ -56,6 +56,15 @@ function customerEmail(customer, fallback) {
       : 'No email provided';
 }
 
+function ticketTags(ticket) {
+  const tags = ticket?.tags || ticket?.labels || [];
+  if (!Array.isArray(tags)) return [];
+  return tags.map(tag => {
+    if (typeof tag === 'string' || typeof tag === 'number') return String(tag);
+    return tag?.name || tag?.label || tag?.value || '';
+  }).filter(Boolean).slice(0, 4);
+}
+
 export default function TicketsPage({ initialTab = 'inbox' }) {
   const [userProfile] = useState(() => {
     if (typeof window === 'undefined') return null;
@@ -65,6 +74,8 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
   const [tab, setTab] = useState(initialTab);
   const [tickets, setTickets] = useState([]);
   const [selected, setSelected] = useState(null);
+  const selectedRef = useRef(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [filters, setFilters] = useState({ status: '', priority: '', assignedTo: '', search: '' });
   const [showCreate, setShowCreate] = useState(false);
@@ -98,6 +109,10 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
   const [emailUsage, setEmailUsage] = useState([]);
   const [ratingForms, setRatingForms] = useState([]);
   const [ratingFormId, setRatingFormId] = useState('');
+
+  useEffect(() => {
+    selectedRef.current = selected;
+  }, [selected]);
 
   const loadTickets = useCallback(async () => {
     setLoading(true);
@@ -176,16 +191,32 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
   }, []);
 
   useEffect(() => {
-    if (!selected) return undefined;
+    if (tab !== 'inbox' && tab !== 'archived') return undefined;
     return connectTicketSocket({
-      ticketId: ticketId(selected),
       onEvent: event => {
-        if (event.message) setMessages(current => current.some(item => item._id === event.message._id) ? current : [...current, event.message]);
-        setSelected(current => current ? { ...current, status: event.status, updatedAt: event.updatedAt } : current);
+        const eventTicketId = event.ticketId || event.ticket?._id || event.ticket?.id || event.message?.ticketId;
+        if (event.message && selectedRef.current && (!eventTicketId || ticketId(selectedRef.current) === eventTicketId)) {
+          setMessages(messagesCurrent => messagesCurrent.some(item => (item._id || item.id) === (event.message._id || event.message.id))
+            ? messagesCurrent
+            : [...messagesCurrent, event.message]);
+        }
+        setSelected(current => {
+          if (!current || (eventTicketId && ticketId(current) !== eventTicketId)) return current;
+          return { ...current, ...(event.status ? { status: event.status } : {}), ...(event.updatedAt ? { updatedAt: event.updatedAt } : {}) };
+        });
         loadTickets();
       }
     });
-  }, [selected, loadTickets]);
+  }, [tab, loadTickets]);
+
+  useEffect(() => {
+    if (!isFullscreen) return undefined;
+    const handleKeyDown = event => {
+      if (event.key === 'Escape') setIsFullscreen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
 
   const visibleTickets = useMemo(() => {
     const query = filters.search.trim().toLowerCase();
@@ -201,6 +232,7 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
       const response = await api.getTicket(ticketId(ticket), { archived: tab === 'archived' });
       const detail = responseItem(response);
       setSelected(detail);
+      setIsFullscreen(false);
       setMessages(detail.messages || []);
       if (!detail.messages) {
         const messageResponse = await api.getTicketMessages(ticketId(ticket));
@@ -361,8 +393,8 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
   };
 
   return (
-    <div className={styles.page}>
-      <TopNav userProfile={userProfile} isLoggedOut={!userProfile} />
+    <div className={`${styles.page} ${isFullscreen && selected ? styles.fullscreen : ''}`}>
+      <TopNav userProfile={userProfile} isLoggedOut={!userProfile} className={styles.workspaceNav} />
       <PushNotificationManager context="ticket" />
       <main className={styles.main}>
         <WorkspaceGreeting userProfile={userProfile} context="Tickets" />
@@ -392,7 +424,7 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
           <Link href="/admin/billing">View credits and billing</Link>
         </div>
 
-        {(tab === 'inbox' || tab === 'archived') && <section className={styles.inboxLayout}>
+        {(tab === 'inbox' || tab === 'archived') && <section className={`${styles.inboxLayout} ${selected ? styles.hasSelection : ''}`}>
           <div className={styles.inboxColumn}>
             <div className={styles.inboxToolbar}>
               <div className={styles.inboxTitle}><h2>{tab === 'archived' ? 'Archived conversations' : 'Inbox'}</h2><span>{visibleTickets.length} conversations</span></div>
@@ -412,18 +444,18 @@ export default function TicketsPage({ initialTab = 'inbox' }) {
               <button disabled={saving} className={styles.primaryButton} type="submit">{saving ? 'Creating...' : 'Create ticket'}</button>
             </form>}
             <div className={styles.ticketList}>
-              {loading ? <div className={styles.emptyState}><span className="material-symbols-outlined">hourglass_top</span><p>Loading conversations...</p></div> : visibleTickets.length === 0 ? <div className={styles.emptyState}><span className="material-symbols-outlined">inbox</span><p>No conversations yet</p><small>New website conversations will appear here.</small></div> : visibleTickets.map(ticket => {
+              {loading ? <div className={styles.emptyState}><span className="material-symbols-outlined">hourglass_top</span><p>Loading conversations...</p></div> : visibleTickets.length === 0 ? <div className={styles.emptyState}><span className="material-symbols-outlined">inbox</span><p>No conversations yet</p><small>New website conversations will appear here.</small></div> : visibleTickets.map((ticket, ticketIndex) => {
                 const id = ticketId(ticket);
-                return <button key={id} onClick={() => openTicket(ticket)} className={`${styles.ticketRow} ${selected && ticketId(selected) === id ? styles.selectedRow : ''}`}>
-                  <div className={styles.avatar}>{customerLabel(ticket.customer).slice(0, 1).toUpperCase()}</div><div className={styles.ticketContent}><div className={styles.ticketTop}><strong>{customerLabel(ticket.customer)}</strong><time>{ticket.updatedAt ? new Date(ticket.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'New'}</time></div><h3>{ticket.subject || 'Untitled ticket'}</h3><p>{ticket.summary || ticket.description || 'No preview available'}</p><div className={styles.ticketMeta}><span className={`${styles.badge} ${styles[statusClass[ticket.status] || 'open']}`}>{ticket.status || 'open'}</span><span>{ticket.priority || 'normal'} priority</span>{ticket.assignedTo && <span>Assigned</span>}</div></div>
+                return <button key={`${id || 'ticket'}-${ticketIndex}`} onClick={() => openTicket(ticket)} className={`${styles.ticketRow} ${selected && ticketId(selected) === id ? styles.selectedRow : ''}`}>
+                  <div className={styles.avatar}>{customerLabel(ticket.customer).slice(0, 1).toUpperCase()}</div><div className={styles.ticketContent}><div className={styles.ticketTop}><strong>{customerLabel(ticket.customer)}</strong><time>{ticket.updatedAt ? new Date(ticket.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'New'}</time></div><h3>{ticket.subject || 'Untitled ticket'}</h3><p>{ticket.summary || ticket.description || 'No preview available'}</p><div className={styles.ticketMeta}><span className={`${styles.badge} ${styles[statusClass[ticket.status] || 'open']}`}>{ticket.status || 'open'}</span><span>{ticket.priority || 'normal'} priority</span>{ticket.assignedTo && <span>Assigned</span>}</div>{ticketTags(ticket).length > 0 && <div className={styles.tagList} aria-label="Ticket tags">{ticketTags(ticket).map((tag, index) => <span className={styles.tag} key={`${tag}-${index}`}>{tag}</span>)}</div>}</div>
                 </button>;
               })}</div>
           </div>
           {selected ? <section className={styles.conversation}>
-            <header className={styles.conversationHeader}><div className={styles.customerHeader}><div className={`${styles.avatar} ${styles.large}`}>{customerLabel(selected.customer).slice(0, 1).toUpperCase()}</div><div><h2>{customerLabel(selected.customer)}</h2><p>{customerEmail(selected.customer, selected.customerId)}</p></div></div><div className={styles.conversationActions}>{tab !== 'archived' && <><select aria-label="Update ticket status" value={selected.status || 'open'} disabled={saving} onChange={event => updateTicket({ status: event.target.value })}><option value="open">Open</option><option value="pending">Pending</option><option value="resolved">Resolved</option></select><select aria-label="Set ticket priority" value={selected.priority || 'normal'} disabled={saving} onChange={event => updateTicket({ priority: event.target.value })}><option value="low">Low priority</option><option value="normal">Normal priority</option><option value="high">High priority</option><option value="urgent">Urgent priority</option></select><select aria-label="Assign ticket" value={selected.assignedTo || ''} disabled={saving} onChange={event => updateTicket({ assignedTo: event.target.value || null })}><option value="">Unassigned</option>{members.map(member => <option key={member.uid || member.id} value={member.uid || member.id}>{member.name || member.email}</option>)}</select><button title="Archive ticket" onClick={archiveSelected}><span className="material-symbols-outlined">archive</span></button></>}{tab === 'archived' && <button type="button" className={styles.secondaryButton} disabled={saving} onClick={restoreSelected}>Restore conversation</button>}</div></header>
-            <div className={styles.subjectBar}><div><span className={styles.sectionKicker}>Ticket conversation</span><h2>{selected.subject || 'Ticket'}</h2></div><span className={`${styles.badge} ${styles[statusClass[selected.status] || 'open']}`}>{selected.priority || 'normal'} priority</span></div>
-            <div className={styles.messages}>{messages.length === 0 ? <div className={styles.emptyState}><span className="material-symbols-outlined">chat_bubble_outline</span><p>No messages yet</p></div> : messages.map((message, index) => <div key={message._id || message.id || index} className={`${styles.message} ${message.senderType === 'agent' || message.senderId === 'ai' ? styles.agentMessage : ''}`}><div className={styles.messageLabel}>{message.senderId === 'ai' ? 'AI support' : message.senderType === 'agent' ? 'You' : message.senderType || 'Customer'} {message.isInternal && <span>Internal note</span>}</div><div className={styles.messageBubble}>{message.body}</div></div>)}</div>
-            <form className={styles.replyBox} onSubmit={sendReply}><textarea required rows="3" placeholder="Reply to customer..." value={reply} onChange={event => setReply(event.target.value)} /><div><span>↵ Send with Enter</span><button disabled={saving} className={styles.primaryButton} type="submit"><span className="material-symbols-outlined">send</span>Send reply</button></div></form>
+            <header className={styles.conversationHeader}><button type="button" className={styles.backButton} onClick={() => { setSelected(null); setMessages([]); setIsFullscreen(false); }}><span className="material-symbols-outlined">arrow_back</span><span>Inbox</span></button><div className={styles.customerHeader}><div className={`${styles.avatar} ${styles.large}`}>{customerLabel(selected.customer).slice(0, 1).toUpperCase()}</div><div><h2>{customerLabel(selected.customer)}</h2><p>{customerEmail(selected.customer, selected.customerId)}</p></div></div><div className={styles.conversationActions}><button type="button" title={isFullscreen ? 'Exit fullscreen conversation' : 'Open fullscreen conversation'} aria-label={isFullscreen ? 'Exit fullscreen conversation' : 'Open fullscreen conversation'} onClick={() => setIsFullscreen(current => !current)}><span className="material-symbols-outlined">{isFullscreen ? 'close_fullscreen' : 'open_in_full'}</span></button>{tab !== 'archived' && <><select aria-label="Update ticket status" value={selected.status || 'open'} disabled={saving} onChange={event => updateTicket({ status: event.target.value })}><option value="open">Open</option><option value="pending">Pending</option><option value="resolved">Resolved</option></select><select aria-label="Set ticket priority" value={selected.priority || 'normal'} disabled={saving} onChange={event => updateTicket({ priority: event.target.value })}><option value="low">Low priority</option><option value="normal">Normal priority</option><option value="high">High priority</option><option value="urgent">Urgent priority</option></select><select aria-label="Assign ticket" value={selected.assignedTo || ''} disabled={saving} onChange={event => updateTicket({ assignedTo: event.target.value || null })}><option value="">Unassigned</option>{members.map(member => <option key={member.uid || member.id} value={member.uid || member.id}>{member.name || member.email}</option>)}</select><button title="Archive ticket" onClick={archiveSelected}><span className="material-symbols-outlined">archive</span></button></>}{tab === 'archived' && <button type="button" className={styles.secondaryButton} disabled={saving} onClick={restoreSelected}>Restore conversation</button>}</div></header>
+            <div className={styles.subjectBar}><div><span className={styles.sectionKicker}>Ticket conversation</span><h2>{selected.subject || 'Ticket'}</h2>{ticketTags(selected).length > 0 && <div className={styles.tagList}>{ticketTags(selected).map((tag, index) => <span className={styles.tag} key={`${tag}-${index}`}>{tag}</span>)}</div>}</div><span className={`${styles.badge} ${styles[statusClass[selected.status] || 'open']}`}>{selected.priority || 'normal'} priority</span></div>
+            <div className={styles.messages}>{messages.length === 0 ? <div className={styles.emptyState}><span className="material-symbols-outlined">chat_bubble_outline</span><p>No messages yet</p></div> : messages.map((message, index) => <div key={`${message._id || message.id || 'message'}-${index}`} className={`${styles.message} ${message.senderType === 'agent' || message.senderId === 'ai' ? styles.agentMessage : ''}`}><div className={styles.messageLabel}>{message.senderId === 'ai' ? 'AI support' : message.senderType === 'agent' ? 'You' : message.senderType || 'Customer'} {message.isInternal && <span>Internal note</span>}</div><div className={styles.messageBubble}>{message.body}</div></div>)}</div>
+            <form className={styles.replyBox} onSubmit={sendReply}><textarea required rows="3" placeholder="Reply to customer..." value={reply} onChange={event => setReply(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} /><div><span>Enter to send · Shift+Enter for a new line</span><button disabled={saving} className={styles.primaryButton} type="submit"><span className="material-symbols-outlined">send</span>Send reply</button></div></form>
           </section> : <section className={styles.noConversation}><span className="material-symbols-outlined">forum</span><h2>Select a conversation</h2><p>Choose a customer conversation from your inbox to read the thread and reply.</p></section>}
         </section>}
 

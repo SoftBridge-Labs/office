@@ -125,32 +125,10 @@ export default function TicketWidgetPage() {
       }));
       conversationHistory.push({ role: 'user', content: userMessage });
       
-      // Use public deflect endpoint - make direct request with public headers
-      const apiUrl = typeof window !== 'undefined' && window.__ENV__?.NEXT_PUBLIC_API_URL 
-        ? window.__ENV__.NEXT_PUBLIC_API_URL 
-        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000');
-      
-      const deflectUrl = `${apiUrl}/api/v1/public/ai/deflect`;
-      
-      const deflectResponse = await fetch(deflectUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-organization-id': organizationId,
-          'x-ticket-public-key': publicApiKey
-        },
-        body: JSON.stringify({
-          message: userMessage,
-          conversation: conversationHistory
-        })
-      });
-      
-      if (!deflectResponse.ok) {
-        const errorData = await deflectResponse.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to get AI response: ${deflectResponse.statusText}`);
-      }
-      
-      const response = await deflectResponse.json();
+      const response = await api.deflectPublicAi(
+        { message: userMessage, conversation: conversationHistory },
+        { organizationId, publicApiKey }
+      );
       const aiReply = response?.data?.answer || response?.answer || 'Thank you for reaching out. How can I help you further?';
       const shouldEscalate = response?.data?.shouldEscalate || response?.shouldEscalate || false;
       

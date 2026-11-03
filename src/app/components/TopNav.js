@@ -7,7 +7,7 @@ import OneTapLogin from '@/app/components/OneTapLogin';
 import { api } from '@/lib/api';
 import styles from './workspace.module.css';
 
-export default function TopNav({ userProfile, isLoggedOut }) {
+export default function TopNav({ userProfile, isLoggedOut, className = '' }) {
   const router = useRouter();
   const pathname = usePathname();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -74,7 +74,7 @@ export default function TopNav({ userProfile, isLoggedOut }) {
   };
 
   return (
-    <header className={styles.topbar} style={{
+    <header className={`${styles.topbar} ${className}`} style={{
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
