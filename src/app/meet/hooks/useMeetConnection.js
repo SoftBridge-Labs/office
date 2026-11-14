@@ -69,6 +69,12 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
   const screenTrackRef = useRef(null);
   const hasJoinedRoomRef = useRef(false);
   const socketRef = useRef(null);
+  // A room can briefly be out of sync while another participant is joining or
+  // reconnecting. Keep enough local state to repair that condition instead of
+  // treating one incomplete sync response as a reason to eject this user.
+  const membershipMissesRef = useRef(0);
+  const rejoinInFlightRef = useRef(false);
+  const lifecycleRef = useRef(0);
   const micActiveRef = useRef(micActive);
   const videoActiveRef = useRef(videoActive);
   const myStreamRef = useRef(null);          // Always-current ref — avoids stale closures
@@ -271,14 +277,27 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
   // 2. Load PeerJS (guard against React StrictMode double-mount)
   useEffect(() => {
     if (!authorized) return;
-    if (document.querySelector('script[data-peerjs]')) { setPeerLoaded(true); return; }
-    const s = document.createElement('script');
-    s.src = 'https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js';
-    s.async = true;
-    s.setAttribute('data-peerjs', '1');
-    s.onload = () => setPeerLoaded(true);
-    document.body.appendChild(s);
-    return () => { try { document.body.removeChild(s); } catch {} };
+    if (window.Peer) { setPeerLoaded(true); return; }
+
+    // All meeting tabs share this script. If one tab mounts while it is still
+    // downloading, wait for its load event rather than starting PeerJS before
+    // `window.Peer` exists. Do not remove the shared script on unmount.
+    let script = document.querySelector('script[data-peerjs]');
+    if (!script) {
+      script = document.createElement('script');
+      script.src = 'https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js';
+      script.async = true;
+      script.setAttribute('data-peerjs', '1');
+      document.body.appendChild(script);
+    }
+    const onLoad = () => setPeerLoaded(true);
+    const onError = () => setStatusMsg('Unable to load meeting connection. Please refresh.');
+    script.addEventListener('load', onLoad, { once: true });
+    script.addEventListener('error', onError, { once: true });
+    return () => {
+      script?.removeEventListener('load', onLoad);
+      script?.removeEventListener('error', onError);
+    };
   }, [authorized]);
 
   // 2b. Load Socket.io connection for real-time signaling/reactions
@@ -339,6 +358,13 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
       socket.disconnect();
     };
   }, [authorized, userProfile, id]);
+
+  async function fetchChatAndReactions() {
+    try {
+      const cr = await api.getMeetMessages(id);
+      if (cr.success) setChatMessages(cr.messages);
+    } catch {}
+  }
 
   // ── Adaptive bitrate: apply a quality profile to one RTCPeerConnection ──────
   const applyBandwidthToCall = useCallback((call, profile) => {
@@ -457,8 +483,12 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
   // 4. PeerJS + sync
   useEffect(() => {
     if (!peerLoaded || !myStream || !userProfile) return;
+    const lifecycle = ++lifecycleRef.current;
     const myPeerId = `sb-${id}-${userProfile.uid || 'guest'}-${Math.random().toString(36).substr(2, 5)}`;
     myPeerIdRef.current = myPeerId;
+    hasJoinedRoomRef.current = false;
+    membershipMissesRef.current = 0;
+    rejoinInFlightRef.current = false;
 
     // Default ICE config — STUN only, used as fallback if TURN credential fetch fails
     const defaultIceServers = [
@@ -470,32 +500,57 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
     let syncInterval = null;
     let destroyed = false;
     let triggerCleanup = null;
+    let peerForLifecycle = null;
 
     const setupPeer = (peer) => {
 
 
-      const handleDisconnect = (pId) => {
+      const handleDisconnect = (pId, closedCall) => {
+        // An older failed call must not tear down a newer replacement call for
+        // the same participant.
+        if (closedCall && activeCalls.current[pId] && activeCalls.current[pId] !== closedCall) return;
         setRemoteStreams(prev => { const next = { ...prev }; delete next[pId]; return next; });
         if (activeCalls.current[pId]) { try { activeCalls.current[pId].close(); } catch {} delete activeCalls.current[pId]; }
+        if (dataConns.current[pId]) { try { dataConns.current[pId].close(); } catch {} delete dataConns.current[pId]; }
         connectingPeers.current.delete(pId);
+      };
+
+      const joinRoom = async (peerId, { recovering = false } = {}) => {
+        if (destroyed || lifecycle !== lifecycleRef.current) return false;
+        try {
+          const joinRes = await api.joinMeetingRoom(id, {
+            peerId,
+            uid: userProfile.uid,
+            name: userProfile.name || 'Teammate',
+            avatar_url: userProfile.avatar_url,
+          });
+          if (destroyed || lifecycle !== lifecycleRef.current) return false;
+          if (!joinRes.success) return false;
+
+          hasJoinedRoomRef.current = true;
+          membershipMissesRef.current = 0;
+          if (joinRes.limits) setMeetLimits(joinRes.limits);
+          setStatusMsg(recovering ? 'Reconnected to meeting' : 'Waiting for others...');
+          if (!recovering) fetchChatAndReactions();
+          api.updateMeetPeer(id, {
+            peerId,
+            isVideoOff: !videoActiveRef.current,
+            isMuted: !micActiveRef.current,
+            avatar_url: userProfile.avatar_url,
+          }).catch(() => {});
+          return true;
+        } catch (err) {
+          if (destroyed || lifecycle !== lifecycleRef.current) return false;
+          if (err.message?.includes('limit')) { alert(err.message); router.push('/meet'); }
+          else if (err.message?.includes('Ended')) { router.push('/home'); }
+          else setStatusMsg('Unable to join meeting. Retrying...');
+          return false;
+        }
       };
 
       peer.on('open', async (rid) => {
         peerInstance.current = peer;
-        try {
-          const joinRes = await api.joinMeetingRoom(id, { peerId: rid, uid: userProfile.uid, name: userProfile.name || 'Teammate', avatar_url: userProfile.avatar_url });
-          if (joinRes.success) {
-            hasJoinedRoomRef.current = true;
-            if (joinRes.limits) setMeetLimits(joinRes.limits);
-            setStatusMsg('Waiting for others...');
-            fetchChatAndReactions();
-            api.updateMeetPeer(id, { peerId: rid, isVideoOff: !videoActive, isMuted: !micActive, avatar_url: userProfile.avatar_url }).catch(() => {});
-          }
-        } catch (err) {
-          if (err.message?.includes('limit')) { alert(err.message); router.push('/meet'); }
-          else if (err.message?.includes('Ended')) { router.push('/home'); }
-          else setAccessDenied(true);
-        }
+        await joinRoom(rid);
       });
 
       peer.on('error', (err) => {
@@ -558,7 +613,7 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
           }).catch(() => setRemoteStreams(prev => ({ ...prev, [call.peer]: { stream: s, name: 'Participant', isVideoOff: false, isMuted: false } })));
         });
 
-        const onClose = () => { cleanupMonitor(); handleDisconnect(call.peer); };
+        const onClose = () => { cleanupMonitor(); handleDisconnect(call.peer, call); };
         call.on('close', onClose);
         call.on('error', onClose);
       });
@@ -576,7 +631,21 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
 
           if (res.peers) {
             const amIHere = res.peers.find(p => p.peerId === myPeerId);
-            if (!amIHere) { router.push('/home'); return; }
+            if (!amIHere) {
+              // Do not kick an established caller because a concurrent join
+              // produced a stale/incomplete room snapshot. Re-register this
+              // exact peer once and keep the call alive while it completes.
+              membershipMissesRef.current += 1;
+              if (!rejoinInFlightRef.current) {
+                rejoinInFlightRef.current = true;
+                setStatusMsg('Restoring meeting connection...');
+                joinRoom(myPeerId, { recovering: true }).finally(() => {
+                  rejoinInFlightRef.current = false;
+                });
+              }
+              return;
+            }
+            membershipMissesRef.current = 0;
 
             const myHasMedia = micActiveRef.current || videoActiveRef.current;
 
@@ -604,7 +673,7 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
                   setRemoteStreams(prev => ({ ...prev, [other.peerId]: { stream: s, name: other.name || 'Participant', avatar_url: other.avatar_url, isVideoOff: other.isVideoOff || false, isMuted: other.isMuted || false, isHandRaised: other.isHandRaised || false, isScreenSharing: other.isScreenSharing || false } }));
                 });
 
-                const onClose = () => { cleanupMonitor(); handleDisconnect(other.peerId); };
+                const onClose = () => { cleanupMonitor(); handleDisconnect(other.peerId, call); };
                 call.on('close', onClose);
                 call.on('error', () => { connectingPeers.current.delete(other.peerId); onClose(); });
               } else {
@@ -708,7 +777,9 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
       triggerCleanup = () => window.removeEventListener('meet-sync-trigger', runSync);
 
       // Immediate sync shortly after peer opens
-      peer.once('open', () => setTimeout(runSync, 500));
+      peer.once('open', () => setTimeout(() => {
+        if (!destroyed && lifecycle === lifecycleRef.current) runSync();
+      }, 500));
     };
 
     const startPeer = (iceServers) => {
@@ -724,6 +795,7 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
           rtcpMuxPolicy: 'require',
         }
       });
+      peerForLifecycle = peer;
       peerInstance.current = peer;
       setupPeer(peer);
     };
@@ -767,17 +839,14 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
       if (syncInterval) clearInterval(syncInterval);
       if (triggerCleanup) triggerCleanup();
       connectingPeers.current.clear();
-      peerInstance.current?.destroy();
-      if (myPeerIdRef.current) api.leaveMeetingRoom(id, { peerId: myPeerIdRef.current }).catch(() => {});
+      // Only clean up the peer created by this effect. A stale effect cleanup
+      // must never destroy or remove a newer connection for the same room.
+      if (peerForLifecycle && peerInstance.current === peerForLifecycle && myPeerIdRef.current === myPeerId) {
+        peerForLifecycle.destroy();
+        api.leaveMeetingRoom(id, { peerId: myPeerId }).catch(() => {});
+      }
     };
   }, [peerLoaded, myStream, userProfile, id]);
-
-  const fetchChatAndReactions = async () => {
-    try {
-      const cr = await api.getMeetMessages(id);
-      if (cr.success) setChatMessages(cr.messages);
-    } catch {}
-  };
 
   // Meeting timer, Ping & Adaptive Quality
   useEffect(() => {
