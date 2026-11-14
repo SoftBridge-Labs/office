@@ -41,10 +41,6 @@ export default function Login() {
 
       // Save credentials and redirect to dashboard
       storeAuthTokens(data);
-      localStorage.setItem('sb_uid', data.uid);
-      if (data.user) {
-        localStorage.setItem('sb_user', JSON.stringify(data.user));
-      }
       
       router.push('/calendar');
     } catch (err) {

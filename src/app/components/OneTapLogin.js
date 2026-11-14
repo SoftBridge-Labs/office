@@ -43,15 +43,8 @@ export default function OneTapLogin({ onSuccess, buttonText = "Sign in with Soft
 
       const authData = event.data;
       if (authData && authData.success) {
-        
-        // Save credentials
+        // Save credentials (idToken, refreshToken, expiresIn, user, uid)
         storeAuthTokens(authData);
-        if (authData.user && authData.user.uid) {
-            localStorage.setItem('sb_uid', authData.user.uid);
-        }
-        if (authData.user) {
-          localStorage.setItem('sb_user', JSON.stringify(authData.user));
-        }
 
         window.removeEventListener("message", messageListener);
         setLoading(false);
