@@ -337,7 +337,7 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(data)
   }),
-  syncMeetState: (roomId) => request(`/calendar/meet/${roomId}/sync`),
+  syncMeetState: (roomId, params = {}) => request(`/calendar/meet/${roomId}/sync${params?.peerId ? `?peerId=${encodeURIComponent(params.peerId)}` : ''}`),
   createMeetPoll: (roomId, data) => request(`/calendar/meet/${roomId}/poll`, {
     method: 'POST',
     body: JSON.stringify(data)

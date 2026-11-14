@@ -74,6 +74,7 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
   // treating one incomplete sync response as a reason to eject this user.
   const membershipMissesRef = useRef(0);
   const rejoinInFlightRef = useRef(false);
+  const lastRejoinTimeRef = useRef(0);
   const lifecycleRef = useRef(0);
   const micActiveRef = useRef(micActive);
   const videoActiveRef = useRef(videoActive);
@@ -336,6 +337,12 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
       window.dispatchEvent(new CustomEvent('meet-sync-trigger', { detail: statePayload }));
     });
 
+    socket.on('meet_ended', () => {
+      setStatusMsg('Meeting ended by host');
+      alert('This meeting has been ended by the host.');
+      router.push('/calendar');
+    });
+
     socket.on('meet_chat_message', (data) => {
       setChatMessages(prev => {
         const exists = prev.some(m => (m.sender === data.sender && m.text === data.text && Math.abs(new Date(m.timestamp) - new Date(data.timestamp)) < 2000));
@@ -450,7 +457,9 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
       return new MediaStream(tracks);
     };
 
-    navigator.mediaDevices.getUserMedia({ video: optimalVideo, audio: true })
+    const audioConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+
+    navigator.mediaDevices.getUserMedia({ video: optimalVideo, audio: audioConstraints })
       .then(stream => {
         stream.getAudioTracks()[0] && (stream.getAudioTracks()[0].enabled = micActive);
         stream.getVideoTracks()[0] && (stream.getVideoTracks()[0].enabled = videoActive);
@@ -459,7 +468,7 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
         setMyStream(stream); local = stream;
         setStatusMsg('Connecting...');
       })
-      .catch(() => navigator.mediaDevices.getUserMedia({ video: false, audio: true }).then(stream => {
+      .catch(() => navigator.mediaDevices.getUserMedia({ video: false, audio: audioConstraints }).then(stream => {
         stream.getAudioTracks()[0] && (stream.getAudioTracks()[0].enabled = micActive);
         outgoingStreamRef.current = stream;
         setMyStream(stream); local = stream; setVideoActive(false); setStatusMsg('Connecting (Audio only)...');
@@ -518,11 +527,15 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
       const joinRoom = async (peerId, { recovering = false } = {}) => {
         if (destroyed || lifecycle !== lifecycleRef.current) return false;
         try {
+          const isMobileDevice = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
           const joinRes = await api.joinMeetingRoom(id, {
             peerId,
             uid: userProfile.uid,
             name: userProfile.name || 'Teammate',
             avatar_url: userProfile.avatar_url,
+            isMuted: !micActiveRef.current,
+            isVideoOff: !videoActiveRef.current,
+            deviceType: isMobileDevice ? 'mobile' : 'desktop'
           });
           if (destroyed || lifecycle !== lifecycleRef.current) return false;
           if (!joinRes.success) return false;
@@ -607,10 +620,27 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
 
         call.on('stream', (s) => {
           applyBandwidthToCall(call, lastQualityProfile.current);
-          api.syncMeetState(id).then(res => {
+          setRemoteStreams(prev => {
+            const existing = prev[call.peer] || {};
+            return {
+              ...prev,
+              [call.peer]: {
+                stream: s,
+                name: existing.name || 'Participant',
+                avatar_url: existing.avatar_url,
+                isVideoOff: existing.isVideoOff !== undefined ? existing.isVideoOff : false,
+                isMuted: existing.isMuted !== undefined ? existing.isMuted : false,
+                isHandRaised: existing.isHandRaised !== undefined ? existing.isHandRaised : false,
+                isScreenSharing: existing.isScreenSharing !== undefined ? existing.isScreenSharing : false
+              }
+            };
+          });
+          api.syncMeetState(id, { peerId: myPeerId }).then(res => {
             const mp = res.peers?.find(p => p.peerId === call.peer);
-            setRemoteStreams(prev => ({ ...prev, [call.peer]: { stream: s, name: mp?.name || 'Participant', avatar_url: mp?.avatar_url, isVideoOff: mp?.isVideoOff || false, isMuted: mp?.isMuted || false, isHandRaised: mp?.isHandRaised || false, isScreenSharing: mp?.isScreenSharing || false } }));
-          }).catch(() => setRemoteStreams(prev => ({ ...prev, [call.peer]: { stream: s, name: 'Participant', isVideoOff: false, isMuted: false } })));
+            if (mp) {
+              setRemoteStreams(prev => ({ ...prev, [call.peer]: { stream: s, name: mp.name || 'Participant', avatar_url: mp.avatar_url, isVideoOff: mp.isVideoOff || false, isMuted: mp.isMuted || false, isHandRaised: mp.isHandRaised || false, isScreenSharing: mp.isScreenSharing || false } }));
+            }
+          }).catch(() => {});
         });
 
         const onClose = () => { cleanupMonitor(); handleDisconnect(call.peer, call); };
@@ -625,29 +655,36 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
           if (evt && evt.detail) {
             res = { success: true, ...evt.detail };
           } else {
-            res = await api.syncMeetState(id);
+            res = await api.syncMeetState(id, { peerId: myPeerId });
           }
           if (!res.success) return;
+
+          if (res.ended) {
+            setStatusMsg('Meeting ended by host');
+            alert('This meeting has been ended by the host.');
+            router.push('/calendar');
+            return;
+          }
 
           if (res.peers) {
             const amIHere = res.peers.find(p => p.peerId === myPeerId);
             if (!amIHere) {
-              // Do not kick an established caller because a concurrent join
-              // produced a stale/incomplete room snapshot. Re-register this
-              // exact peer once and keep the call alive while it completes.
               membershipMissesRef.current += 1;
-              if (!rejoinInFlightRef.current) {
+              const now = Date.now();
+              // Prevent high-frequency spam: wait at least 3.5s between rejoin attempts, max 5 attempts
+              if (!rejoinInFlightRef.current && membershipMissesRef.current <= 5 && (now - lastRejoinTimeRef.current >= 3500)) {
                 rejoinInFlightRef.current = true;
+                lastRejoinTimeRef.current = now;
                 setStatusMsg('Restoring meeting connection...');
                 joinRoom(myPeerId, { recovering: true }).finally(() => {
                   rejoinInFlightRef.current = false;
                 });
+              } else if (membershipMissesRef.current > 5) {
+                setStatusMsg('Connection lost. Please refresh to rejoin.');
               }
               return;
             }
             membershipMissesRef.current = 0;
-
-            const myHasMedia = micActiveRef.current || videoActiveRef.current;
 
             res.peers.forEach(other => {
               if (other.peerId === myPeerId) return;
@@ -658,25 +695,28 @@ export function useMeetConnection({ id, router, searchParams, encryptionKeyRef, 
               // Tiebreak: only the lower peer ID initiates to prevent both sides calling each other
               if (myPeerId >= other.peerId) return;
 
-              const otherHasMedia = !other.isMuted || !other.isVideoOff;
-              if (!myHasMedia && !otherHasMedia) return;
-
               connectingPeers.current.add(other.peerId);
+              const connectTimer = setTimeout(() => {
+                connectingPeers.current.delete(other.peerId);
+              }, 10000);
+
               const call = peerInstance.current.call(other.peerId, outgoingStreamRef.current || myStreamRef.current);
               if (call) {
                 activeCalls.current[other.peerId] = call;
                 const cleanupMonitor = monitorCallConnection(call, other.peerId);
 
                 call.on('stream', s => {
+                  clearTimeout(connectTimer);
                   applyBandwidthToCall(call, lastQualityProfile.current);
                   connectingPeers.current.delete(other.peerId);
                   setRemoteStreams(prev => ({ ...prev, [other.peerId]: { stream: s, name: other.name || 'Participant', avatar_url: other.avatar_url, isVideoOff: other.isVideoOff || false, isMuted: other.isMuted || false, isHandRaised: other.isHandRaised || false, isScreenSharing: other.isScreenSharing || false } }));
                 });
 
-                const onClose = () => { cleanupMonitor(); handleDisconnect(other.peerId, call); };
+                const onClose = () => { clearTimeout(connectTimer); cleanupMonitor(); handleDisconnect(other.peerId, call); };
                 call.on('close', onClose);
-                call.on('error', () => { connectingPeers.current.delete(other.peerId); onClose(); });
+                call.on('error', () => { clearTimeout(connectTimer); connectingPeers.current.delete(other.peerId); onClose(); });
               } else {
+                clearTimeout(connectTimer);
                 connectingPeers.current.delete(other.peerId);
               }
 
